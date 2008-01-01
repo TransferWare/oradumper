@@ -63,6 +63,9 @@ AC_PROG_LIBTOOL
 # Enable dbug
 ACX_ENABLE_DBUG
 
+# Enable PRO*C
+ACX_PROG_PROC
+
 # Enable epc
 ACX_EPC
 
@@ -70,13 +73,15 @@ ACX_EPC
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([assert.h malloc.h stdlib.h string.h strings.h])
+AC_CHECK_HEADERS([assert.h ctype.h malloc.h stdlib.h string.h strings.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 
 # Checks for library functions.
+AC_CONFIG_LIBOBJ_DIR([replace])
 AC_FUNC_MALLOC
+AC_LIBOBJ([malloc])
 
 # This is necessary so that .o files in LIBOBJS are also built via
 # the ANSI2KNR-filtering rules.
@@ -88,15 +93,14 @@ AC_SUBST(LTLIBOBJS)dnl
 AC_SUBST(ac_aux_dir)dnl
 
 AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([replace/Makefile])
 AC_CONFIG_FILES([src/Makefile])
 AC_CONFIG_FILES([src/lib/Makefile])
 AC_CONFIG_FILES([src/prog/Makefile])
-AC_CONFIG_FILES([src/sql/Makefile])
-AC_CONFIG_FILES([test/Makefile])
-AC_CONFIG_FILES([util/Makefile])
 
 AC_OUTPUT
 
+echo \
 "------------------------------------------------------------------------
 Configuration:
 

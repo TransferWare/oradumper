@@ -1,7 +1,73 @@
-/* -*- C -*- */
+/* -*-mode: c-*- */
+#if HAVE_CONFIG_H
+#include <config.h>
+#endif
+
+/* skip irrelevant includes during PRO*C precompilation */
+#ifndef ORA_PROC
+
+/* defined on any system */
 #include <stdio.h>
-#include <string.h>
+
+#if HAVE_ASSERT_H
+#include <assert.h>
+#endif
+
+#if HAVE_CTYPE_H
 #include <ctype.h>
+#endif
+
+#if HAVE_MALLOC_H
+#include <malloc.h>
+#endif
+
+#if HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+
+#if HAVE_STRING_H
+#include <string.h>
+#endif
+
+#if HAVE_STRINGS_H
+#include <strings.h>
+#endif
+
+#endif
+
+/* include sqlca.h even though it has been included already */
+#ifdef SQLCA
+#undef SQLCA
+#endif
+
+/* declare a structure */
+#ifdef SQLCA_NONE 
+#undef SQLCA_NONE 
+#endif
+
+#ifdef SQLCA_STORAGE_CLASS
+#undef SQLCA_STORAGE_CLASS
+#endif
+
+/* a static sqlca only */
+#define SQLCA_STORAGE_CLASS static
+
+/* force initialisation of the static sqlca struct */
+#ifndef SQLCA_INIT
+#define SQLCA_INIT
+#endif
+
+EXEC SQL INCLUDE sqlca;
+
+/* skip irrelevant includes during PRO*C precompilation */
+#ifndef ORA_PROC
+#include <dbug.h>
+#endif
+
+/* include dmalloc as last one */
+#ifdef WITH_DMALLOC
+#include "dmalloc.h"
+#endif
 
 #define MAX_VNAME_LEN     30
 #define MAX_INAME_LEN     30
@@ -11,7 +77,7 @@ static char *   SQLSTMT = NULL;
 static char *   ARRAY_SIZE = "10";
 
 #define vstrcpy( a, b ) \
-(strcpy( a.arr, b ), a.len = strlen( a.arr ), a.arr)
+  (strcpy( (char*)a.arr, b ), a.len = strlen( (char*)a.arr ), a.arr)
 
 EXEC SQL INCLUDE sqlca;
 EXEC SQL INCLUDE sqlda;
@@ -91,9 +157,11 @@ static void sqlerror_hard()
     exit(1);
 }
 
-
-
-static SQLDA * process_1(char * sqlstmt, int array_size )
+static SQLDA * process_1(sqlstmt, array_size)
+EXEC SQL BEGIN DECLARE SECTION;
+char * sqlstmt;
+EXEC SQL END DECLARE SECTION;
+int array_size;
 {
 SQLDA *    select_dp;
 int     i;
@@ -165,8 +233,11 @@ int        size = 10;
     return select_dp;
 }
 
-
-static void process_2( SQLDA * select_dp, int array_size )
+static void process_2(select_dp, array_size)
+SQLDA * select_dp;
+EXEC SQL BEGIN DECLARE SECTION;
+int array_size;
+EXEC SQL END DECLARE SECTION;
 {
 int    last_fetch_count;
 int        row_count = 0;
@@ -215,7 +286,7 @@ EXEC SQL END DECLARE SECTION;
 SQLDA    * select_dp;
 
 
-    process_parms( argc, argv );
+    process_parms( length, options );
 
     /* Connect to ORACLE. */
     vstrcpy( oracleid, USERID );
@@ -236,13 +307,6 @@ SQLDA    * select_dp;
     EXEC SQL COMMIT WORK RELEASE;
 
     return 0;
-}
-
-int main( int argc, char **argv )
-int    argc;
-char *    argv[];
-{
-	return oradumper(argc-1, argv+1);
 }
 
 #if 0
