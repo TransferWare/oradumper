@@ -1,3 +1,4 @@
+/* -*- C -*- */
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -206,11 +207,7 @@ int    i,
     fprintf( stderr, "%d rows extracted\n", row_count );
 }
 
-
-
-main( argc, argv )
-int    argc;
-char *    argv[];
+int oradumper( unsigned int length, char **options )
 {
 EXEC SQL BEGIN DECLARE SECTION;
 VARCHAR   oracleid[50];
@@ -237,9 +234,18 @@ SQLDA    * select_dp;
 
     /* Disconnect from ORACLE. */
     EXEC SQL COMMIT WORK RELEASE;
-    exit(0);
+
+    return 0;
 }
 
+int main( int argc, char **argv )
+int    argc;
+char *    argv[];
+{
+	return oradumper(argc-1, argv+1);
+}
+
+#if 0
 set_bind_variables(char * bindValues[] )
 {
 int     size = 10;
@@ -295,3 +301,4 @@ SQLDA   * bind_dp;
     for( i = 0; i < bind_dp->N; i++ ) free( bind_dp->I[i] );
     sqlclu( bind_dp );
 }
+#endif
