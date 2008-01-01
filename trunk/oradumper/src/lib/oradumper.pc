@@ -1,4 +1,25 @@
 /* -*-mode: c-*- */
+
+/*@-fullinitblock@*/
+/*@+matchanyintegral@*/
+/*@-initallelements@*/
+/*@-type@*/
+/*@-shadow@*/
+/*@-immediatetrans@*/
+/*@-statictrans@*/
+/*@-nullpass@*/
+/*@-compdef@*/
+/*@-compdestroy@*/
+/*@-observertrans@*/
+/*@-unqualifiedtrans@*/
+/*@-nullstate@*/
+/*@-nullderef@*/
+/*@-globstate@*/
+/*@-initallelements@*/
+/*@-dependenttrans@*/
+/*@-usedef@*/
+/*@-varuse@*/
+
 #if HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -35,11 +56,6 @@
 
 #endif
 
-/* include sqlca.h even though it has been included already */
-#ifdef SQLCA
-#undef SQLCA
-#endif
-
 /* declare a structure */
 #ifdef SQLCA_NONE 
 #undef SQLCA_NONE 
@@ -57,6 +73,10 @@
 #define SQLCA_INIT
 #endif
 
+#if HAVE_SQLCPR_H
+#include <sqlcpr.h>
+#endif
+
 EXEC SQL INCLUDE sqlca;
 
 /* skip irrelevant includes during PRO*C precompilation */
@@ -72,27 +92,23 @@ EXEC SQL INCLUDE sqlca;
 #define MAX_VNAME_LEN     30
 #define MAX_INAME_LEN     30
 
-static char *     USERID = NULL;
-static char *   SQLSTMT = NULL;
-static char *   ARRAY_SIZE = "10";
+static /*@null@*/ char *USERID = NULL;
+static /*@null@*/ char *SQLSTMT = NULL;
+static char *ARRAY_SIZE = "10";
 
 #define vstrcpy( a, b ) \
   (strcpy( (char*)a.arr, b ), a.len = strlen( (char*)a.arr ), a.arr)
 
-EXEC SQL INCLUDE sqlca;
+/*EXEC SQL INCLUDE sqlca;*/
 EXEC SQL INCLUDE sqlda;
 
-extern SQLDA *sqlald();
-extern void   sqlclu();
-
-
-
-static void die( char * msg )
+static
+void
+die( char * msg )
 {
-    fprintf( stderr, "%s\n", msg );
-    exit(1);
+  (void) fprintf( stderr, "%s\n", msg );
+  exit(EXIT_FAILURE);
 }
-
 
 /*
     this array contains a default mapping
@@ -103,266 +119,296 @@ static void die( char * msg )
     long in a string.
 */
 
-static int lengths[] =
+static
+int
+lengths[] =
 { -1, 0, 45, 0, 0, 0, 0, 0, 2000, 0, 0,
  18, 25, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 512, 2000 };
 
-
-static void process_parms( argc, argv )
-int    argc;
-char *    argv[];
+static
+void
+process_parms(int argc, char *argv[])
 {
-int    i;
+  int i;
 
-    for( i = 1; i < argc; i++ )
+  for ( i = 1; i < argc; i++ )
     {
-        if ( !strncmp( argv[i], "userid=", 7 ) )
-              USERID = argv[i]+7;
-        else
-        if ( !strncmp( argv[i], "sqlstmt=", 8 ) )
-              SQLSTMT = argv[i]+8;
-        else
-        if ( !strncmp( argv[i], "arraysize=", 10 ) )
-              ARRAY_SIZE = argv[i]+10;
-        else
+      if ( strncmp( argv[i], "userid=", 7 ) == 0 )
+	{
+	  USERID = argv[i]+7;
+	}
+      else if ( strncmp( argv[i], "sqlstmt=", 8 ) == 0 )
+	{
+	  SQLSTMT = argv[i]+8;
+	}
+      else if ( strncmp( argv[i], "arraysize=", 10 ) == 0 )
+	{
+	  ARRAY_SIZE = argv[i]+10;
+	}
+      else
         {
-            fprintf( stderr,
-                    "usage: %s %s %s\n",
-                     argv[0],
-                    "userid=xxx/xxx sqlstmt=query ",
-                    "arraysize=<NN>\n" );
-            exit(1);
+	  (void) fprintf( stderr,
+			  "usage: %s %s %s\n",
+			  argv[0],
+			  "userid=xxx/xxx sqlstmt=query ",
+			  "arraysize=<NN>\n" );
+	  exit(EXIT_FAILURE);
         }
     }
-    if ( USERID == NULL  || SQLSTMT == NULL )
+
+  if ( USERID == NULL  || SQLSTMT == NULL )
     {
-        fprintf( stderr,
-                "usage: %s %s %s\n",
-                 argv[0],
-                "userid=xxx/xxx sqlstmt=query ",
-                "arraysize=<NN>\n" );
-        exit(1);
+      (void) fprintf( stderr,
+		      "usage: %s %s %s\n",
+		      argv[0],
+		      "userid=xxx/xxx sqlstmt=query ",
+		      "arraysize=<NN>\n" );
+      exit(EXIT_FAILURE);
     }
 }
 
-static void sqlerror_hard()
+static
+void
+sqlerror_hard()
 {
-    EXEC SQL WHENEVER SQLERROR CONTINUE;
+  EXEC SQL WHENEVER SQLERROR CONTINUE;
 
-    fprintf(stderr,"\nORACLE error detected:");
-    fprintf(stderr,"\n% .70s \n", sqlca.sqlerrm.sqlerrmc);
+  (void) fprintf(stderr,"\nORACLE error detected:");
+  (void) fprintf(stderr,"\n% .70s \n", sqlca.sqlerrm.sqlerrmc);
 
-    EXEC SQL ROLLBACK WORK RELEASE;
-    exit(1);
+  EXEC SQL ROLLBACK WORK RELEASE;
+
+  exit(EXIT_FAILURE);
 }
 
-static SQLDA * process_1(sqlstmt, array_size)
+static
+void
+process(sqlstmt, array_size)
 EXEC SQL BEGIN DECLARE SECTION;
-char * sqlstmt;
-EXEC SQL END DECLARE SECTION;
-int array_size;
-{
-SQLDA *    select_dp;
-int     i;
-int        j;
-int        null_ok;
-int        precision;
-int        scale;
-int        size = 10;
-
-    fprintf( stderr, "Unloading '%s'\n", sqlstmt );
-    fprintf( stderr, "Array size = %d\n", array_size );
-
-
-    EXEC SQL WHENEVER SQLERROR DO sqlerror_hard();
-       EXEC SQL PREPARE S FROM :sqlstmt;
-       EXEC SQL DECLARE C CURSOR FOR S;
-
-    if ((select_dp = sqlald(size,MAX_VNAME_LEN,MAX_INAME_LEN))
-                   == NULL )
-        die( "Cannot allocate  memory for select descriptor." );
-
-    select_dp->N = size;
-    EXEC SQL DESCRIBE SELECT LIST FOR S INTO select_dp;
-    if ( !select_dp->F ) return NULL;
-
-    if (select_dp->F < 0)
-    {
-        size = -select_dp->F;
-        sqlclu( select_dp );
-        if ((select_dp =
-                sqlald (size, MAX_VNAME_LEN, MAX_INAME_LEN))
-                      == NULL )
-        die( "Cannot allocate  memory for descriptor." );
-        EXEC SQL DESCRIBE SELECT LIST FOR S INTO select_dp;
-    }
-    select_dp->N = select_dp->F;
-
-    for (i = 0; i < select_dp->N; i++)
-        select_dp->I[i] = (short *) malloc(sizeof(short) *
-                                                array_size );
-
-    for (i = 0; i < select_dp->F; i++)
-    {
-        sqlnul (&(select_dp->T[i]),
-                &(select_dp->T[i]), &null_ok);
-        if ( select_dp->T[i] <
-                     sizeof(lengths)/sizeof(lengths[0]) )
-        {
-            if ( lengths[select_dp->T[i]] )
-                 select_dp->L[i]  = lengths[select_dp->T[i]];
-            else select_dp->L[i] += 5;
-        }
-        else select_dp->L[i] += 5;
-
-        select_dp->T[i] = 5;
-        select_dp->V[i] = (char *)malloc( select_dp->L[i] *
-                                               array_size );
-
-        for( j = MAX_VNAME_LEN-1;
-             j > 0 && select_dp->S[i][j] == ' ';
-             j--);
-        fprintf (stderr,
-                "%s%.*s", i?",":"", j+1, select_dp->S[i]);
-    }
-    fprintf( stderr, "\n" );
-
-
-    EXEC SQL OPEN C;
-    return select_dp;
-}
-
-static void process_2(select_dp, array_size)
-SQLDA * select_dp;
-EXEC SQL BEGIN DECLARE SECTION;
+char *sqlstmt;
 int array_size;
 EXEC SQL END DECLARE SECTION;
 {
-int    last_fetch_count;
-int        row_count = 0;
-short    ind_value;
-char    * char_ptr;
-int    i,
-       j;
+  SQLDA *select_dp;
+  int i;
+  int j;
+  int null_ok;
+  int size = 10;
+  int last_fetch_count;
+  int row_count = 0;
+  short ind_value;
+  char *char_ptr;
 
-    for ( last_fetch_count = 0;
-          ;
-          last_fetch_count = sqlca.sqlerrd[2] )
+  (void) fprintf( stderr, "Unloading '%s'\n", sqlstmt );
+  (void) fprintf( stderr, "Array size = %d\n", array_size );
+
+  EXEC SQL WHENEVER SQLERROR DO sqlerror_hard();
+  EXEC SQL PREPARE S FROM :sqlstmt;
+  EXEC SQL DECLARE C CURSOR FOR S;
+
+  if ((select_dp = sqlald(size,MAX_VNAME_LEN,MAX_INAME_LEN))
+      == NULL )
     {
-        EXEC SQL FOR :array_size FETCH C
-                      USING DESCRIPTOR select_dp;
+      die( "Cannot allocate  memory for select descriptor." );
+    }
 
-        for( j=0; j < sqlca.sqlerrd[2]-last_fetch_count; j++ )
+  select_dp->N = size;
+
+  EXEC SQL DESCRIBE SELECT LIST FOR S INTO select_dp;
+
+  if ( select_dp->F == 0 )
+    {
+      return;
+    }
+  
+  if (select_dp->F < 0)
+    {
+      size = -select_dp->F;
+      sqlclu( select_dp );
+      if ((select_dp =
+	   sqlald (size, MAX_VNAME_LEN, MAX_INAME_LEN))
+	  == NULL )
+	{
+	  die( "Cannot allocate  memory for descriptor." );
+	}
+
+      EXEC SQL DESCRIBE SELECT LIST FOR S INTO select_dp;
+    }
+
+  select_dp->N = select_dp->F;
+
+  for (i = 0; i < select_dp->N; i++)
+    {
+      select_dp->I[i] = (short *) malloc(sizeof(short) *
+					 array_size );
+    }
+
+  for (i = 0; i < select_dp->F; i++)
+    {
+      sqlnul ((unsigned short*)&(select_dp->T[i]),
+	      (unsigned short*)&(select_dp->T[i]), &null_ok);
+      if ( select_dp->T[i] <
+	   sizeof(lengths)/sizeof(lengths[0]) )
         {
-            for (i = 0; i < select_dp->F; i++)
+	  if ( lengths[select_dp->T[i]] != 0 )
+	    {
+	      select_dp->L[i]  = lengths[select_dp->T[i]];
+	    }
+	  else
+	    {
+	      select_dp->L[i] += 5;
+	    }
+        }
+      else
+	{
+	  select_dp->L[i] += 5;
+	}
+
+      select_dp->T[i] = 5;
+      select_dp->V[i] = (char *)malloc( select_dp->L[i] *
+					array_size );
+
+      for( j = MAX_VNAME_LEN-1;
+	   j > 0 && select_dp->S[i][j] == ' ';
+	   j--) 
+	{ 
+	  ;
+	}
+
+      (void) fprintf(stderr,
+		     "%s%.*s", (i!=0?",":""), j+1, select_dp->S[i]);
+    }
+  (void) fprintf( stderr, "\n" );
+
+  EXEC SQL OPEN C;
+
+  for ( last_fetch_count = 0;
+	;
+	last_fetch_count = sqlca.sqlerrd[2] )
+    {
+      EXEC SQL FOR :array_size FETCH C
+	USING DESCRIPTOR select_dp;
+
+      for (j = 0; j < sqlca.sqlerrd[2]-last_fetch_count; j++)
+        {
+	  for (i = 0; i < select_dp->F; i++)
             {
-                ind_value = *(select_dp->I[i]+j);
-                char_ptr  = select_dp->V[i] +
-                                  (j*select_dp->L[i]);
+	      ind_value = *(select_dp->I[i]+j);
+	      char_ptr  = select_dp->V[i] + (j*select_dp->L[i]);
 
-                printf( "%s%s", i?",":"",
-                             ind_value?"(null)":char_ptr );
+	      (void) printf( "%s%s", (i!=0?",":""),
+			     (ind_value != 0?"(null)":char_ptr) );
             }
-            row_count++;
-            printf( "\n" );
+
+	  row_count++;
+	  (void) putchar( '\n' );
         }
-        if ( sqlca.sqlcode > 0 ) break;
+
+      if ( sqlca.sqlcode > 0 )
+	{
+	  break;
+	}
     }
 
-    sqlclu(select_dp);
+  sqlclu(select_dp);
 
-    EXEC SQL CLOSE C;
+  EXEC SQL CLOSE C;
 
-    EXEC SQL COMMIT WORK;
-    fprintf( stderr, "%d rows extracted\n", row_count );
+  EXEC SQL COMMIT WORK;
+
+  (void) fprintf( stderr, "%d rows extracted\n", row_count );
 }
 
-int oradumper( unsigned int length, char **options )
+int
+oradumper( unsigned int length, char **options )
 {
-EXEC SQL BEGIN DECLARE SECTION;
-VARCHAR   oracleid[50];
-EXEC SQL END DECLARE SECTION;
-SQLDA    * select_dp;
+  EXEC SQL BEGIN DECLARE SECTION;
+  VARCHAR oracleid[50];
+  EXEC SQL END DECLARE SECTION;
 
+  process_parms( length, options );
 
-    process_parms( length, options );
+  /* Connect to ORACLE. */
+  vstrcpy( oracleid, USERID );
 
-    /* Connect to ORACLE. */
-    vstrcpy( oracleid, USERID );
+  EXEC SQL WHENEVER SQLERROR DO sqlerror_hard();
 
-    EXEC SQL WHENEVER SQLERROR DO sqlerror_hard();
+  EXEC SQL CONNECT :oracleid;
+  (void) fprintf(stderr, "\nConnected to ORACLE as user: %s\n\n",
+		 (char*)oracleid.arr);
 
-    EXEC SQL CONNECT :oracleid;
-    fprintf(stderr, "\nConnected to ORACLE as user: %s\n\n",
-             oracleid.arr);
+  EXEC SQL ALTER SESSION SET NLS_DATE_FORMAT = 'DD-MON-YYYY HH24:MI:SS';
 
-    EXEC SQL ALTER SESSION
-      SET NLS_DATE_FORMAT = 'DD-MON-YYYY HH24:MI:SS';
+  process( SQLSTMT, atoi(ARRAY_SIZE) );
 
-    select_dp = process_1( SQLSTMT, atoi(ARRAY_SIZE) );
-    process_2( select_dp , atoi(ARRAY_SIZE));
+  /* Disconnect from ORACLE. */
+  EXEC SQL COMMIT WORK RELEASE;
 
-    /* Disconnect from ORACLE. */
-    EXEC SQL COMMIT WORK RELEASE;
-
-    return 0;
+  return 0;
 }
 
 #if 0
 set_bind_variables(char * bindValues[] )
 {
-int     size = 10;
-int     i;
-char    bvname[255];
-SQLDA   * bind_dp;
+  int size = 10;
+  int i;
+  char bvname[255];
+  SQLDA *bind_dp;
                                                                                                     
+  if ((bind_dp = sqlald(size, 255, 255)) == NULL)
+    die( "Cannot allocate memory for bind descriptor" );
           
-    if ((bind_dp = sqlald(size, 255, 255)) == NULL)
-        die( "Cannot allocate memory for bind descriptor" );
-                                                                                                    
+  bind_dp->N = size;
+  EXEC SQL DESCRIBE BIND VARIABLES FOR S INTO bind_dp;
+
+  if ( sqlca.sqlcode ) return sqlerror_soft(__LINE__);
           
-    bind_dp->N = size;
-    EXEC SQL DESCRIBE BIND VARIABLES FOR S INTO bind_dp;
-    if ( sqlca.sqlcode ) return sqlerror_soft(__LINE__);
-                                                                                                    
-          
-    if (bind_dp->F < 0)
+  if (bind_dp->F < 0)
     {
-        size = -bind_dp->F;
-        sqlclu(bind_dp);
-        if ((bind_dp = sqlald(size, 255, 255)) == NULL)
-            die( "Cannot allocate memory for bind descriptor" );
+      size = -bind_dp->F;
+      sqlclu(bind_dp);
+      if ((bind_dp = sqlald(size, 255, 255)) == NULL)
+	{
+	  die( "Cannot allocate memory for bind descriptor" );
+	}
                                                                                                     
-          
-        bind_dp->N = size;  /* Initialize count of array elements. */
-        EXEC SQL DESCRIBE BIND VARIABLES FOR S INTO bind_dp;
-        if ( sqlca.sqlcode ) return sqlerror_soft(__LINE__);
+      bind_dp->N = size;  /* Initialize count of array elements. */
+      EXEC SQL DESCRIBE BIND VARIABLES FOR S INTO bind_dp;
+      if ( sqlca.sqlcode ) 
+	{
+	  return sqlerror_soft(__LINE__);
+	}
     }
                                                                                                     
-          
-    bind_dp->N = bind_dp->F;
-    for (i = 0; i < bind_dp->N; i++)
-        bind_dp->I[i] = (short *) malloc(sizeof (short));
-                                                                                                    
-          
-    for (i = 0; i < bind_dp->F; i++)
+  bind_dp->N = bind_dp->F;
+  for (i = 0; i < bind_dp->N; i++)
     {
-        bind_dp->V[i] = bindValues[i];
-        bind_dp->L[i] = strlen(bind_dp->V[i]);
-        *bind_dp->I[i] = (*bind_dp->V[i]) ? 0 : -1;
-        if ( *bind_dp->I[i] )
+      bind_dp->I[i] = (short *) malloc(sizeof (short));
+    }
+          
+  for (i = 0; i < bind_dp->F; i++)
+    {
+      bind_dp->V[i] = bindValues[i];
+      bind_dp->L[i] = strlen(bind_dp->V[i]);
+      *bind_dp->I[i] = (*bind_dp->V[i]) ? 0 : -1;
+      if ( *bind_dp->I[i] )
         {
-            bind_dp->V[i] = (char *)malloc(5);
-            bind_dp->L[i] = 4;
+	  bind_dp->V[i] = (char *)malloc(5);
+	  bind_dp->L[i] = 4;
         }
-        bind_dp->T[i] = 1;
+      bind_dp->T[i] = 1;
     }
-    EXEC SQL OPEN C USING DESCRIPTOR bind_dp;
-    if ( sqlca.sqlcode ) return sqlerror_soft(__LINE__);
-                                                                                                    
+  EXEC SQL OPEN C USING DESCRIPTOR bind_dp;
+  if ( sqlca.sqlcode )
+    {
+      return sqlerror_soft(__LINE__);
+    }
           
-    for( i = 0; i < bind_dp->N; i++ ) free( bind_dp->I[i] );
-    sqlclu( bind_dp );
+  for ( i = 0; i < bind_dp->N; i++ )
+    {
+      free( bind_dp->I[i] );
+    }
+  sqlclu( bind_dp );
 }
 #endif

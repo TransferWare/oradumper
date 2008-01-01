@@ -43,4 +43,4 @@ liboradumper_la_LIBADD  = $(top_builddir)/replace/libreplace.la @DBUG_LIBADD@
 EXTRA_DIST              = 
 
 .pc.c:
-	$(PROC) $(PROCINCLUDES) $(PROCFLAGS) INAME=$< ONAME=$@
+	$(PROC) $(PROCINCLUDES) $(PROCFLAGS) DYNAMIC=ANSI MODE=ANSI INAME=$< ONAME=$@
