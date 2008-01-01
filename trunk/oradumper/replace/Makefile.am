@@ -1,5 +1,5 @@
 ## Makefile.am -- Process this file with automake to produce Makefile.in
-## Copyright (C) 2002 G.J. Paulissen
+## Copyright (C) 2002-2007 G.J. Paulissen
 ##
 ## This library is free software; you can redistribute it and/or
 ## modify it under the terms of the GNU Lesser General Public
@@ -15,9 +15,18 @@
 ## License along with this library; if not, write to the Free Software
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-AUTOMAKE_OPTIONS 	= 
-SUBDIRS 		= replace src
-MAINTAINERCLEANFILES 	= Makefile.in aclocal.m4 configure config-h.in \
-  			  stamp-h.in $(AUX_DIST)
-EXTRA_DIST              = 
+MAINTAINERCLEANFILES  = Makefile.in
 
+AUTOMAKE_OPTIONS      = $(top_builddir)/src/lib/ansi2knr
+
+MOSTLYCLEANFILES      =
+
+AM_CPPFLAGS           =
+
+EXTRA_DIST            = malloc.c
+
+noinst_LTLIBRARIES    = libreplace.la
+
+libreplace_la_SOURCES = 
+libreplace_la_LIBADD  = @LTLIBOBJS@
+libreplace_la_LDFLAGS =
