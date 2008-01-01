@@ -15,23 +15,32 @@
 ## License along with this library; if not, write to the Free Software
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-MAINTAINERCLEANFILES  = Makefile.in
+include $(top_srcdir)/lint.am
 
-AUTOMAKE_OPTIONS      = $(top_builddir)/src/prog/ansi2knr
+MAINTAINERCLEANFILES    = Makefile.in
 
-AM_CPPFLAGS          = @DBUG_CPPFLAGS@ @EPC_CPPFLAGS@
+AUTOMAKE_OPTIONS        = $(top_builddir)/src/prog/ansi2knr
 
-include_HEADERS       = 
+MOSTLYCLEANFILES        = oradumper.c
 
-lib_LTLIBRARIES	      = libplsdbug.la
-libplsdbug_la_SOURCES = plsdbug_lib.c
+#AM_CPPFLAGS             = @DBUG_CPPFLAGS@ @EPC_CPPFLAGS@
+AM_CPPFLAGS             = @DBUG_CPPFLAGS@
+
+noinst_HEADERS          = oradumper.h 
+
+lib_LTLIBRARIES	        = liboradumper.la
+liboradumper_la_SOURCES = oradumper.c
 
 
 ##
 ## History of interface versions:
 ## - 0:0:0 start
 
-libplsdbug_la_LDFLAGS = -no-undefined -version-info 0:0:0
-libplsdbug_la_LIBADD  = @DBUG_LIBADD@ @EPC_LIBADD@
+liboradumper_la_LDFLAGS = -no-undefined -version-info 0:0:0
+#liboradumper_la_LIBADD  = $(top_builddir)/replace/libreplace.la @DBUG_LIBADD@ @EPC_LIBADD@
+liboradumper_la_LIBADD  = $(top_builddir)/replace/libreplace.la @DBUG_LIBADD@
 
-EXTRA_DIST            = 
+EXTRA_DIST              = 
+
+.pc.c:
+	$(PROC) $(PROCINCLUDES) $(PROCFLAGS) INAME=$< ONAME=$@

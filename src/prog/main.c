@@ -1,7 +1,5 @@
 #include <stdio.h>
-#include "epc.h"
-#include "plsdbug.h"
-#include "dbug.h"
+#include "oradumper.h"
 
 int main( int argc, char **argv )
 {

@@ -15,39 +15,17 @@
 ## License along with this library; if not, write to the Free Software
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+include $(top_srcdir)/lint.am
+
 MAINTAINERCLEANFILES = Makefile.in
-
-BUILT_SOURCES        = plsdbug.h plsdbug.c
-BUILT_SOURCES       += plsdbug.pkb plsdbug.pke plsdbug.pks plsdbug.pls
-
-MOSTLYCLEANFILES     = $(BUILT_SOURCES) *.pc
-
-CLEANFILES           = *.pls_run *.idl_run
 
 AUTOMAKE_OPTIONS     = ansi2knr
 
-AM_CPPFLAGS          = @DBUG_CPPFLAGS@ @EPC_CPPFLAGS@
+#AM_CPPFLAGS          = -I$(top_srcdir)/src/lib @DBUG_CPPFLAGS@ @EPC_CPPFLAGS@
+AM_CPPFLAGS          = -I$(top_srcdir)/src/lib @DBUG_CPPFLAGS@
 
-# Add the packages
-EXTRA_DIST           = plsdbug.pkb plsdbug.pks plsdbug.pls
-
-noinst_DATA          = plsdbug.pls_run
-bin_PROGRAMS         = plsdbug
-plsdbug_SOURCES      = plsdbug.idl plsdbug.c main.c
-plsdbug_LDADD        = $(top_builddir)/src/lib/libplsdbug.la @DBUG_LDADD@ @EPC_LDADD@
-
-IDL                  = idl$(EXEEXT)
-
-@SUFFIXES@           = .pls_run .pls .idl_run .idl
-
-.idl.idl_run:
-	$(IDL) $<
-	@touch $@
-
-.pls.pls_run:
-# Before running the compiler first compile the package
-	echo exit SQL.SQLCODE | $(SQLPLUS) $(USERID) @$<
-	@touch $@
-
-$(BUILT_SOURCES): plsdbug.idl_run
+bin_PROGRAMS         = oradumper
+oradumper_SOURCES    = main.c
+#oradumper_LDADD      = $(top_builddir)/src/lib/liboradumper.la @DBUG_LDADD@ @EPC_LDADD@
+oradumper_LDADD      = $(top_builddir)/src/lib/liboradumper.la @DBUG_LDADD@
 
