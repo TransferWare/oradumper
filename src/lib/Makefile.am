@@ -21,15 +21,15 @@ MAINTAINERCLEANFILES    = Makefile.in
 
 AUTOMAKE_OPTIONS        = $(top_builddir)/src/prog/ansi2knr
 
-MOSTLYCLEANFILES        = oradumper.c
+MOSTLYCLEANFILES        = oradumper.c oradumper2.c
 
 #AM_CPPFLAGS             = @DBUG_CPPFLAGS@ @EPC_CPPFLAGS@
 AM_CPPFLAGS             = @DBUG_CPPFLAGS@
 
-noinst_HEADERS          = oradumper.h 
+noinst_HEADERS          = oradumper.h oradumper_int.h
 
 lib_LTLIBRARIES	        = liboradumper.la
-liboradumper_la_SOURCES = oradumper.c
+liboradumper_la_SOURCES = oradumper2.c oradumper_int.c
 
 
 ##
