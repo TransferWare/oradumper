@@ -84,6 +84,8 @@ EXEC SQL INCLUDE sqlca;
 #include <dbug.h>
 #endif
 
+#include "oradumper_int.h"
+
 /* include dmalloc as last one */
 #ifdef WITH_DMALLOC
 #include "dmalloc.h"
@@ -91,10 +93,6 @@ EXEC SQL INCLUDE sqlca;
 
 #define MAX_VNAME_LEN     30
 #define MAX_INAME_LEN     30
-
-static /*@null@*/ char *USERID = NULL;
-static /*@null@*/ char *SQLSTMT = NULL;
-static char *ARRAY_SIZE = "10";
 
 #define vstrcpy( a, b ) \
   (strcpy( (char*)a.arr, b ), a.len = strlen( (char*)a.arr ), a.arr)
@@ -125,48 +123,6 @@ lengths[] =
 { -1, 0, 45, 0, 0, 0, 0, 0, 2000, 0, 0,
  18, 25, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 512, 2000 };
-
-static
-void
-process_parms(int argc, char *argv[])
-{
-  int i;
-
-  for ( i = 1; i < argc; i++ )
-    {
-      if ( strncmp( argv[i], "userid=", 7 ) == 0 )
-	{
-	  USERID = argv[i]+7;
-	}
-      else if ( strncmp( argv[i], "sqlstmt=", 8 ) == 0 )
-	{
-	  SQLSTMT = argv[i]+8;
-	}
-      else if ( strncmp( argv[i], "arraysize=", 10 ) == 0 )
-	{
-	  ARRAY_SIZE = argv[i]+10;
-	}
-      else
-        {
-	  (void) fprintf( stderr,
-			  "usage: %s %s %s\n",
-			  argv[0],
-			  "userid=xxx/xxx sqlstmt=query ",
-			  "arraysize=<NN>\n" );
-	  exit(EXIT_FAILURE);
-        }
-    }
-
-  if ( USERID == NULL  || SQLSTMT == NULL )
-    {
-      (void) fprintf( stderr,
-		      "usage: %s %s %s\n",
-		      argv[0],
-		      "userid=xxx/xxx sqlstmt=query ",
-		      "arraysize=<NN>\n" );
-      exit(EXIT_FAILURE);
-    }
-}
 
 static
 void
@@ -321,16 +277,16 @@ EXEC SQL END DECLARE SECTION;
 }
 
 int
-oradumper( unsigned int length, char **options )
+oradumper(const unsigned int length, const char **options)
 {
   EXEC SQL BEGIN DECLARE SECTION;
   VARCHAR oracleid[50];
   EXEC SQL END DECLARE SECTION;
 
-  process_parms( length, options );
+  process_options(length, options);
 
   /* Connect to ORACLE. */
-  vstrcpy( oracleid, USERID );
+  vstrcpy( oracleid, get_option(OPTION_USERID) );
 
   EXEC SQL WHENEVER SQLERROR DO sqlerror_hard();
 
@@ -340,7 +296,7 @@ oradumper( unsigned int length, char **options )
 
   EXEC SQL ALTER SESSION SET NLS_DATE_FORMAT = 'DD-MON-YYYY HH24:MI:SS';
 
-  process( SQLSTMT, atoi(ARRAY_SIZE) );
+  process( get_option(OPTION_SQLSTMT), atoi(get_option(OPTION_ARRAYSIZE)) );
 
   /* Disconnect from ORACLE. */
   EXEC SQL COMMIT WORK RELEASE;
