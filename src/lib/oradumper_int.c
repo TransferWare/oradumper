@@ -37,13 +37,18 @@
 
 static struct {
   /*@observer@*/ char *name; /* name */
+  int mandatory;
   char *desc; /* description */
   /*@null@*/ char *def; /* default */
   /*@observer@*//*@null@*/ char *value; /* value */
 } opt[] = { 
-  { "userid", "Oracle connect string", "scott/tiger", NULL },
-  { "sqlstmt", "Select statement", NULL, NULL },
-  { "arraysize", "Array size", "10", NULL }
+  { "userid", 1, "Oracle connect string", "scott/tiger", NULL },
+  { "sqlstmt", 1, "Select statement", NULL, NULL },
+  { "arraysize", 1, "Array size", "10", NULL },
+  { "dbug_options", 1, "DBUG options", "", NULL },
+  { "nls_date_format", 1, "NLS date format", "yyyy-mm-dd hh24:mi:ss", NULL },
+  { "nls_timestamp_format", 1, "NLS timestamp format", "yyyy-mm-dd hh24:mi:ss", NULL },
+  { "nls_numeric_characters", 1, "NLS numeric characters", ".,", NULL }
 };
 
 static
@@ -52,10 +57,10 @@ usage(void)
 {
   size_t i;
 
-  (void) fprintf( stderr, "\nUsage: oradumper [OPTION]...\n\nOption:\n");
+  (void) fprintf( stderr, "\nUsage: oradumper [OPTION]...\n\nOPTION:\n");
   for (i = 0; i < sizeof(opt)/sizeof(opt[0]); i++)
     {
-      (void) fprintf( stderr, "%-10s\t%s", opt[i].name, opt[i].desc);
+      (void) fprintf( stderr, "  %-30s  %s", opt[i].name, opt[i].desc);
       if (opt[i].def != NULL)
 	{
 	  (void) fprintf( stderr, " (%s)", opt[i].def);
@@ -85,6 +90,7 @@ process_options(const unsigned int length, const char **options)
 
       if (j == sizeof(opt)/sizeof(opt[0]))
 	{
+	  (void) fprintf(stderr, "\nERROR: Option %s unknown.\n", options[i]);
 	  usage();
 	}
     }
@@ -98,9 +104,14 @@ process_options(const unsigned int length, const char **options)
 	}
     }
 
-  if (get_option(OPTION_USERID) == NULL || get_option(OPTION_SQLSTMT) == NULL )
+  /* mandatory options should not be empty */
+  for (j = 0; j < sizeof(opt)/sizeof(opt[0]); j++)
     {
-      usage();
+      if (opt[j].mandatory != 0 && opt[j].value == NULL)
+	{
+	  (void) fprintf(stderr, "\nERROR: Option %s mandatory.\n", opt[j].name);
+	  usage();
+	}
     }
 }
 
@@ -112,6 +123,10 @@ get_option(const option_t option)
     case OPTION_USERID:
     case OPTION_SQLSTMT:
     case OPTION_ARRAYSIZE:
+    case OPTION_DBUG_OPTIONS:
+    case OPTION_NLS_DATE_FORMAT:
+    case OPTION_NLS_TIMESTAMP_FORMAT:
+    case OPTION_NLS_NUMERIC_CHARACTERS:
       return opt[option].value;
     }
 
