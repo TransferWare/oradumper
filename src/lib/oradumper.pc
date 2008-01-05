@@ -97,19 +97,154 @@ int cursor_open = 0;
 /* A global flag for the error routine. */
 int parse_flag = 0;
 
-static int process(const char *select_statement);
-
-int
-oradumper(const unsigned int length, const char **options)
+error_t
+sql_connect(userid)
+EXEC SQL BEGIN DECLARE SECTION;
+const char *userid;
+EXEC SQL VAR userid IS STRING;
+EXEC SQL END DECLARE SECTION;
 {
-  process_options(length, options);
+  DBUG_ENTER("sql_connect");
 
-  DBUG_INIT(get_option(OPTION_DBUG_OPTIONS), "oradumper");
+  EXEC SQL WHENEVER SQLERROR CONTINUE;
 
-  process(get_option(OPTION_SQLSTMT));
+  EXEC SQL CONNECT :userid;
 
-  DBUG_DONE();
+  DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
+  DBUG_LEAVE();
+
+  return sqlca.sqlcode;
 }
+
+error_t
+sql_execute_immediate(statement)
+EXEC SQL BEGIN DECLARE SECTION;
+const char *statement;
+EXEC SQL VAR statement IS STRING;
+EXEC SQL END DECLARE SECTION;
+{
+  DBUG_ENTER("sql_execute_immediate");
+  DBUG_PRINT("input", ("statement: %s", statement));
+
+  EXEC SQL WHENEVER SQLERROR CONTINUE;
+
+  EXEC SQL EXECUTE IMMEDIATE :statement;
+
+  DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
+  DBUG_LEAVE();
+
+  return sqlca.sqlcode;
+}
+
+error_t
+sql_allocate_descriptors(max_array_size)
+EXEC SQL BEGIN DECLARE SECTION;
+const unsigned int max_array_size;
+EXEC SQL END DECLARE SECTION;
+{
+  DBUG_ENTER("sql_allocate_descriptors");
+  DBUG_PRINT("input", ("max_array_size: %u", max_array_size));
+
+  /* Allocate the input and output descriptors. */
+  /* The input is only used for query bind variables hence no array processing */
+  EXEC SQL
+    ALLOCATE DESCRIPTOR LOCAL :indesc;
+  EXEC SQL FOR :max_array_size
+    ALLOCATE DESCRIPTOR LOCAL :outdesc;
+      
+  DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
+  DBUG_LEAVE();
+
+  return sqlca.sqlcode;
+}
+
+error_t
+sql_parse(select_statement)
+EXEC SQL BEGIN DECLARE SECTION;
+const char *select_statement;
+EXEC SQL VAR select_statement IS STRING;
+EXEC SQL END DECLARE SECTION;
+{
+  DBUG_ENTER("sql_parse");
+  DBUG_PRINT("input", ("select_statement: %s", select_statement));
+
+  /* Prepare the statement and declare a cursor. */
+  parse_flag = 1;     /* Set a flag for sql_error(). */
+  EXEC SQL PREPARE S FROM :select_statement;
+  parse_flag = 0;     /* Unset the flag. */
+  EXEC SQL DECLARE C CURSOR FOR S;
+  EXEC SQL DESCRIBE INPUT S USING DESCRIPTOR LOCAL :indesc;
+
+  DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
+  DBUG_LEAVE();
+
+  return sqlca.sqlcode;
+}
+
+unsigned int
+sql_bind_variable_count(void)
+{
+  EXEC SQL BEGIN DECLARE SECTION;
+  unsigned int bind_variable_count;
+  EXEC SQL END DECLARE SECTION;
+
+  DBUG_ENTER("sql_bind_variable_count");
+
+  EXEC SQL GET DESCRIPTOR LOCAL :indesc :bind_variable_count = COUNT; 
+
+  DBUG_PRINT("output", ("return: %d", bind_variable_count));
+  DBUG_LEAVE();
+
+  return bind_variable_count;
+}
+
+const char *
+sql_bind_variable_name(nr)
+EXEC SQL BEGIN DECLARE SECTION;
+unsigned int nr;
+EXEC SQL END DECLARE SECTION;
+{
+  EXEC SQL BEGIN DECLARE SECTION;
+  static char name[MAX_NAME_LEN];
+  EXEC SQL END DECLARE SECTION;
+
+  DBUG_ENTER("sql_bind_variable_name");
+  DBUG_PRINT("input", ("nr: %u", nr));
+
+  EXEC SQL GET DESCRIPTOR LOCAL :indesc
+    VALUE :nr :name = NAME;
+
+  DBUG_PRINT("output", ("return: %s", name));
+  DBUG_LEAVE();
+
+  return name;
+}
+
+error_t
+sql_bind_variable(nr, value)
+EXEC SQL BEGIN DECLARE SECTION;
+unsigned int nr;
+const char *value;
+EXEC SQL END DECLARE SECTION;
+{
+  EXEC SQL BEGIN DECLARE SECTION;
+  const int type = ANSI_CHARACTER_VARYING;
+  const int length = MAX_VAR_LEN;
+  EXEC SQL END DECLARE SECTION;
+
+  DBUG_ENTER("sql_bind_variable_name");
+  DBUG_PRINT("input", ("nr: %u; value: %s", nr, value));
+
+  EXEC SQL SET DESCRIPTOR LOCAL :indesc
+    VALUE :nr TYPE = :type, LENGTH = :length, REF DATA = :value;
+
+  DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
+  DBUG_LEAVE();
+
+  return sqlca.sqlcode;
+}
+
+/**/
 
 static
 int
@@ -120,57 +255,9 @@ EXEC SQL VAR select_statement IS STRING;
 EXEC SQL END DECLARE SECTION;
 {
   int status = 1;
-  EXEC SQL BEGIN DECLARE SECTION;
-#define NLS_MAX_SIZE 100
-  char nls_date_format[NLS_MAX_SIZE+1];
-  EXEC SQL VAR nls_date_format IS STRING(NLS_MAX_SIZE);
-  char nls_timestamp_format[NLS_MAX_SIZE+1];
-  EXEC SQL VAR nls_timestamp_format IS STRING(NLS_MAX_SIZE);
-  char nls_numeric_characters[NLS_MAX_SIZE+1];
-  EXEC SQL VAR nls_numeric_characters IS STRING(NLS_MAX_SIZE);
-  EXEC SQL END DECLARE SECTION;
 
   DBUG_ENTER("process");
 
-  /* Connect to the database. */
-  if (oracle_connect() != 0)
-    {
-      goto end_of_process;
-    }
-
-  EXEC SQL WHENEVER SQLERROR DO sql_error();
-
-  snprintf(nls_date_format,
-	   sizeof(nls_date_format),
-	   "ALTER SESSION SET NLS_DATE_FORMAT = '%s'",
-	   get_option(OPTION_NLS_DATE_FORMAT));
-  snprintf(nls_timestamp_format,
-	   sizeof(nls_timestamp_format),
-	   "ALTER SESSION SET NLS_TIMESTAMP_FORMAT = '%s'",
-	   get_option(OPTION_NLS_TIMESTAMP_FORMAT));
-  snprintf(nls_numeric_characters,
-	   sizeof(nls_numeric_characters),
-	   "ALTER SESSION SET NLS_NUMERIC_CHARACTERS = '%s'",
-	   get_option(OPTION_NLS_NUMERIC_CHARACTERS));
-
-  EXEC SQL EXECUTE IMMEDIATE :nls_date_format;
-  EXEC SQL EXECUTE IMMEDIATE :nls_timestamp_format;
-  EXEC SQL EXECUTE IMMEDIATE :nls_numeric_characters;
-
-  /* Allocate the input and output descriptors. */
-  /* The input is only used for query bind variables hence no array processing */
-  EXEC SQL
-    ALLOCATE DESCRIPTOR LOCAL :indesc;
-  EXEC SQL FOR :max_array_size
-    ALLOCATE DESCRIPTOR LOCAL :outdesc;
-
-  /* Prepare the statement and declare a cursor. */
-  parse_flag = 1;     /* Set a flag for sql_error(). */
-  EXEC SQL PREPARE S FROM :select_statement;
-  parse_flag = 0;     /* Unset the flag. */
-
-  EXEC SQL DECLARE C CURSOR FOR S;
-      
   /* Call the function that processes the input. */
   if (process_input() != 0)
     {
@@ -212,43 +299,6 @@ EXEC SQL END DECLARE SECTION;
   DBUG_LEAVE();
 
   return status;
-}
-
-static
-int
-process_input(void)
-{
-  int i;
-  EXEC SQL BEGIN DECLARE SECTION;
-  int input_count, occurs;
-  const int type = ANSI_CHARACTER_VARYING;
-  const int length = MAX_VAR_LEN;
-  char name[MAX_NAME_LEN];
-  EXEC SQL END DECLARE SECTION;
-
-  DBUG_ENTER("process_input");
-
-  EXEC SQL DESCRIBE INPUT S USING DESCRIPTOR LOCAL :indesc;
-  EXEC SQL GET DESCRIPTOR LOCAL :indesc :input_count = COUNT; 
-
-  DBUG_PRINT("info", ("number of bind variables: %d", input_count));
-
-  for (i = 0; i < input_count; i++)
-    {
-      occurs = i + 1;                       /* occurence is 1 based */
-
-      EXEC SQL GET DESCRIPTOR LOCAL :indesc
-	VALUE :occurs :name = NAME;
-
-      DBUG_PRINT("info", ("bind variable %d has name %s", occurs, name));
-
-      EXEC SQL SET DESCRIPTOR LOCAL :indesc
-	VALUE :occurs TYPE = :type, LENGTH = :length, REF DATA = :input[i];
-    }
-
-  DBUG_LEAVE();
-
-  return sqlca.sqlcode;
 }
 
 static
@@ -414,3 +464,4 @@ oracle_connect()
 
   return status;
 }
+
