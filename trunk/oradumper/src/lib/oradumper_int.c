@@ -134,3 +134,81 @@ get_option(const option_t option)
   return NULL;
 #endif
 }
+
+int
+oradumper(const unsigned int length, const char **options)
+{
+  int status = 1;
+#define NLS_MAX_SIZE 100
+  char nls_date_format_stmt[NLS_MAX_SIZE+1];
+  char nls_timestamp_format_stmt[NLS_MAX_SIZE+1];
+  char nls_numeric_characters_stmt[NLS_MAX_SIZE+1];
+  const char *userid = get_option(OPTION_USERID);
+  const char *nls_date_format = get_option(OPTION_NLS_DATE_FORMAT);
+  const char *nls_timestamp_format = get_option(OPTION_NLS_TIMESTAMP_FORMAT);
+  const char *nls_numeric_characters = get_option(OPTION_NLS_NUMERIC_CHARACTERS);
+  const char *array_size = get_option(OPTION_ARRAYSIZE);
+  const char *sqlstmt = get_option(OPTION_SQLSTMT);
+	  
+  process_options(length, options);
+
+  DBUG_INIT(get_option(OPTION_DBUG_OPTIONS), "oradumper");
+
+  do
+    {
+      assert(userid != NULL);
+
+      /* Connect to the database. */
+      if (sql_connect(userid) != OK)
+	break;
+
+      assert(nls_date_format != NULL);
+
+      (void) snprintf(nls_date_format_stmt,
+		      sizeof(nls_date_format_stmt),
+		      "ALTER SESSION SET NLS_DATE_FORMAT = '%s'",
+		      nls_date_format);
+
+      if (sql_execute_immediate(nls_date_format_stmt) != OK)
+	break;
+
+      assert(nls_timestamp_format != NULL);
+
+      (void) snprintf(nls_timestamp_format_stmt,
+		      sizeof(nls_timestamp_format_stmt),
+		      "ALTER SESSION SET NLS_TIMESTAMP_FORMAT = '%s'",
+		      nls_timestamp_format);
+
+      if (sql_execute_immediate(nls_timestamp_format_stmt) != OK)
+	break;
+
+      assert(nls_timestamp_format != NULL);
+
+      assert(nls_numeric_characters != NULL);
+
+      (void) snprintf(nls_numeric_characters_stmt,
+		      sizeof(nls_numeric_characters_stmt),
+		      "ALTER SESSION SET NLS_NUMERIC_CHARACTERS = '%s'",
+		      nls_numeric_characters);
+      
+      if (sql_execute_immediate(nls_numeric_characters) != OK)
+	break;
+
+      assert(array_size != NULL);
+
+      if (sql_allocate_descriptors((unsigned int) atoi(array_size)) != OK)
+	break;
+
+      assert(sqlstmt != NULL);
+
+      if (sql_parse(sqlstmt) != OK)
+	break;
+
+      status = 0;
+    }
+  while (1 != 1);
+
+  DBUG_DONE();
+
+  return status;
+}

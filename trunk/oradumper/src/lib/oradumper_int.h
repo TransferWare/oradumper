@@ -45,6 +45,10 @@ typedef enum {
   OPTION_NLS_NUMERIC_CHARACTERS
 } option_t;
 
+typedef int error_t; /* sqlca.sqlcode */
+
+#define OK 0
+
 extern
 void
 process_options(const unsigned int length, const char **options);
@@ -53,5 +57,46 @@ extern
 /*@null@*//*@observer@*/
 const char *
 get_option(const option_t option);
+
+/* functions to be declared in the PRO*C source */
+extern
+error_t
+sql_connect(const char *userid);
+
+extern
+error_t
+sql_execute_immediate(const char *statement);
+
+extern
+error_t
+sql_allocate_descriptors(const unsigned int max_array_size);
+
+extern
+error_t
+sql_parse(const char *select_statement);
+
+extern
+unsigned int
+sql_bind_variable_count(void);
+
+extern
+const char *
+sql_bind_variable_name(const unsigned int nr);
+
+extern
+error_t
+sql_bind_variable(const unsigned int nr, const char *value);
+
+extern
+error_t
+sql_define_column();
+
+extern
+error_t
+sql_fetch_rows();
+
+extern
+error_t
+sql_deallocate_descriptors(void);
 
 #endif
