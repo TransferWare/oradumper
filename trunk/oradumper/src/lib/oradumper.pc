@@ -55,6 +55,11 @@ proc dynamic=ansi ansidyn2
 #include <dbug.h>
 #endif
 
+/* include dmalloc as last one */
+#ifdef WITH_DMALLOC
+#include <dmalloc.h>
+#endif
+
 #include "oradumper.h"
 #include "oradumper_int.h"
 
@@ -301,7 +306,7 @@ EXEC SQL END DECLARE SECTION;
   DBUG_PRINT("input", ("nr: %u; size: %d", nr, (int) size));
 
   EXEC SQL GET DESCRIPTOR LOCAL :outdesc VALUE :nr
-    :type = TYPE, :column_name = NAME, :length = LENGTH;
+    :type = TYPE, :column_name = NAME, :length = OCTET_LENGTH;
 
   (void) strncpy(name, column_name, size - 1);
   name[size - 1] = '\0';
@@ -320,12 +325,9 @@ const int type;
 const unsigned int length;
 const unsigned int array_size;
 const char *data[];
-const unsigned short ind[];
+const short ind[];
 EXEC SQL END DECLARE SECTION;
 {
-  EXEC SQL BEGIN DECLARE SECTION;
-  EXEC SQL END DECLARE SECTION;
-
   DBUG_ENTER("sql_define_column");
   DBUG_PRINT("input",
 	     ("nr: %u; type: %d; length: %u; array_size: %u",
@@ -346,131 +348,35 @@ EXEC SQL END DECLARE SECTION;
   return sqlca.sqlcode;
 }
 
-/**/
-
-static
-int
-process_output(void)
+error_t
+sql_fetch_rows(array_size, count)
+EXEC SQL BEGIN DECLARE SECTION;
+const unsigned int array_size;
+EXEC SQL END DECLARE SECTION;
+unsigned int *count;
 {
-  int i, j;
-  EXEC SQL BEGIN DECLARE SECTION;
-  int output_count, occurs;
-  int type, output_len = MAX_VAR_LEN;
-  char name[MAX_OCCURENCES][MAX_NAME_LEN];
-  int rows_this_fetch = 0, cumulative_rows = 0;
-  EXEC SQL END DECLARE SECTION;
+  DBUG_ENTER("sql_fetch_rows");
+  DBUG_PRINT("input", ("array_size: %u", array_size));
 
-  DBUG_ENTER("process_output");
+  EXEC SQL WHENEVER NOT FOUND CONTINUE;
+  EXEC SQL FOR :array_size 
+    FETCH C INTO DESCRIPTOR LOCAL :outdesc;
 
+  *count = sqlca.sqlerrd[2] - *count;
 
-  DBUG_PRINT("info", ("number of columns: %d", output_count));
-  
-  for (i = 0; i < output_count; i++)
-    {
-      occurs = i + 1;
-
-      DBUG_PRINT("info", ("column %d has name %s and type %d", occurs, name[i], type));
-
-      type = ORA_STRING; /* force all data to be null terminated character */
-    }   
-      
-  /* print the column headings */
-  for (j = 0; j < 2; j++)
-    {
-      for (i = 0; i < output_count; i++)
-	{
-	  printf("%-*.*s ", 30, 30, (j == 0 ? name[i] : "------------------------------"));
-	}
-      printf("\n");
-    }
-   
-  /* FETCH each row selected and print the column values. */
-  for (;;)
-    {
-      EXEC SQL WHENEVER NOT FOUND GOTO end_of_fetch_loop;
-      EXEC SQL FOR :out_array_size 
-	FETCH C INTO DESCRIPTOR LOCAL :outdesc;
-      
-      process_data(output_count, &rows_this_fetch, &cumulative_rows);
-    }
-
- end_of_fetch_loop:
-  process_data(output_count, &rows_this_fetch, &cumulative_rows);
-
+  DBUG_PRINT("output", ("count: %u; return: %d", *count, sqlca.sqlcode));
   DBUG_LEAVE();
 
-  return(0);
+  return sqlca.sqlcode;
 }
 
-static
-void
-process_data(const int output_count, int *rows_this_fetch, int *cumulative_rows)
+error_t
+sql_rows_processed(unsigned int *count)
 {
-  int i, j;
+  *count = sqlca.sqlerrd[2];
 
-  *rows_this_fetch = sqlca.sqlerrd[2] - *cumulative_rows;
-  *cumulative_rows = sqlca.sqlerrd[2];
-
-  DBUG_PRINT("info", ("rows fetched: %d; rows fetched cumulative: %d", *rows_this_fetch, *cumulative_rows));
-
-  if (*rows_this_fetch != 0)
-    {
-      for (j = 0; j < out_array_size && j < *rows_this_fetch; j++)
-	{           /* output by columns using simplified formatting */
-	  for (i = 0; i < output_count; i++)
-	    {                              
-	      printf("%-*.*s ", 30, 30, (outindi[i][j] == -1 ? "NULL" : output[i][j]));  /* simplified */
-	      /* output formatting may cause truncation */
-	      /* but columns will line up */
-	    }
-	  printf ("\n");
-	}
-    }
+  return sqlca.sqlcode;
 }
-
-static
-void
-rows_processed(const char *select_statement)
-{  
-  int i;
-
-  DBUG_ENTER("rows_processed");
-
-  for (i = 0; i < 8; i++)
-    {
-      if (strncmp(select_statement, dml_commands[i], 6) == 0)
-	{
-	  fprintf(stderr, "\n\n%d row%c processed.\n", sqlca.sqlerrd[2],
-		 sqlca.sqlerrd[2] == 1 ? ' ' : 's');
-	  break;
-	}
-    }
-
-  DBUG_LEAVE();
-}
-
-static
-void
-sql_error()
-{
-  DBUG_ENTER("sql_error");
-
-  /* ORACLE error handler */
-  fprintf(stderr, "\n\n%.70s\n",sqlca.sqlerrm.sqlerrmc);
-  if (parse_flag)
-    fprintf
-      (stderr, "Parse error at character offset %d in SQL statement.\n",
-       sqlca.sqlerrd[4]);
-
-  EXEC SQL WHENEVER SQLERROR CONTINUE;
-  EXEC SQL ROLLBACK WORK;
-
-  DBUG_LEAVE();
-
-  exit (EXIT_FAILURE);
-}
-
-/**/
 
 error_t
 sql_close_cursor(void)
@@ -485,7 +391,6 @@ sql_close_cursor(void)
   return sqlca.sqlcode;
 }
 
-
 error_t
 sql_deallocate_descriptors(void)
 {
@@ -499,4 +404,11 @@ sql_deallocate_descriptors(void)
   DBUG_LEAVE();
 
   return sqlca.sqlcode;
+}
+
+void
+sql_error(unsigned int *length, char **msg)
+{
+  *length = (unsigned int) sqlca.sqlerrm.sqlerrml;
+  *msg = (char *) sqlca.sqlerrm.sqlerrmc;
 }

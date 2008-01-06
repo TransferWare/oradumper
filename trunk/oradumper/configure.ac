@@ -53,6 +53,7 @@ esac
 
 AM_INIT_AUTOMAKE
 AM_C_PROTOTYPES
+AM_WITH_DMALLOC
 
 # Checks for programs.
 AC_PROG_CC
