@@ -104,7 +104,24 @@ sql_open_cursor(void);
 
 extern
 error_t
-sql_define_column();
+sql_column_count(/*@out@*/ unsigned int *count);
+
+extern
+error_t
+sql_describe_column(const unsigned int nr,
+		    const size_t size,
+		    /*@out@*/ char *name,
+		    /*@out@*/ int *type,
+		    /*@out@*/ unsigned int *length);
+
+extern
+error_t
+sql_define_column(const unsigned int nr,
+		  const int type,
+		  const unsigned int length,
+		  const unsigned int array_size,
+		  const char *data[],
+		  const unsigned short ind[]);
 
 extern
 error_t
