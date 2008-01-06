@@ -1,37 +1,4 @@
 /* -*-mode: c-*- */
-/*******************************************************************
-ANSI Dynamic Demo 2:  ANSI Dynamic SQL with reference semantics,
-                           batch processing and local descriptor
-                           names in host variables
-                           
-This program demonstates using ANSI Dynamic SQL to process SQL
-statements which are not known until runtime.  It uses the Oracle
-extensions for batch processing and reference semantics.
-
-The program connects you to ORACLE using your username and password,
-then prompts you for a SQL statement.  Enter legal SQL or PL/SQL 
-statement using interactive, not embedded, SQL syntax, terminating the 
-statement with a seimcolon.  Your statement will be processed.  If it
-is a query, the fetched rows are displayed. 
-
-If your statement has input bind variables (other than in a where clause),
-the program will ask for an input array size and then allow you to enter 
-that number of input values. If your statment has output, the program will
-ask you for an output array size and will do array fetchng using that value.
-It will also output the rows fetched in one batch together, so using a small
-value for the output array size will improve the look of the output.  
-For example, connected as scott/tiger, try select empno, ename from emp
-with an output array size of 4;
-
-You can enter multi-line statements.  The limit is 1023 characters.
-There is a limit on the size of the variables, MAX_VAR_LEN, defined as 255.
-This program processes up to 40 bind variables and 40 select-list items.
-
-Precompile with program with dynamic=ansi, i.e:
- 
-proc dynamic=ansi ansidyn2
-
-*******************************************************************/
 
 #if HAVE_CONFIG_H
 #include <config.h>
@@ -63,44 +30,30 @@ proc dynamic=ansi ansidyn2
 #include "oradumper.h"
 #include "oradumper_int.h"
 
-#ifndef NULL
-#define NULL  0
+/* declare a structure */
+#ifdef SQLCA_NONE 
+#undef SQLCA_NONE 
 #endif
 
-/* Prototypes */
-static void sql_error(void);
-static int oracle_connect(void);
-static int process_input(void);
-static int process_output(void);
-static void process_data(const int output_count, int *rows_this_fetch, int *cumulative_rows);
-static void rows_processed(const char *select_statement);
+#ifdef SQLCA_STORAGE_CLASS
+#undef SQLCA_STORAGE_CLASS
+#endif
+
+/* a static sqlca only */
+#define SQLCA_STORAGE_CLASS static
+
+/* force initialisation of the static sqlca struct */
+#ifndef SQLCA_INIT
+#define SQLCA_INIT
+#endif
 
 EXEC SQL INCLUDE sqlca;
 
 EXEC SQL BEGIN DECLARE SECTION;
-#define MAX_OCCURENCES  40
-#define MAX_ARRSZ      100
-#define MAX_VAR_LEN    255
-#define MAX_NAME_LEN    31
-
-char  indesc[]="input_descriptor";                /* descriptor names       */
-char outdesc[]="output_descriptor";
-char   input[MAX_OCCURENCES][MAX_VAR_LEN +1 ],    /* data areas */
-      output[MAX_OCCURENCES][MAX_ARRSZ][MAX_VAR_LEN + 1];
-
-short outindi[MAX_OCCURENCES][MAX_ARRSZ];        /* output indicators      */
-short *iptr;
-
-const int max_array_size = MAX_ARRSZ;   /* maximum arrays size used for allocates */
-const int out_array_size = MAX_ARRSZ;          /* size of output batch, i.e., number of rows */
+const char  indesc[]="input_descriptor";                /* descriptor names       */
+const char outdesc[]="output_descriptor";
+#define MAX_NAME_LEN 255
 EXEC SQL END DECLARE SECTION;
-
-char *dml_commands[] = {"SELECT", "select"};
-
-int cursor_open = 0;
-
-/* A global flag for the error routine. */
-int parse_flag = 0;
 
 error_t
 sql_connect(userid)
@@ -174,9 +127,7 @@ EXEC SQL END DECLARE SECTION;
   DBUG_PRINT("input", ("select_statement: %s", select_statement));
 
   /* Prepare the statement and declare a cursor. */
-  parse_flag = 1;     /* Set a flag for sql_error(). */
   EXEC SQL PREPARE S FROM :select_statement;
-  parse_flag = 0;     /* Unset the flag. */
   EXEC SQL DECLARE C CURSOR FOR S;
   EXEC SQL DESCRIBE INPUT S USING DESCRIPTOR LOCAL :indesc;
 
@@ -204,15 +155,15 @@ EXEC SQL END DECLARE SECTION;
 }
 
 error_t
-sql_bind_variable_name(nr, size, name);
+sql_bind_variable_name(nr, size, name)
 EXEC SQL BEGIN DECLARE SECTION;
 unsigned int nr;
-const size_t size;
 char *name;
 EXEC SQL END DECLARE SECTION;
+const size_t size;
 {
   EXEC SQL BEGIN DECLARE SECTION;
-  char bind_variable_name[MAX_NAME_LEN];
+  char bind_variable_name[MAX_NAME_LEN+1];
   EXEC SQL END DECLARE SECTION;
 
   DBUG_ENTER("sql_bind_variable_name");
@@ -262,7 +213,6 @@ sql_open_cursor(void)
   /* Open the cursor and execute the statement. */
   EXEC SQL
     OPEN C USING DESCRIPTOR LOCAL :indesc;
-  cursor_open = 1;
 
   DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
   DBUG_LEAVE();
@@ -292,14 +242,14 @@ error_t
 sql_describe_column(nr, size, name, type, length)
 EXEC SQL BEGIN DECLARE SECTION;
 const unsigned int nr;
-const size_t size;
 char *name;
 int *type;
 unsigned int *length;
 EXEC SQL END DECLARE SECTION;
+const size_t size;
 {
   EXEC SQL BEGIN DECLARE SECTION;
-  char column_name[MAX_NAME_LEN];
+  char column_name[MAX_NAME_LEN+1];
   EXEC SQL END DECLARE SECTION;
 
   DBUG_ENTER("sql_describe_column");
@@ -318,14 +268,14 @@ EXEC SQL END DECLARE SECTION;
 }
 
 error_t
-sql_define_column(nr, type, length, array_size, data, ind);
+sql_define_column(nr, type, length, array_size, data, ind)
 EXEC SQL BEGIN DECLARE SECTION;
 const unsigned int nr;
 const int type;
 const unsigned int length;
 const unsigned int array_size;
-const char *data[];
-const short ind[];
+const char **data;
+const short *ind;
 EXEC SQL END DECLARE SECTION;
 {
   DBUG_ENTER("sql_define_column");

@@ -122,8 +122,8 @@ sql_define_column(const unsigned int nr,
 		  const int type,
 		  const unsigned int length,
 		  const unsigned int array_size,
-		  const char *data[],
-		  const short ind[]);
+		  const char **data,
+		  const short *ind);
 
 extern
 error_t

@@ -275,7 +275,7 @@ oradumper(const unsigned int length, const char **options)
 						   bind_variable_name)) != OK)
 		break;
 
-	      bind_variable_value = get_option((option_t)((unsigned int)OPTION_B1 + bind_variable_nr));
+	      bind_variable_value = (char *) get_option((option_t)((unsigned int)OPTION_B1 + bind_variable_nr));
 
 	      DBUG_PRINT("info",
 			 ("bind variable %u has name %s and value %s",
@@ -397,11 +397,12 @@ oradumper(const unsigned int length, const char **options)
 
   if (status != OK)
     {
+      unsigned int msg_length;
       char *msg;
 
-      sql_error(&length, &msg);
+      sql_error(&msg_length, &msg);
 
-      (void) fprintf(stderr, "%*s\n", (int) length, msg);
+      (void) fprintf(stderr, "%*s\n", (int) msg_length, msg);
     }
 
   /* When status is OK, step should be STEP_MAX + 1 and we should start cleanup at STEP_MAX (i.e. fetch rows) */
@@ -427,6 +428,7 @@ oradumper(const unsigned int length, const char **options)
     case STEP_NLS_DATE_FORMAT:
       /*@fallthrough@*/
     case STEP_CONNECT:
+      break;
     }
 
   DBUG_DONE();
