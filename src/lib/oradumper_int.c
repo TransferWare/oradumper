@@ -178,13 +178,13 @@ oradumper(const unsigned int length, const char **options)
   char nls_date_format_stmt[NLS_MAX_SIZE+1];
   char nls_timestamp_format_stmt[NLS_MAX_SIZE+1];
   char nls_numeric_characters_stmt[NLS_MAX_SIZE+1];
-  const char *userid = get_option(OPTION_USERID);
-  const char *nls_date_format = get_option(OPTION_NLS_DATE_FORMAT);
-  const char *nls_timestamp_format = get_option(OPTION_NLS_TIMESTAMP_FORMAT);
-  const char *nls_numeric_characters = get_option(OPTION_NLS_NUMERIC_CHARACTERS);
-  const char *array_size_str = get_option(OPTION_ARRAYSIZE);
+  const char *userid;
+  const char *nls_date_format;
+  const char *nls_timestamp_format;
+  const char *nls_numeric_characters;
+  const char *array_size_str;
   unsigned int array_size = 0;
-  const char *sqlstmt = get_option(OPTION_SQLSTMT);
+  const char *sqlstmt;
   unsigned int bind_variable_count = 0, bind_variable_nr;
   char bind_variable_name[30+1] = "";
   char *bind_variable_value;
@@ -198,6 +198,13 @@ oradumper(const unsigned int length, const char **options)
   unsigned int row_count;
 	  
   process_options(length, options);
+
+  userid = get_option(OPTION_USERID);
+  nls_date_format = get_option(OPTION_NLS_DATE_FORMAT);
+  nls_timestamp_format = get_option(OPTION_NLS_TIMESTAMP_FORMAT);
+  nls_numeric_characters = get_option(OPTION_NLS_NUMERIC_CHARACTERS);
+  array_size_str = get_option(OPTION_ARRAYSIZE);
+  sqlstmt = get_option(OPTION_SQLSTMT);
 
   DBUG_INIT(get_option(OPTION_DBUG_OPTIONS), "oradumper");
 
@@ -243,7 +250,7 @@ oradumper(const unsigned int length, const char **options)
 			  "ALTER SESSION SET NLS_NUMERIC_CHARACTERS = '%s'",
 			  nls_numeric_characters);
       
-	  status = sql_execute_immediate(nls_numeric_characters);
+	  status = sql_execute_immediate(nls_numeric_characters_stmt);
 	  break;
 
 	case STEP_ALLOCATE_DESCRIPTORS:
@@ -296,10 +303,10 @@ oradumper(const unsigned int length, const char **options)
 	  if ((status = sql_column_count(&column_count)) != OK)
 	    break;
 
-	  data = (char ***) calloc((size_t) column_count, sizeof(char **));
+	  data = (char ***) calloc((size_t) column_count, sizeof(*data));
 	  assert(data != NULL);
 
-	  ind = (short **) calloc((size_t) column_count, sizeof(short *));
+	  ind = (short **) calloc((size_t) column_count, sizeof(*ind));
 	  assert(ind != NULL);
 
 	  for (column_nr = 0;
@@ -318,7 +325,7 @@ oradumper(const unsigned int length, const char **options)
 			  column_nr + 1,
 			  column_name,
 			  column_type,
-			  &column_length));
+			  column_length));
 
 	      /* print the column headings */
 	      printf("%s%s", (column_nr > 0 ? "," : ""), column_name);
@@ -330,36 +337,49 @@ oradumper(const unsigned int length, const char **options)
 		  column_length += 1; /* add 1 byte for a terminating zero */
 		}
 
-	      data[column_nr] = (char **) calloc((size_t) array_size, column_length * sizeof(char));
+	      data[column_nr] = (char **) calloc((size_t) array_size, sizeof(**data));
 	      assert(data[column_nr] != NULL);
 
-	      ind[column_nr] = (short *) calloc((size_t) array_size, sizeof(short));
+	      ind[column_nr] = (short *) calloc((size_t) array_size, sizeof(**ind));
 	      assert(ind[column_nr] != NULL);
+
+	      for (array_nr = 0; array_nr < array_size; array_nr++)
+		{
+		  data[column_nr][array_nr] = (char *) malloc(column_length * sizeof(***data));
+		}
 
 	      if ((status = sql_define_column(column_nr + 1,
 					      column_type,
 					      column_length,
 					      array_size,
-					      data[column_nr],
+					      (const char **)data[column_nr],
 					      ind[column_nr])) != OK)
 		break;
 	    }
 
 	  (void) printf("\n"); /* column heading end */
 
+	  DBUG_DUMP("info", data, (unsigned int)(column_count * sizeof(*data)));
+	  DBUG_DUMP("info", ind, (unsigned int)(column_count * sizeof(*ind)));
+
 	  row_count = 0;
 
 	  do
 	    {
-	      if ((status = sql_fetch_rows(array_size, &row_count)) != OK)
+	      if ((status = sql_fetch_rows(array_size, &row_count)) != OK && status != 100)
 		break;
 
 	      DBUG_PRINT("info", ("rows fetched: %u", row_count));
 
 	      for (array_nr = 0; array_nr < array_size && array_nr < row_count; array_nr++)
 		{
+		  DBUG_PRINT("info", ("array_nr: %u", array_nr));
+
 		  for (column_nr = 0; column_nr < column_count; column_nr++)
 		    {
+		      DBUG_PRINT("info", ("ind[%u][%u]= %d", column_nr, array_nr, ind[column_nr][array_nr]));
+		      DBUG_PRINT("info", ("data[%u][%u]= %s", column_nr, array_nr, data[column_nr][array_nr]));
+
 		      assert(data[column_nr] != NULL);
 		      assert(ind[column_nr] != NULL);
 
@@ -388,6 +408,10 @@ oradumper(const unsigned int length, const char **options)
 	   column_nr < column_count;
 	   column_nr++)
 	{
+	  for (array_nr = 0; array_nr < array_size; array_nr++)
+	    {
+	      free(data[column_nr][array_nr]);
+	    }
 	  free(data[column_nr]);
 	  free(ind[column_nr]);
 	}

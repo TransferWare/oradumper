@@ -314,6 +314,10 @@ unsigned int *count;
 
   *count = sqlca.sqlerrd[2] - *count;
 
+  /* SQLCODE 100 IS NO DATA FOUND */
+  if (sqlca.sqlcode == 100)
+    sqlca.sqlcode = 0;
+
   DBUG_PRINT("output", ("count: %u; return: %d", *count, sqlca.sqlcode));
   DBUG_LEAVE();
 
