@@ -42,7 +42,18 @@ typedef enum {
   OPTION_DBUG_OPTIONS,
   OPTION_NLS_DATE_FORMAT,
   OPTION_NLS_TIMESTAMP_FORMAT,
-  OPTION_NLS_NUMERIC_CHARACTERS
+  OPTION_NLS_NUMERIC_CHARACTERS,
+  OPTION_B1,
+  OPTION_B2,
+  OPTION_B3,
+  OPTION_B4,
+  OPTION_B5,
+  OPTION_B6,
+  OPTION_B7,
+  OPTION_B8,
+  OPTION_B9,
+  OPTION_B10
+#define MAX_BIND_VARIABLES 10
 } option_t;
 
 typedef int error_t; /* sqlca.sqlcode */
@@ -76,16 +87,20 @@ error_t
 sql_parse(const char *select_statement);
 
 extern
-unsigned int
-sql_bind_variable_count(void);
-
-extern
-const char *
-sql_bind_variable_name(const unsigned int nr);
+error_t
+sql_bind_variable_count(/*@out@*/ unsigned int *count);
 
 extern
 error_t
-sql_bind_variable(const unsigned int nr, const char *value);
+sql_bind_variable_name(const unsigned int nr, const size_t size, /*@out@*/ char *name);
+
+extern
+error_t
+sql_bind_variable(const unsigned int nr, /*@null@*/ const char *value);
+
+extern
+error_t
+sql_open_cursor(void);
 
 extern
 error_t
@@ -94,6 +109,10 @@ sql_define_column();
 extern
 error_t
 sql_fetch_rows();
+
+extern
+error_t
+sql_close_cursor(void);
 
 extern
 error_t
