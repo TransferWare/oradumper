@@ -181,43 +181,48 @@ EXEC SQL END DECLARE SECTION;
   return sqlca.sqlcode;
 }
 
-unsigned int
-sql_bind_variable_count(void)
+error_t
+sql_bind_variable_count(count)
+EXEC SQL BEGIN DECLARE SECTION;
+unsigned int *count;
+EXEC SQL END DECLARE SECTION;
 {
-  EXEC SQL BEGIN DECLARE SECTION;
-  unsigned int bind_variable_count;
-  EXEC SQL END DECLARE SECTION;
 
   DBUG_ENTER("sql_bind_variable_count");
 
-  EXEC SQL GET DESCRIPTOR LOCAL :indesc :bind_variable_count = COUNT; 
+  EXEC SQL GET DESCRIPTOR LOCAL :indesc :count = COUNT; 
 
-  DBUG_PRINT("output", ("return: %d", bind_variable_count));
+  DBUG_PRINT("output", ("count: %u; return: %d", *count, sqlca.sqlcode));
   DBUG_LEAVE();
 
-  return bind_variable_count;
+  return sqlca.sqlcode;
 }
 
-const char *
-sql_bind_variable_name(nr)
+error_t
+sql_bind_variable_name(nr, size, name);
 EXEC SQL BEGIN DECLARE SECTION;
 unsigned int nr;
+const size_t size;
+char *name;
 EXEC SQL END DECLARE SECTION;
 {
   EXEC SQL BEGIN DECLARE SECTION;
-  static char name[MAX_NAME_LEN];
+  char bind_variable_name[MAX_NAME_LEN];
   EXEC SQL END DECLARE SECTION;
 
   DBUG_ENTER("sql_bind_variable_name");
-  DBUG_PRINT("input", ("nr: %u", nr));
+  DBUG_PRINT("input", ("nr: %u; size: %d", nr, (int) size));
 
   EXEC SQL GET DESCRIPTOR LOCAL :indesc
-    VALUE :nr :name = NAME;
+    VALUE :nr :bind_variable_name = NAME;
 
-  DBUG_PRINT("output", ("return: %s", name));
+  (void) strncpy(name, bind_variable_name, size-1);
+  name[size - 1] = '\0';
+
+  DBUG_PRINT("output", ("name: %s; return: %d", name, sqlca.sqlcode));
   DBUG_LEAVE();
 
-  return name;
+  return sqlca.sqlcode;
 }
 
 error_t
@@ -244,6 +249,22 @@ EXEC SQL END DECLARE SECTION;
   return sqlca.sqlcode;
 }
 
+error_t
+sql_open_cursor(void)
+{
+  DBUG_ENTER("sql_open_cursor");
+
+  /* Open the cursor and execute the statement. */
+  EXEC SQL
+    OPEN C USING DESCRIPTOR LOCAL :indesc;
+  cursor_open = 1;
+
+  DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
+  DBUG_LEAVE();
+
+  return sqlca.sqlcode;
+}
+
 /**/
 
 static
@@ -263,11 +284,6 @@ EXEC SQL END DECLARE SECTION;
     {
       goto end_of_process;
     }
-
-  /* Open the cursor and execute the statement. */
-  EXEC SQL
-    OPEN C USING DESCRIPTOR LOCAL :indesc;
-  cursor_open = 1;
  
   /* Call the function that processes the output. */
   if (process_output() != 0)
@@ -278,15 +294,6 @@ EXEC SQL END DECLARE SECTION;
   /* Tell user how many rows were processed. */
   rows_processed(select_statement);
 
-  /* Close the cursor. */
-  if (cursor_open != 0)
-    {
-      EXEC SQL CLOSE C;
-    }
-
-  /* Deallocate the descriptors */
-  EXEC SQL DEALLOCATE DESCRIPTOR LOCAL :indesc;
-  EXEC SQL DEALLOCATE DESCRIPTOR LOCAL :outdesc;
   
   EXEC SQL WHENEVER SQLERROR CONTINUE;
   EXEC SQL COMMIT WORK RELEASE;
@@ -435,33 +442,33 @@ sql_error()
   exit (EXIT_FAILURE);
 }
 
-static
-int
-oracle_connect()
+/**/
+
+error_t
+sql_close_cursor(void)
 {
-  int status = 1;
-  EXEC SQL BEGIN DECLARE SECTION;
-  const char *userid = get_option(OPTION_USERID);
-  EXEC SQL END DECLARE SECTION;
+  DBUG_ENTER("sql_close_cursor");
 
-  DBUG_ENTER("oracle_connect");
+  EXEC SQL CLOSE C;
 
-  EXEC SQL WHENEVER SQLERROR GOTO connect_error;
-
-  EXEC SQL CONNECT :userid;
-
-  fprintf(stderr, "\nConnected to ORACLE as %s.\n", userid);
-
-  status = 0;
-  goto end_of_oracle_connect;
-
- connect_error:
-  fprintf(stderr, "Can not connect to ORACLE as %s.\n", userid);
-
- end_of_oracle_connect:
-
+  DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
   DBUG_LEAVE();
 
-  return status;
+  return sqlca.sqlcode;
 }
 
+
+error_t
+sql_deallocate_descriptors(void)
+{
+  DBUG_ENTER("sql_deallocate_descriptors");
+
+  /* Deallocate the descriptors */
+  EXEC SQL DEALLOCATE DESCRIPTOR LOCAL :indesc;
+  EXEC SQL DEALLOCATE DESCRIPTOR LOCAL :outdesc;
+      
+  DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
+  DBUG_LEAVE();
+
+  return sqlca.sqlcode;
+}
