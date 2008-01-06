@@ -167,11 +167,9 @@ oradumper(const unsigned int length, const char **options)
     STEP_PARSE,
     STEP_BIND_VARIABLE,
     STEP_OPEN_CURSOR,
-    STEP_COLUMN,
-    STEP_CLOSE_CURSOR,
-    STEP_DEALLOCATE_DESCRIPTORS
+    STEP_FETCH_ROWS
 
-#define STEP_MAX ((int) STEP_DEALLOCATE_DESCRIPTORS)
+#define STEP_MAX ((int) STEP_FETCH_ROWS)
   } step_t;
   int step;
 
@@ -195,7 +193,9 @@ oradumper(const unsigned int length, const char **options)
   int column_type;
   unsigned int column_length;
   char ***data = NULL;
-  unsigned short **ind = NULL;
+  short **ind = NULL;
+  unsigned int array_nr;
+  unsigned int row_count;
 	  
   process_options(length, options);
 
@@ -208,6 +208,7 @@ oradumper(const unsigned int length, const char **options)
 	case STEP_CONNECT:
 	  if (userid != NULL)
 	    {
+	      (void) fprintf(stderr, "Connecting.\n");
 	      status = sql_connect(userid);
 	    }
 	  break;
@@ -256,6 +257,8 @@ oradumper(const unsigned int length, const char **options)
 	case STEP_PARSE:
 	  assert(sqlstmt != NULL);
 
+	  (void) fprintf(stderr, "Parsing \"%s\".\n", sqlstmt);
+
 	  status = sql_parse(sqlstmt);
 	  break;
 
@@ -289,9 +292,15 @@ oradumper(const unsigned int length, const char **options)
 	  status = sql_open_cursor();
 	  break;
 
-	case STEP_COLUMN:
+	case STEP_FETCH_ROWS:
 	  if ((status = sql_column_count(&column_count)) != OK)
 	    break;
+
+	  data = (char ***) calloc((size_t) column_count, sizeof(char **));
+	  assert(data != NULL);
+
+	  ind = (short **) calloc((size_t) column_count, sizeof(short *));
+	  assert(ind != NULL);
 
 	  for (column_nr = 0;
 	       column_nr < column_count;
@@ -311,11 +320,21 @@ oradumper(const unsigned int length, const char **options)
 			  column_type,
 			  &column_length));
 
+	      /* print the column headings */
+	      printf("%s%s", (column_nr > 0 ? "," : ""), column_name);
+
 	      switch (column_type)
 		{
 		default:
 		  column_type = ORA_STRING;
+		  column_length += 1; /* add 1 byte for a terminating zero */
 		}
+
+	      data[column_nr] = (char **) calloc((size_t) array_size, column_length * sizeof(char));
+	      assert(data[column_nr] != NULL);
+
+	      ind[column_nr] = (short *) calloc((size_t) array_size, sizeof(short));
+	      assert(ind[column_nr] != NULL);
 
 	      if ((status = sql_define_column(column_nr + 1,
 					      column_type,
@@ -325,17 +344,89 @@ oradumper(const unsigned int length, const char **options)
 					      ind[column_nr])) != OK)
 		break;
 	    }
-	  break;
 
-	  /**/
-	case STEP_CLOSE_CURSOR:
-	  status = sql_close_cursor();
-	  break;
+	  (void) printf("\n"); /* column heading end */
 
-	case STEP_DEALLOCATE_DESCRIPTORS:
-	  status = sql_deallocate_descriptors();
+	  row_count = 0;
+
+	  do
+	    {
+	      if ((status = sql_fetch_rows(array_size, &row_count)) != OK)
+		break;
+
+	      DBUG_PRINT("info", ("rows fetched: %u", row_count));
+
+	      for (array_nr = 0; array_nr < array_size && array_nr < row_count; array_nr++)
+		{
+		  for (column_nr = 0; column_nr < column_count; column_nr++)
+		    {
+		      assert(data[column_nr] != NULL);
+		      assert(ind[column_nr] != NULL);
+
+		      printf("%s%s",
+			     (column_nr > 0 ? "," : ""),
+			     (ind[column_nr][array_nr] == -1 ? "NULL" : data[column_nr][array_nr]));
+		    }
+		  (void) printf("\n"); /* line end */
+		}
+	    }
+	  while (row_count == array_size); /* row_count < array_size means nothing more to fetch */
+
+	  if ((status = sql_rows_processed(&row_count)) != OK)
+	    break;
+	  
+	  (void) fprintf(stderr, "\n%u row(s) processed.\n", row_count);
+
 	  break;
 	}
+    }
+
+  /* Cleanup all resources but do not disconnect */
+  if (data != NULL && ind != NULL)
+    {
+      for (column_nr = 0;
+	   column_nr < column_count;
+	   column_nr++)
+	{
+	  free(data[column_nr]);
+	  free(ind[column_nr]);
+	}
+      free(data);
+      free(ind);
+    }
+
+  if (status != OK)
+    {
+      char *msg;
+
+      sql_error(&length, &msg);
+
+      (void) fprintf(stderr, "%*s\n", (int) length, msg);
+    }
+
+  /* When status is OK, step should be STEP_MAX + 1 and we should start cleanup at STEP_MAX (i.e. fetch rows) */
+  /* when status is not OK, step - 1 failed so we must start at step - 2  */
+  switch((step_t) (step - (status == OK ? 1 : 2)))
+    {
+    case STEP_FETCH_ROWS:
+      /*@fallthrough@*/
+    case STEP_OPEN_CURSOR:
+      (void) sql_close_cursor();
+      /*@fallthrough@*/
+    case STEP_BIND_VARIABLE:
+      /*@fallthrough@*/
+    case STEP_PARSE:
+      /*@fallthrough@*/
+    case STEP_ALLOCATE_DESCRIPTORS:
+      (void) sql_deallocate_descriptors();
+      /*@fallthrough@*/
+    case STEP_NLS_NUMERIC_CHARACTERS:
+      /*@fallthrough@*/
+    case STEP_NLS_TIMESTAMP_FORMAT:
+      /*@fallthrough@*/
+    case STEP_NLS_DATE_FORMAT:
+      /*@fallthrough@*/
+    case STEP_CONNECT:
     }
 
   DBUG_DONE();

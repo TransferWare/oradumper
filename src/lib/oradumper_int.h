@@ -60,6 +60,7 @@ typedef int error_t; /* sqlca.sqlcode */
 
 #define OK 0
 
+/*@-exportlocal@*/
 extern
 void
 process_options(const unsigned int length, const char **options);
@@ -68,6 +69,7 @@ extern
 /*@null@*//*@observer@*/
 const char *
 get_option(const option_t option);
+/*@=exportlocal@*/
 
 /* functions to be declared in the PRO*C source */
 extern
@@ -121,11 +123,15 @@ sql_define_column(const unsigned int nr,
 		  const unsigned int length,
 		  const unsigned int array_size,
 		  const char *data[],
-		  const unsigned short ind[]);
+		  const short ind[]);
 
 extern
 error_t
-sql_fetch_rows();
+sql_fetch_rows(const unsigned int array_size, /*in@*/ unsigned int *count);
+
+extern
+error_t
+sql_rows_processed(/*out@*/ unsigned int *count);
 
 extern
 error_t
@@ -134,5 +140,9 @@ sql_close_cursor(void);
 extern
 error_t
 sql_deallocate_descriptors(void);
+
+extern
+void
+sql_error(/*@out@*/ unsigned int *length, /*@out@*/ char **msg);
 
 #endif
