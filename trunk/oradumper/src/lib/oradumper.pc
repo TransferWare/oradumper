@@ -216,7 +216,7 @@ EXEC SQL END DECLARE SECTION;
   EXEC SQL GET DESCRIPTOR LOCAL :indesc
     VALUE :nr :bind_variable_name = NAME;
 
-  (void) strncpy(name, bind_variable_name, size-1);
+  (void) strncpy(name, bind_variable_name, size - 1);
   name[size - 1] = '\0';
 
   DBUG_PRINT("output", ("name: %s; return: %d", name, sqlca.sqlcode));
@@ -234,14 +234,14 @@ EXEC SQL END DECLARE SECTION;
 {
   EXEC SQL BEGIN DECLARE SECTION;
   const int type = ANSI_CHARACTER_VARYING;
-  const int length = MAX_VAR_LEN;
+  const short ind = (value == NULL ? -1 : 0);
   EXEC SQL END DECLARE SECTION;
 
   DBUG_ENTER("sql_bind_variable_name");
   DBUG_PRINT("input", ("nr: %u; value: %s", nr, value));
 
   EXEC SQL SET DESCRIPTOR LOCAL :indesc
-    VALUE :nr TYPE = :type, LENGTH = :length, REF DATA = :value;
+    VALUE :nr TYPE = :type, DATA = :value, INDICATOR = :ind;
 
   DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
   DBUG_LEAVE();
@@ -265,48 +265,88 @@ sql_open_cursor(void)
   return sqlca.sqlcode;
 }
 
-/**/
-
-static
-int
-process(select_statement)
+error_t
+sql_column_count(count)
 EXEC SQL BEGIN DECLARE SECTION;
-const char *select_statement;                      /* statement variable     */
-EXEC SQL VAR select_statement IS STRING;
+unsigned int *count;
 EXEC SQL END DECLARE SECTION;
 {
-  int status = 1;
+  DBUG_ENTER("sql_column_count");
 
-  DBUG_ENTER("process");
+  EXEC SQL DESCRIBE OUTPUT S USING DESCRIPTOR LOCAL :outdesc;
+   
+  EXEC SQL GET DESCRIPTOR LOCAL :outdesc :count = COUNT;
 
-  /* Call the function that processes the input. */
-  if (process_input() != 0)
-    {
-      goto end_of_process;
-    }
- 
-  /* Call the function that processes the output. */
-  if (process_output() != 0)
-    {
-      goto end_of_process;
-    }
-
-  /* Tell user how many rows were processed. */
-  rows_processed(select_statement);
-
-  
-  EXEC SQL WHENEVER SQLERROR CONTINUE;
-  EXEC SQL COMMIT WORK RELEASE;
-
-  EXEC SQL WHENEVER SQLERROR DO sql_error();
-
-  status = 0;
-
- end_of_process:
+  DBUG_PRINT("output", ("count: %u; return: %d", *count, sqlca.sqlcode));
   DBUG_LEAVE();
 
-  return status;
+  return sqlca.sqlcode;
 }
+
+error_t
+sql_describe_column(nr, size, name, type, length)
+EXEC SQL BEGIN DECLARE SECTION;
+const unsigned int nr;
+const size_t size;
+char *name;
+int *type;
+unsigned int *length;
+EXEC SQL END DECLARE SECTION;
+{
+  EXEC SQL BEGIN DECLARE SECTION;
+  char column_name[MAX_NAME_LEN];
+  EXEC SQL END DECLARE SECTION;
+
+  DBUG_ENTER("sql_describe_column");
+  DBUG_PRINT("input", ("nr: %u; size: %d", nr, (int) size));
+
+  EXEC SQL GET DESCRIPTOR LOCAL :outdesc VALUE :nr
+    :type = TYPE, :column_name = NAME, :length = LENGTH;
+
+  (void) strncpy(name, column_name, size - 1);
+  name[size - 1] = '\0';
+
+  DBUG_PRINT("output", ("name: %s; type: %d; length: %u; return: %d", name, *type, *length, sqlca.sqlcode));
+  DBUG_LEAVE();
+
+  return sqlca.sqlcode;
+}
+
+error_t
+sql_define_column(nr, type, length, array_size, data, ind);
+EXEC SQL BEGIN DECLARE SECTION;
+const unsigned int nr;
+const int type;
+const unsigned int length;
+const unsigned int array_size;
+const char *data[];
+const unsigned short ind[];
+EXEC SQL END DECLARE SECTION;
+{
+  EXEC SQL BEGIN DECLARE SECTION;
+  EXEC SQL END DECLARE SECTION;
+
+  DBUG_ENTER("sql_define_column");
+  DBUG_PRINT("input",
+	     ("nr: %u; type: %d; length: %u; array_size: %u",
+	      nr,
+	      type,
+	      length,
+	      array_size));
+
+  EXEC SQL SET DESCRIPTOR LOCAL :outdesc VALUE :nr
+    TYPE = :type, LENGTH = :length;
+   
+  EXEC SQL FOR :array_size
+    SET DESCRIPTOR LOCAL :outdesc VALUE :nr
+    REF DATA = :data, REF INDICATOR = :ind;
+
+  DBUG_LEAVE();
+
+  return sqlca.sqlcode;
+}
+
+/**/
 
 static
 int
@@ -322,28 +362,16 @@ process_output(void)
 
   DBUG_ENTER("process_output");
 
-  EXEC SQL DESCRIBE OUTPUT S USING DESCRIPTOR LOCAL :outdesc;
-   
-  EXEC SQL GET DESCRIPTOR LOCAL :outdesc :output_count = COUNT;
 
   DBUG_PRINT("info", ("number of columns: %d", output_count));
   
   for (i = 0; i < output_count; i++)
     {
       occurs = i + 1;
-      EXEC SQL GET DESCRIPTOR LOCAL :outdesc VALUE :occurs
-	:type = TYPE, :name[i] = NAME;
 
       DBUG_PRINT("info", ("column %d has name %s and type %d", occurs, name[i], type));
 
       type = ORA_STRING; /* force all data to be null terminated character */
-      EXEC SQL SET DESCRIPTOR LOCAL :outdesc VALUE :occurs 
-	TYPE = :type, LENGTH = :output_len;
-   
-      iptr = (short *)&outindi[i]; /* no mult-dimension non-char host vars */
-      EXEC SQL FOR :out_array_size
-	SET DESCRIPTOR LOCAL :outdesc VALUE :occurs 
-	REF DATA = :output[i], REF INDICATOR = :iptr;
     }   
       
   /* print the column headings */

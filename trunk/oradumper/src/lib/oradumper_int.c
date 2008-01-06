@@ -167,7 +167,7 @@ oradumper(const unsigned int length, const char **options)
     STEP_PARSE,
     STEP_BIND_VARIABLE,
     STEP_OPEN_CURSOR,
-
+    STEP_COLUMN,
     STEP_CLOSE_CURSOR,
     STEP_DEALLOCATE_DESCRIPTORS
 
@@ -184,11 +184,18 @@ oradumper(const unsigned int length, const char **options)
   const char *nls_date_format = get_option(OPTION_NLS_DATE_FORMAT);
   const char *nls_timestamp_format = get_option(OPTION_NLS_TIMESTAMP_FORMAT);
   const char *nls_numeric_characters = get_option(OPTION_NLS_NUMERIC_CHARACTERS);
-  const char *array_size = get_option(OPTION_ARRAYSIZE);
+  const char *array_size_str = get_option(OPTION_ARRAYSIZE);
+  unsigned int array_size = 0;
   const char *sqlstmt = get_option(OPTION_SQLSTMT);
   unsigned int bind_variable_count = 0, bind_variable_nr;
   char bind_variable_name[30+1] = "";
   char *bind_variable_value;
+  unsigned int column_count = 0, column_nr;
+  char column_name[30+1] = "";
+  int column_type;
+  unsigned int column_length;
+  char ***data = NULL;
+  unsigned short **ind = NULL;
 	  
   process_options(length, options);
 
@@ -239,9 +246,11 @@ oradumper(const unsigned int length, const char **options)
 	  break;
 
 	case STEP_ALLOCATE_DESCRIPTORS:
-	  assert(array_size != NULL);
+	  assert(array_size_str != NULL);
 
-	  status = sql_allocate_descriptors((unsigned int) atoi(array_size));
+	  array_size = (unsigned int) atoi(array_size_str);
+
+	  status = sql_allocate_descriptors(array_size);
 	  break;
 
 	case STEP_PARSE:
@@ -278,6 +287,44 @@ oradumper(const unsigned int length, const char **options)
 
 	case STEP_OPEN_CURSOR:
 	  status = sql_open_cursor();
+	  break;
+
+	case STEP_COLUMN:
+	  if ((status = sql_column_count(&column_count)) != OK)
+	    break;
+
+	  for (column_nr = 0;
+	       column_nr < column_count;
+	       column_nr++)
+	    {
+	      if ((status = sql_describe_column(column_nr + 1,
+						sizeof(column_name),
+						column_name,
+						&column_type,
+						&column_length)) != OK)
+		break;
+
+	      DBUG_PRINT("info",
+			 ("column %u has name %s, type %d and length %u",
+			  column_nr + 1,
+			  column_name,
+			  column_type,
+			  &column_length));
+
+	      switch (column_type)
+		{
+		default:
+		  column_type = ORA_STRING;
+		}
+
+	      if ((status = sql_define_column(column_nr + 1,
+					      column_type,
+					      column_length,
+					      array_size,
+					      data[column_nr],
+					      ind[column_nr])) != OK)
+		break;
+	    }
 	  break;
 
 	  /**/
