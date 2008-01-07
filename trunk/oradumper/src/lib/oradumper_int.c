@@ -198,7 +198,11 @@ oradumper(const unsigned int length, const char **options)
   /*@observer@*/ data_ptr_t data_ptr = NULL;
   short **ind = NULL;
   unsigned int array_nr;
-  unsigned int row_count;
+  unsigned int row_count, row_count_old;
+
+#ifdef WITH_DMALLOC
+  unsigned long mark = 0;
+#endif
 	  
   process_options(length, options);
 
@@ -224,6 +228,10 @@ oradumper(const unsigned int length, const char **options)
 	  break;
 
 	case STEP_NLS_DATE_FORMAT:
+#ifdef WITH_DMALLOC
+	  mark = dmalloc_mark();
+#endif
+
 	  assert(nls_date_format != NULL);
 
 	  (void) snprintf(nls_date_format_stmt,
@@ -335,18 +343,60 @@ oradumper(const unsigned int length, const char **options)
 
 	      switch (column_type)
 		{
+		case ANSI_NUMERIC:
+		case ORA_NUMBER:
+		case ANSI_SMALLINT:
+		case ANSI_INTEGER:
+		case ORA_INTEGER:
+		  column_length = 45;
+		  break;
+
+		case ANSI_DECIMAL:
+		case ORA_DECIMAL:
+		case ANSI_FLOAT:
+		case ORA_FLOAT:
+		case ANSI_DOUBLE_PRECISION:
+		case ANSI_REAL:
+		  column_length = 100;
+		  break;
+
+		case ORA_LONG:
+		  column_length = 2000;
+		  break;
+
+		case ORA_ROWID:
+		  column_length = 18;
+		  break;
+
+		case ANSI_DATE:
+		case ORA_DATE:
+		  column_length = 25;
+		  break;
+
+		case ORA_RAW:
+		  column_length = 512;
+		  break;
+
+		case ORA_LONG_RAW:
+		  column_length = 2000;
+		  break;
+
 		default:
-		  column_type = ANSI_CHARACTER_VARYING;
-		  column_size = column_length + 1; /* add 1 byte for a terminating zero */
-		  /* coumn_size must be a multiple of 4 (word boundary): 
-		     column_size % 4 == 0 => column_size
-		     column_size % 4 == 1 => column_size += 3
-		     column_size % 4 == 2 => column_size += 2
-		     column_size % 4 == 3 => column_size += 1
-		  */
-		  column_size = ((unsigned int) ((column_size + 3) / 4)) * 4;
-		  column_length = column_size - 1;
+		  break;
 		}
+
+	      column_type = ANSI_CHARACTER_VARYING;
+	      /* add 1 byte for a terminating zero */
+	      column_size = column_length + 1;
+
+	      /* column_size must be a multiple of 4 (word boundary): 
+		 column_size % 4 == 0 => column_size
+		 column_size % 4 == 1 => column_size += 3
+		 column_size % 4 == 2 => column_size += 2
+		 column_size % 4 == 3 => column_size += 1
+	      */
+	      column_size = ((unsigned int) ((column_size + 3) / 4)) * 4;
+	      column_length = column_size - 1;
 
 	      data[column_nr] = (data_ptr_t *) calloc((size_t) array_size, sizeof(**data));
 	      assert(data[column_nr] != NULL);
@@ -365,9 +415,10 @@ oradumper(const unsigned int length, const char **options)
 		  data[column_nr][array_nr] = data_ptr;
 		  /*@=modobserver@*/
 
+#ifdef DBUG_MEMORY
 		  DBUG_PRINT("info", ("Dumping data[%u][%u] (%p)", column_nr, array_nr, data[column_nr][array_nr]));
 		  DBUG_DUMP("info", data[column_nr][array_nr], (unsigned int) column_size);
-
+#endif
 		  assert(array_nr == 0 ||
 			 ((char*)data[column_nr][array_nr] - (char*)data[column_nr][array_nr-1]) == (int)column_size);
 		}
@@ -375,10 +426,12 @@ oradumper(const unsigned int length, const char **options)
 	      ind[column_nr] = (short *) calloc((size_t) array_size, sizeof(**ind));
 	      assert(ind[column_nr] != NULL);
 
+#ifdef DBUG_MEMORY
 	      DBUG_PRINT("info", ("Dumping data[%u] (%p)", column_nr, data[column_nr]));
 	      DBUG_DUMP("info", data[column_nr], (unsigned int)(array_size * sizeof(**data)));
 	      DBUG_PRINT("info", ("Dumping ind[%u] (%p)", column_nr, ind[column_nr]));
 	      DBUG_DUMP("info", ind[column_nr], (unsigned int)(array_size * sizeof(**ind)));
+#endif
 
 	      if ((status = sql_define_column(column_nr + 1,
 					      column_type,
@@ -391,17 +444,23 @@ oradumper(const unsigned int length, const char **options)
 
 	  (void) printf("\n"); /* column heading end */
 
+#ifdef DBUG_MEMORY
 	  DBUG_PRINT("info", ("Dumping data (%p)", data));
 	  DBUG_DUMP("info", data, (unsigned int)(column_count * sizeof(*data)));
 	  DBUG_PRINT("info", ("Dumping ind (%p)", ind));
 	  DBUG_DUMP("info", ind, (unsigned int)(column_count * sizeof(*ind)));
-
+#endif
 	  row_count = 0;
 
 	  do
 	    {
-	      if ((status = sql_fetch_rows(array_size, &row_count)) != OK && status != 100)
-		break;
+	      row_count_old = row_count;
+
+	      if ((status = sql_fetch_rows(array_size, &row_count)) != OK &&
+		  (status != NO_DATA_FOUND || row_count_old == row_count))
+		{
+		  break;
+		}
 
 	      DBUG_PRINT("info", ("rows fetched: %u", row_count));
 
@@ -411,6 +470,7 @@ oradumper(const unsigned int length, const char **options)
 
 		  for (column_nr = 0; column_nr < column_count; column_nr++)
 		    {
+#ifdef DBUG_MEMORY
 		      if (array_nr == 0)
 			{
 			  DBUG_PRINT("info", ("Dumping data[%u] (%p)", column_nr, data[column_nr]));
@@ -431,6 +491,7 @@ oradumper(const unsigned int length, const char **options)
 		      DBUG_DUMP("info",
 				data[column_nr][array_nr],
 				(unsigned int) ((char*)data[column_nr][1] - (char*)data[column_nr][0]));
+#endif
 
 		      DBUG_PRINT("info", ("ind[%u][%u]= %d", column_nr, array_nr, ind[column_nr][array_nr]));
 		      DBUG_PRINT("info", ("data[%u][%u]= %s", column_nr, array_nr, data[column_nr][array_nr]));
@@ -445,9 +506,9 @@ oradumper(const unsigned int length, const char **options)
 		  (void) printf("\n"); /* line end */
 		}
 	    }
-	  while (row_count == array_size); /* row_count < array_size means nothing more to fetch */
+	  while (status != NO_DATA_FOUND); /* row_count < array_size means nothing more to fetch */
 
-	  if ((status = sql_rows_processed(&row_count)) != OK)
+	  if ((status = sql_rows_processed(&row_count)) != OK && status != NO_DATA_FOUND)
 	    break;
 	  
 	  (void) fprintf(stderr, "\n%u row(s) processed.\n", row_count);
@@ -471,7 +532,7 @@ oradumper(const unsigned int length, const char **options)
       free(ind);
     }
 
-  if (status != OK)
+  if (status != OK && status != NO_DATA_FOUND)
     {
       unsigned int msg_length;
       char *msg;
@@ -483,7 +544,7 @@ oradumper(const unsigned int length, const char **options)
 
   /* When status is OK, step should be STEP_MAX + 1 and we should start cleanup at STEP_MAX (i.e. fetch rows) */
   /* when status is not OK, step - 1 failed so we must start at step - 2  */
-  switch((step_t) (step - (status == OK ? 1 : 2)))
+  switch((step_t) (step - (status == OK || status == NO_DATA_FOUND ? 1 : 2)))
     {
     case STEP_FETCH_ROWS:
       /*@fallthrough@*/
@@ -507,7 +568,12 @@ oradumper(const unsigned int length, const char **options)
       break;
     }
 
+#ifdef WITH_DMALLOC
+  dmalloc_log_changed(mark, 1, 1, 1);
+  /*  assert(dmalloc_count_changed(mark, 1, 0) == 0);*/
+#endif
+
   DBUG_DONE();
 
-  return status;
+  return status == NO_DATA_FOUND ? OK : status;
 }

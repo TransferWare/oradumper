@@ -1,6 +1,8 @@
 #ifndef ORADUMPER_INT_H
 #define ORADUMPER_INT_H
 
+#define NO_DATA_FOUND 100
+
 typedef enum {
   ANSI_CHARACTER = 1,
   ANSI_CHARACTER_VARYING = 12,
