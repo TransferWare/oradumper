@@ -15,9 +15,40 @@
 ## License along with this library; if not, write to the Free Software
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-AUTOMAKE_OPTIONS 	= 
-SUBDIRS 		= replace src test
-MAINTAINERCLEANFILES 	= Makefile.in aclocal.m4 configure config-h.in \
-  			  stamp-h.in $(AUX_DIST)
-EXTRA_DIST              = 
+MAINTAINERCLEANFILES = Makefile.in
 
+prog                 = $(top_builddir)/src/prog/oradumper$(EXEEXT)
+testlib              = $(top_builddir)/src/lib/liboradumper.la
+testprog             = ./oradumper$(EXEEXT)
+
+check_DATA           = $(testprog)
+
+$(testprog): $(prog)
+	@ln -s $< $@
+
+$(prog): build.lib build.prog
+
+build.lib:
+	cd $(top_builddir)/src/lib && $(MAKE) all
+
+build.prog:
+	cd $(top_builddir)/src/prog && $(MAKE) all
+
+##
+## Test software
+##
+
+TESTS = test1
+
+FORCE = force
+
+DIFF = diff -w
+
+# Ensure the created dummy test scripts are executable (chmod +x)
+
+test1: $(FORCE)
+	$(testprog) userid=$(USERID) sqlstmt='select 1 as C from dual union select 2 from dual' $(ORADUMPER_OPTIONS) 1>$@.log
+	$(DIFF) $@.log $(srcdir)/$@.ref
+	@echo : > $@ && chmod +x $@
+
+force: ;

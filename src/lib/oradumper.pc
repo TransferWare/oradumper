@@ -274,17 +274,19 @@ const unsigned int nr;
 const int type;
 const unsigned int length;
 const unsigned int array_size;
-const char **data;
+const char *data;
 const short *ind;
 EXEC SQL END DECLARE SECTION;
 {
   DBUG_ENTER("sql_define_column");
   DBUG_PRINT("input",
-	     ("nr: %u; type: %d; length: %u; array_size: %u",
+	     ("nr: %u; type: %d; length: %u; array_size: %u; data: %p; ind: %p",
 	      nr,
 	      type,
 	      length,
-	      array_size));
+	      array_size,
+	      data,
+	      ind));
 
   EXEC SQL SET DESCRIPTOR LOCAL :outdesc VALUE :nr
     TYPE = :type, LENGTH = :length;

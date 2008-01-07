@@ -98,6 +98,7 @@ AC_CONFIG_FILES([replace/Makefile])
 AC_CONFIG_FILES([src/Makefile])
 AC_CONFIG_FILES([src/lib/Makefile])
 AC_CONFIG_FILES([src/prog/Makefile])
+AC_CONFIG_FILES([test/Makefile])
 
 AC_OUTPUT
 
