@@ -569,7 +569,7 @@ oradumper(const unsigned int length, const char **options)
     }
 
 #ifdef WITH_DMALLOC
-  dmalloc_log_changed(mark, 1, 1, 1);
+  dmalloc_log_changed(mark, 1, 0, 0);
   /*  assert(dmalloc_count_changed(mark, 1, 0) == 0);*/
 #endif
 
