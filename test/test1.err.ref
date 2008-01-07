@@ -1,0 +1,12 @@
+Connecting.
+Parsing "select 1234567890 as NR, 'mystring' as STR, to_date('1900-12-31 23:23:59') as DAY from dual union select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') from dual".
+
+2 row(s) processed.
+Connecting.
+Parsing "select 1234567890 as NR, 'mystring' as STR, to_date('1900-12-31 23:23:59') as DAY from dual union select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') from dual".
+
+2 row(s) processed.
+Connecting.
+Parsing "select 1234567890 as NR, 'mystring' as STR, to_date('1900-12-31 23:23:59') as DAY from dual union select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') from dual".
+
+2 row(s) processed.

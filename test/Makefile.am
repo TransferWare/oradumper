@@ -20,7 +20,9 @@ MAINTAINERCLEANFILES = Makefile.in
 prog                 = $(top_builddir)/src/prog/oradumper$(EXEEXT)
 testlib              = $(top_builddir)/src/lib/liboradumper.la
 testprog             = ./oradumper$(EXEEXT)
-
+sqlstmt              = "select 1234567890 as NR, 'mystring' as STR, to_date('1900-12-31 23:23:59') as DAY from dual\
+                        union\
+                        select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') from dual"
 check_DATA           = $(testprog)
 
 $(testprog): $(prog)
@@ -47,8 +49,20 @@ DIFF = diff -w
 # Ensure the created dummy test scripts are executable (chmod +x)
 
 test1: $(FORCE)
-	$(testprog) userid=$(USERID) sqlstmt='select 1 as C from dual union select 2 from dual' $(ORADUMPER_OPTIONS) 1>$@.log
-	$(DIFF) $@.log $(srcdir)/$@.ref
+	@-rm $@.log $@.err
+	for nr in 1 2 3; do $(testprog) userid=$(USERID) sqlstmt=$(sqlstmt) arraysize=$$nr $(ORADUMPER_OPTIONS) 1>>$@.log 2>>$@.err; done
+	@$(DIFF) $@.log $(srcdir)/$@.log.ref
+	@$(DIFF) $@.err $(srcdir)/$@.err.ref
+	@echo : > $@ && chmod +x $@
+
+test2: $(FORCE)
+	$(testprog) userid=$(USERID) sqlstmt=$(sqlstmt) arraysize=2 $(ORADUMPER_OPTIONS) 1>$@.log
+	-$(DIFF) $@.log $(srcdir)/$@.ref
+	@echo : > $@ && chmod +x $@
+
+test3: $(FORCE)
+	$(testprog) userid=$(USERID) sqlstmt=$(sqlstmt) arraysize=3 $(ORADUMPER_OPTIONS) 1>$@.log
+	-$(DIFF) $@.log $(srcdir)/$@.ref
 	@echo : > $@ && chmod +x $@
 
 force: ;
