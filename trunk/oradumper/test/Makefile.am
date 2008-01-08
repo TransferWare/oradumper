@@ -20,9 +20,11 @@ MAINTAINERCLEANFILES = Makefile.in
 prog                 = $(top_builddir)/src/prog/oradumper$(EXEEXT)
 testlib              = $(top_builddir)/src/lib/liboradumper.la
 testprog             = ./oradumper$(EXEEXT)
-sqlstmt              = "select 1234567890 as NR, 'mystring' as STR, to_date('1900-12-31 23:23:59') as DAY from dual\
+sqlstmt1             = "select 1234567890 as NR, 'mystring' as STR, to_date('1900-12-31 23:23:59') as DAY from dual\
                         union\
-                        select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') from dual"
+                        select 2345678901, 'ƒ Õ’ÿABCDE', to_date('20001231232359', 'yyyymmddhh24miss') from dual"
+sqlstmt2             = "select to_clob(rpad('0123456789', 8000, '0123456789')) as myclob from dual"
+sqlstmt3             = "select object_name, object_type from all_objects where owner = 'SYS' and object_type <> 'JAVA CLASS' and rownum <= 1000 order by object_name"
 check_DATA           = $(testprog)
 
 $(testprog): $(prog)
@@ -40,7 +42,7 @@ build.prog:
 ## Test software
 ##
 
-TESTS = test1
+TESTS = test1 test2 test3
 
 FORCE = force
 
@@ -48,21 +50,23 @@ DIFF = diff -w
 
 # Ensure the created dummy test scripts are executable (chmod +x)
 
-test1: $(FORCE)
+$(TESTS):: $(FORCE)
+
+$(TESTS)::
 	@-rm $@.log $@.err
-	for nr in 1 2 3; do $(testprog) userid=$(USERID) sqlstmt=$(sqlstmt) arraysize=$$nr $(ORADUMPER_OPTIONS) 1>>$@.log 2>>$@.err; done
+
+test1::
+	for nr in 1 2 3; do $(testprog) userid=$(USERID) sqlstmt=$(sqlstmt1) arraysize=$$nr $(ORADUMPER_OPTIONS) 1>>$@.log 2>>$@.err; done
+
+test2::
+	$(testprog) userid=$(USERID) sqlstmt=$(sqlstmt2) arraysize=2 $(ORADUMPER_OPTIONS) 1>$@.log 2>$@.err
+
+test3::
+	$(testprog) userid=$(USERID) sqlstmt=$(sqlstmt3) arraysize=1000 $(ORADUMPER_OPTIONS) 1>$@.log 2>$@.err
+
+$(TESTS)::
 	@$(DIFF) $@.log $(srcdir)/$@.log.ref
 	@$(DIFF) $@.err $(srcdir)/$@.err.ref
-	@echo : > $@ && chmod +x $@
-
-test2: $(FORCE)
-	$(testprog) userid=$(USERID) sqlstmt=$(sqlstmt) arraysize=2 $(ORADUMPER_OPTIONS) 1>$@.log
-	-$(DIFF) $@.log $(srcdir)/$@.ref
-	@echo : > $@ && chmod +x $@
-
-test3: $(FORCE)
-	$(testprog) userid=$(USERID) sqlstmt=$(sqlstmt) arraysize=3 $(ORADUMPER_OPTIONS) 1>$@.log
-	-$(DIFF) $@.log $(srcdir)/$@.ref
 	@echo : > $@ && chmod +x $@
 
 force: ;

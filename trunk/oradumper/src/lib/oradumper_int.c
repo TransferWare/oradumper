@@ -194,11 +194,13 @@ oradumper(const unsigned int length, const char **options)
   char column_name[30+1] = "";
   int column_type;
   unsigned int column_length, column_size /* allocated size: length + 1 byte for the terminating zero */;
+  int column_precision, column_scale;
+  char column_character_set[20+1];
   data_ptr_t **data = NULL;
   /*@observer@*/ data_ptr_t data_ptr = NULL;
   short **ind = NULL;
   unsigned int array_nr;
-  unsigned int row_count, row_count_old;
+  unsigned int row_count;
 
 #ifdef WITH_DMALLOC
   unsigned long mark = 0;
@@ -214,6 +216,7 @@ oradumper(const unsigned int length, const char **options)
   sqlstmt = get_option(OPTION_SQLSTMT);
 
   DBUG_INIT(get_option(OPTION_DBUG_OPTIONS), "oradumper");
+  DBUG_ENTER("oradumper");
 
   for (step = (step_t) 0; step <= STEP_MAX && status == OK; step++)
     {
@@ -328,15 +331,21 @@ oradumper(const unsigned int length, const char **options)
 						sizeof(column_name),
 						column_name,
 						&column_type,
-						&column_length)) != OK)
+						&column_length,
+						&column_precision,
+						&column_scale,
+						column_character_set)) != OK)
 		break;
 
 	      DBUG_PRINT("info",
-			 ("column %u has name %s, type %d and length %u",
+			 ("column: %u; name: %s; type: %d; length: %u; precision: %d; scale: %d; character set: %s",
 			  column_nr + 1,
 			  column_name,
 			  column_type,
-			  column_length));
+			  column_length, 
+			  column_precision,
+			  column_scale,
+			  column_character_set));
 
 	      /* print the column headings */
 	      printf("%s%s", (column_nr > 0 ? "," : ""), column_name);
@@ -348,6 +357,7 @@ oradumper(const unsigned int length, const char **options)
 		case ANSI_SMALLINT:
 		case ANSI_INTEGER:
 		case ORA_INTEGER:
+		case ORA_UNSIGNED:
 		  column_length = 45;
 		  break;
 
@@ -374,14 +384,27 @@ oradumper(const unsigned int length, const char **options)
 		  break;
 
 		case ORA_RAW:
-		  column_length = 512;
+		  column_length = ( column_length == 0 ? 512U : column_length );
 		  break;
 
 		case ORA_LONG_RAW:
 		  column_length = 2000;
 		  break;
 
-		default:
+		case ANSI_CHARACTER:
+		case ANSI_CHARACTER_VARYING:
+		case ORA_VARCHAR2:
+		case ORA_STRING:
+		case ORA_VARCHAR:
+
+		case ORA_VARNUM:
+		case ORA_VARRAW:
+		case ORA_DISPLAY:
+		case ORA_LONG_VARCHAR:
+		case ORA_LONG_VARRAW:
+		case ORA_CHAR:
+		case ORA_CHARZ:
+
 		  break;
 		}
 
@@ -454,10 +477,7 @@ oradumper(const unsigned int length, const char **options)
 
 	  do
 	    {
-	      row_count_old = row_count;
-
-	      if ((status = sql_fetch_rows(array_size, &row_count)) != OK &&
-		  (status != NO_DATA_FOUND || row_count_old == row_count))
+	      if ((status = sql_fetch_rows(array_size, &row_count)) != OK)
 		{
 		  break;
 		}
@@ -506,9 +526,9 @@ oradumper(const unsigned int length, const char **options)
 		  (void) printf("\n"); /* line end */
 		}
 	    }
-	  while (status != NO_DATA_FOUND); /* row_count < array_size means nothing more to fetch */
+	  while (status == OK && row_count == array_size); /* row_count < array_size means nothing more to fetch */
 
-	  if ((status = sql_rows_processed(&row_count)) != OK && status != NO_DATA_FOUND)
+	  if ((status = sql_rows_processed(&row_count)) != OK)
 	    break;
 	  
 	  (void) fprintf(stderr, "\n%u row(s) processed.\n", row_count);
@@ -532,7 +552,7 @@ oradumper(const unsigned int length, const char **options)
       free(ind);
     }
 
-  if (status != OK && status != NO_DATA_FOUND)
+  if (status != OK)
     {
       unsigned int msg_length;
       char *msg;
@@ -544,7 +564,7 @@ oradumper(const unsigned int length, const char **options)
 
   /* When status is OK, step should be STEP_MAX + 1 and we should start cleanup at STEP_MAX (i.e. fetch rows) */
   /* when status is not OK, step - 1 failed so we must start at step - 2  */
-  switch((step_t) (step - (status == OK || status == NO_DATA_FOUND ? 1 : 2)))
+  switch((step_t) (step - (status == OK ? 1 : 2)))
     {
     case STEP_FETCH_ROWS:
       /*@fallthrough@*/
@@ -573,7 +593,8 @@ oradumper(const unsigned int length, const char **options)
   /*  assert(dmalloc_count_changed(mark, 1, 0) == 0);*/
 #endif
 
+  DBUG_LEAVE();
   DBUG_DONE();
 
-  return status == NO_DATA_FOUND ? OK : status;
+  return status;
 }
