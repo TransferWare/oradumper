@@ -55,6 +55,8 @@ const char outdesc[]="output_descriptor";
 #define MAX_NAME_LEN 255
 EXEC SQL END DECLARE SECTION;
 
+#define NO_DATA_FOUND 100
+
 error_t
 sql_connect(userid)
 EXEC SQL BEGIN DECLARE SECTION;
@@ -239,12 +241,16 @@ EXEC SQL END DECLARE SECTION;
 }
 
 error_t
-sql_describe_column(nr, size, name, type, length)
+sql_describe_column(nr, size, name, type, length, precision, scale, character_set_name)
 EXEC SQL BEGIN DECLARE SECTION;
 const unsigned int nr;
 char *name;
 int *type;
 unsigned int *length;
+int *precision;
+int *scale;
+char character_set_name[20+1];
+EXEC SQL VAR character_set_name IS STRING(20);
 EXEC SQL END DECLARE SECTION;
 const size_t size;
 {
@@ -255,13 +261,28 @@ const size_t size;
   DBUG_ENTER("sql_describe_column");
   DBUG_PRINT("input", ("nr: %u; size: %d", nr, (int) size));
 
+  *type = 0;
+  column_name[0] = '\0';
+  *length = 0;
+  *precision = 0;
+  *scale = 0;
+  character_set_name[0] = '\0';
+
   EXEC SQL GET DESCRIPTOR LOCAL :outdesc VALUE :nr
-    :type = TYPE, :column_name = NAME, :length = OCTET_LENGTH;
+    :type = TYPE, :column_name = NAME, :length = OCTET_LENGTH, :precision = PRECISION, :scale = SCALE, :character_set_name = CHARACTER_SET_NAME;
 
   (void) strncpy(name, column_name, size - 1);
   name[size - 1] = '\0';
 
-  DBUG_PRINT("output", ("name: %s; type: %d; length: %u; return: %d", name, *type, *length, sqlca.sqlcode));
+  DBUG_PRINT("output",
+	     ("name: %s; type: %d; length: %u; precision: %d; scale: %d; character set: %s; return: %d",
+	      name,
+	      *type,
+	      *length,
+	      *precision,
+	      *scale,
+	      character_set_name,
+	      sqlca.sqlcode));
   DBUG_LEAVE();
 
   return sqlca.sqlcode;
@@ -308,24 +329,45 @@ EXEC SQL END DECLARE SECTION;
 unsigned int *count;
 {
   DBUG_ENTER("sql_fetch_rows");
-  DBUG_PRINT("input", ("array_size: %u; count: %u", array_size, *count));
+  DBUG_PRINT("input", ("array_size: %u", array_size));
 
-  EXEC SQL WHENEVER NOT FOUND CONTINUE;
-  EXEC SQL FOR :array_size 
-    FETCH C INTO DESCRIPTOR LOCAL :outdesc;
+  switch (sqlca.sqlcode)
+    {
+    case NO_DATA_FOUND:
+      *count = 0;
+      sqlca.sqlcode = OK;
+      break;
 
-  *count = sqlca.sqlerrd[2] - *count;
+    case OK:
+      *count = (unsigned int) sqlca.sqlerrd[2]; /* save old cumulative count */
+
+      EXEC SQL WHENEVER NOT FOUND CONTINUE;
+      EXEC SQL FOR :array_size 
+	FETCH C INTO DESCRIPTOR LOCAL :outdesc;
+
+      *count = sqlca.sqlerrd[2] - *count; /* fetch count */
+      break;
+
+    default:
+      break;
+    }
 
   DBUG_PRINT("output", ("count: %u; return: %d", *count, sqlca.sqlcode));
   DBUG_LEAVE();
 
-  return sqlca.sqlcode;
+  /* when no data is found (sqlca.sqlcode == NO_DATA_FOUND) the next sql_fetch_rows() must return *count == 0 */
+  return sqlca.sqlcode == NO_DATA_FOUND ? OK : sqlca.sqlcode;
 }
 
 error_t
 sql_rows_processed(unsigned int *count)
 {
   *count = sqlca.sqlerrd[2];
+
+  if (sqlca.sqlcode == NO_DATA_FOUND)
+    {
+      sqlca.sqlcode = OK;
+    }
 
   return sqlca.sqlcode;
 }

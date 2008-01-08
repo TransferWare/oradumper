@@ -1,8 +1,6 @@
 #ifndef ORADUMPER_INT_H
 #define ORADUMPER_INT_H
 
-#define NO_DATA_FOUND 100
-
 typedef enum {
   ANSI_CHARACTER = 1,
   ANSI_CHARACTER_VARYING = 12,
@@ -33,7 +31,6 @@ typedef enum {
   ORA_LONG_VARCHAR = -94, /* char[n+4] */
   ORA_LONG_VARRAW = -95, /* unsigned char[n+4] */
   ORA_CHAR = -96, /* char[n] */
-  ORA_CHARF = -96, /* char[n] */
   ORA_CHARZ = -97, /* char[n+1] */
 } sql_datatype_t;
 
@@ -110,13 +107,18 @@ extern
 error_t
 sql_column_count(/*@out@*/ unsigned int *count);
 
+/*@-fixedformalarray@*/
 extern
 error_t
 sql_describe_column(const unsigned int nr,
 		    const size_t size,
 		    /*@out@*/ char *name,
 		    /*@out@*/ int *type,
-		    /*@out@*/ unsigned int *length);
+		    /*@out@*/ unsigned int *length,
+		    /*@out@*/ int *precision,
+		    /*@out@*/ int *scale,
+		    /*@out@*/ char character_set_name[20+1]);
+/*@=fixedformalarray@*/
 
 extern
 error_t
@@ -129,7 +131,7 @@ sql_define_column(const unsigned int nr,
 
 extern
 error_t
-sql_fetch_rows(const unsigned int array_size, /*in@*/ unsigned int *count);
+sql_fetch_rows(const unsigned int array_size, /*@out@*/ unsigned int *count);
 
 extern
 error_t
