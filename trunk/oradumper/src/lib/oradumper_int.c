@@ -61,6 +61,7 @@ static struct {
   { "b8", 0, "Bind variable 8", NULL, NULL },
   { "b9", 0, "Bind variable 9", NULL, NULL },
   { "b10", 0, "Bind variable 10", NULL, NULL },
+  { "details", 0, "Print details about input and output values: yes, only or no", "no", NULL },
 };
 
 static
@@ -149,6 +150,7 @@ get_option(const option_t option)
     case OPTION_B8:
     case OPTION_B9:
     case OPTION_B10:
+    case OPTION_DETAILS:
       return opt[option].value;
     }
 
@@ -187,9 +189,15 @@ oradumper(const unsigned int length, const char **options)
   const char *array_size_str;
   unsigned int array_size = 0;
   const char *sqlstmt;
-  unsigned int bind_variable_count = 0, bind_variable_nr;
-  char bind_variable_name[30+1] = "";
-  char *bind_variable_value;
+
+  value_info_t bind_value = { 0, 0, NULL, NULL, NULL, NULL };
+  unsigned int bind_variable_nr;
+#define bind_variable_count bind_value.value_count
+#define bind_variable_name bind_value.descr[bind_variable_nr].name
+#define bind_variable_value bind_value.data[bind_variable_nr][0].charz_ptr
+
+  value_info_t column_value;
+
   unsigned int column_count = 0, column_nr;
   char column_name[30+1] = "";
   int column_type;
@@ -205,7 +213,8 @@ oradumper(const unsigned int length, const char **options)
 #ifdef WITH_DMALLOC
   unsigned long mark = 0;
 #endif
-	  
+
+  memset(&bind_value, 0, sizeof(bind_value));
   process_options(length, options);
 
   userid = get_option(OPTION_USERID);
@@ -287,16 +296,54 @@ oradumper(const unsigned int length, const char **options)
 	  if ((status = sql_bind_variable_count(&bind_variable_count)) != OK)
 	    break;
 
+	  bind_value.array_count = 1;
+
+#ifdef lint
+	  free(bind_value.descr);
+	  free(bind_value.size);
+	  free(bind_value.data);
+	  free(bind_value.ind);
+#endif
+
+	  bind_value.descr =
+	    (value_description_t *) calloc((size_t) bind_value.value_count, sizeof(bind_value.descr[0]));
+	  assert(bind_value.descr != NULL);
+	  bind_value.size =
+	    (size_t *) calloc((size_t) bind_value.value_count, sizeof(bind_value.size[0]));
+	  assert(bind_value.size != NULL);
+	  bind_value.data =
+	    (value_data_t **) calloc((size_t) bind_value.value_count, sizeof(bind_value.data[0]));
+	  assert(bind_value.data != NULL);
+	  bind_value.ind =
+	    (short **) calloc((size_t) bind_value.value_count, sizeof(bind_value.ind[0]));
+	  assert(bind_value.ind != NULL);
+
 	  for (bind_variable_nr = 0;
-	       bind_variable_nr < bind_variable_count && bind_variable_nr < MAX_BIND_VARIABLES;
+	       bind_variable_nr < bind_variable_count;
 	       bind_variable_nr++)
 	    {
+	      /* get the bind variable name */
 	      if ((status = sql_bind_variable_name(bind_variable_nr + 1,
 						   sizeof(bind_variable_name),
 						   bind_variable_name)) != OK)
 		break;
 
-	      bind_variable_value = (char *) get_option((option_t)((unsigned int)OPTION_B1 + bind_variable_nr));
+	      bind_value.ind[bind_variable_nr] = NULL; /* no bind variable indicators needed */
+	      bind_value.size[bind_variable_nr] =
+		sizeof(bind_value.data[bind_variable_nr][0].charz_ptr);
+	      assert(bind_value.size[bind_variable_nr] % 4 == 0);
+	      bind_value.data[bind_variable_nr] =
+		(value_data_t *) calloc((size_t) bind_value.array_count, sizeof(bind_value.size[bind_variable_nr]));
+	      assert(bind_value.data[bind_variable_nr] != NULL);
+
+	      if (bind_variable_nr < MAX_BIND_VARIABLES)
+		{
+		  bind_variable_value = (char *) get_option((option_t)((unsigned int)OPTION_B1 + bind_variable_nr));
+		}
+	      else
+		{
+		  bind_variable_value = NULL;
+		}
 
 	      DBUG_PRINT("info",
 			 ("bind variable %u has name %s and value %s",
@@ -536,8 +583,35 @@ oradumper(const unsigned int length, const char **options)
 	  break;
 	}
     }
-
+  
   /* Cleanup all resources but do not disconnect */
+  if (bind_value.data != NULL)
+    {
+      for (bind_variable_nr = 0;
+	   bind_variable_nr < bind_variable_count;
+	   bind_variable_nr++)
+	{
+	  if (bind_value.data[bind_variable_nr] != NULL)
+	    free(bind_value.data[bind_variable_nr]);
+	}
+      free(bind_value.data);
+    }
+  if (bind_value.ind != NULL)
+    {
+      for (bind_variable_nr = 0;
+	   bind_variable_nr < bind_variable_count;
+	   bind_variable_nr++)
+	{
+	  if (bind_value.ind[bind_variable_nr] != NULL)
+	    free(bind_value.ind[bind_variable_nr]);
+	}
+      free(bind_value.ind);
+    }
+  if (bind_value.descr != NULL)
+    free(bind_value.descr);
+  if (bind_value.size != NULL)
+    free(bind_value.size);
+
   if (data != NULL && ind != NULL)
     {
       for (column_nr = 0;

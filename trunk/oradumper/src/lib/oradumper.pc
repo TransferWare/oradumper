@@ -187,19 +187,20 @@ error_t
 sql_bind_variable(nr, value)
 EXEC SQL BEGIN DECLARE SECTION;
 unsigned int nr;
-const char *value;
 EXEC SQL END DECLARE SECTION;
+const char *value;
 {
   EXEC SQL BEGIN DECLARE SECTION;
   const int type = ANSI_CHARACTER_VARYING;
   const short ind = (value == NULL ? -1 : 0);
+  const char *value_ptr = (value == NULL ? "" : value);
   EXEC SQL END DECLARE SECTION;
 
-  DBUG_ENTER("sql_bind_variable_name");
+  DBUG_ENTER("sql_bind_variable");
   DBUG_PRINT("input", ("nr: %u; value: %s", nr, value));
 
   EXEC SQL SET DESCRIPTOR LOCAL :indesc
-    VALUE :nr TYPE = :type, DATA = :value, INDICATOR = :ind;
+    VALUE :nr TYPE = :type, DATA = :value_ptr, INDICATOR = :ind;
 
   DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
   DBUG_LEAVE();
