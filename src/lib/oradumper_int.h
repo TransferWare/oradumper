@@ -51,11 +51,60 @@ typedef enum {
   OPTION_B7,
   OPTION_B8,
   OPTION_B9,
-  OPTION_B10
+  OPTION_B10,
 #define MAX_BIND_VARIABLES 10
+  OPTION_DETAILS
 } option_t;
 
 typedef int error_t; /* sqlca.sqlcode */
+
+/* zero terminated character arrays */
+typedef char character_set_t[20 + 1];
+typedef char value_name_t[30 + 1];
+
+typedef struct {
+  /* the following fields are returned by exec sql get descriptor */
+  value_name_t name;
+  sql_datatype_t type;
+  unsigned int octect_length; /* length in bytes */
+  unsigned int length; /* length in characters */
+  unsigned int precision;
+  unsigned int scale;
+  character_set_t character_set;
+} value_description_t;
+
+/* zero terminated character array */
+typedef char charz_1_t[1];
+/* character array with a length indicator */
+typedef struct { unsigned short len; unsigned char arr[1]; } varchar_1_t;
+
+typedef union {
+  /*@observer@*/ char *charz_ptr;
+  charz_1_t charz;
+  varchar_1_t varchar;
+} value_data_t;
+
+typedef /*@null@*/ /*@only@*/ value_data_t *value_data_ptr_t;
+typedef /*@null@*/ /*@only@*/ short *short_ptr_t;
+
+/* a structure which contains info about (arrays of) input and output values */
+typedef struct {
+  unsigned int value_count; /* number of values (bind variables or columns) */
+  unsigned int array_count; /* each value is actually an array of this size */
+  /* descr[value_count] */
+  /*@null@*/ /*@only@*/ value_description_t *descr;
+
+  /* this is the allocated size of value[x].data[y] */
+  /* must be a multiple of 4 */
+  /* size[value_count] */
+  /*@null@*/ /*@only@*/ size_t *size;
+
+  /* data array: data[value_count][array_count] */
+  /*@null@*/ /*@only@*/ value_data_ptr_t *data;
+
+  /* indicator array: ind[value_count][array_count] */
+  /*@null@*/ /*@only@*/ short_ptr_t *ind;
+} value_info_t;
 
 #define OK 0
 
