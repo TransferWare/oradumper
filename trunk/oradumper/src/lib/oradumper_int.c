@@ -51,16 +51,6 @@ static struct {
   { "nls_date_format", 1, "NLS date format", "yyyy-mm-dd hh24:mi:ss", NULL },
   { "nls_timestamp_format", 1, "NLS timestamp format", "yyyy-mm-dd hh24:mi:ss", NULL },
   { "nls_numeric_characters", 1, "NLS numeric characters", ".,", NULL },
-  { "b1", 0, "Bind variable 1", NULL, NULL },
-  { "b2", 0, "Bind variable 2", NULL, NULL },
-  { "b3", 0, "Bind variable 3", NULL, NULL },
-  { "b4", 0, "Bind variable 4", NULL, NULL },
-  { "b5", 0, "Bind variable 5", NULL, NULL },
-  { "b6", 0, "Bind variable 6", NULL, NULL },
-  { "b7", 0, "Bind variable 7", NULL, NULL },
-  { "b8", 0, "Bind variable 8", NULL, NULL },
-  { "b9", 0, "Bind variable 9", NULL, NULL },
-  { "b10", 0, "Bind variable 10", NULL, NULL },
   { "details", 0, "Print details about input and output values: yes, only or no", "no", NULL },
 };
 
@@ -70,7 +60,7 @@ usage(void)
 {
   size_t i;
 
-  (void) fprintf( stderr, "\nUsage: oradumper [OPTION=VALUE]...\n\nOPTION:\n");
+  (void) fprintf( stderr, "\nUsage: oradumper [OPTION=VALUE]... [VALUE]...\n\nOPTION:\n");
   for (i = 0; i < sizeof(opt)/sizeof(opt[0]); i++)
     {
       (void) fprintf( stderr, "  %-30s  %s", opt[i].name, opt[i].desc);
@@ -84,48 +74,45 @@ usage(void)
   exit(EXIT_FAILURE);
 }
 
-void
-process_options(const unsigned int length, const char **options)
+unsigned int
+process_arguments(const unsigned int nr_arguments, const char **arguments)
 {
   size_t i, j;
 
-  for (i = 0; i < (size_t) length; i++)
+  for (i = 0; i < (size_t) nr_arguments; i++)
     {
       for (j = 0; j < sizeof(opt)/sizeof(opt[0]); j++)
 	{
-	  if (strncmp(options[i], opt[j].name, strlen(opt[j].name)) == 0 &&
-	      options[i][strlen(opt[j].name)] == '=')
+	  if (strncmp(arguments[i], opt[j].name, strlen(opt[j].name)) == 0 &&
+	      arguments[i][strlen(opt[j].name)] == '=')
 	    {
-	      opt[j].value = (char*)(options[i] + strlen(opt[j].name) + 1);
+	      opt[j].value = (char*)(arguments[i] + strlen(opt[j].name) + 1);
 	      break;
 	    }
 	}
 
-      if (j == sizeof(opt)/sizeof(opt[0]))
+      if (j == sizeof(opt)/sizeof(opt[0])) /* arguments[i] not an option */
 	{
-	  (void) fprintf(stderr, "\nERROR: OPTION in OPTION=VALUE (%s) unknown.\n", options[i]);
-	  usage();
+	  break;
 	}
     }
 
-  /* assign defaults */
   for (j = 0; j < sizeof(opt)/sizeof(opt[0]); j++)
     {
+      /* assign defaults */
       if (opt[j].value == NULL && opt[j].def != NULL)
 	{
 	  opt[j].value = opt[j].def;
 	}
-    }
-
-  /* mandatory options should not be empty */
-  for (j = 0; j < sizeof(opt)/sizeof(opt[0]); j++)
-    {
+      /* mandatory options should not be empty */
       if (opt[j].mandatory != 0 && opt[j].value == NULL)
 	{
 	  (void) fprintf(stderr, "\nERROR: Option %s mandatory.\n", opt[j].name);
 	  usage();
 	}
     }
+
+  return (unsigned int) i; /* number of options found */
 }
 
 const char *
@@ -140,16 +127,6 @@ get_option(const option_t option)
     case OPTION_NLS_DATE_FORMAT:
     case OPTION_NLS_TIMESTAMP_FORMAT:
     case OPTION_NLS_NUMERIC_CHARACTERS:
-    case OPTION_B1:
-    case OPTION_B2:
-    case OPTION_B3:
-    case OPTION_B4:
-    case OPTION_B5:
-    case OPTION_B6:
-    case OPTION_B7:
-    case OPTION_B8:
-    case OPTION_B9:
-    case OPTION_B10:
     case OPTION_DETAILS:
       return opt[option].value;
     }
@@ -160,8 +137,9 @@ get_option(const option_t option)
 }
 
 int
-oradumper(const unsigned int length, const char **options)
+oradumper(const unsigned int nr_arguments, const char **arguments)
 {
+  unsigned int nr_options;
   typedef enum {
     STEP_CONNECT = 0,
     STEP_NLS_DATE_FORMAT,
@@ -215,7 +193,7 @@ oradumper(const unsigned int length, const char **options)
 #endif
 
   memset(&bind_value, 0, sizeof(bind_value));
-  process_options(length, options);
+  nr_options = process_arguments(nr_arguments, arguments);
 
   userid = get_option(OPTION_USERID);
   nls_date_format = get_option(OPTION_NLS_DATE_FORMAT);
@@ -336,9 +314,9 @@ oradumper(const unsigned int length, const char **options)
 		(value_data_t *) calloc((size_t) bind_value.array_count, sizeof(bind_value.size[bind_variable_nr]));
 	      assert(bind_value.data[bind_variable_nr] != NULL);
 
-	      if (bind_variable_nr < MAX_BIND_VARIABLES)
+	      if (nr_options + bind_variable_nr < nr_arguments)
 		{
-		  bind_variable_value = (char *) get_option((option_t)((unsigned int)OPTION_B1 + bind_variable_nr));
+		  bind_variable_value = arguments[nr_options + bind_variable_nr];
 		}
 	      else
 		{
