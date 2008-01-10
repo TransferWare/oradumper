@@ -42,18 +42,7 @@ typedef enum {
   OPTION_NLS_DATE_FORMAT,
   OPTION_NLS_TIMESTAMP_FORMAT,
   OPTION_NLS_NUMERIC_CHARACTERS,
-  OPTION_B1,
-  OPTION_B2,
-  OPTION_B3,
-  OPTION_B4,
-  OPTION_B5,
-  OPTION_B6,
-  OPTION_B7,
-  OPTION_B8,
-  OPTION_B9,
-  OPTION_B10,
-#define MAX_BIND_VARIABLES 10
-  OPTION_DETAILS
+  OPTION_DETAILS,
 } option_t;
 
 typedef int error_t; /* sqlca.sqlcode */
@@ -110,8 +99,8 @@ typedef struct {
 
 /*@-exportlocal@*/
 extern
-void
-process_options(const unsigned int length, const char **options);
+unsigned int
+process_arguments(const unsigned int nr_arguments, const char **arguments);
 
 extern
 /*@null@*//*@observer@*/

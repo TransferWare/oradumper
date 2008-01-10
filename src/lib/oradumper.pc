@@ -28,7 +28,7 @@
 #endif
 
 #include "oradumper.h"
-#include "oradumper_int.h"
+EXEC SQL INCLUDE "oradumper_int.h";
 
 /* declare a structure */
 #ifdef SQLCA_NONE 
