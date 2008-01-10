@@ -174,18 +174,18 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 #define bind_variable_name bind_value.descr[bind_variable_nr].name
 #define bind_variable_value bind_value.data[bind_variable_nr][0].charz_ptr
 
-  value_info_t column_value;
-
-  unsigned int column_count = 0, column_nr;
-  char column_name[30+1] = "";
-  int column_type;
-  unsigned int column_length, column_size /* allocated size: length + 1 byte for the terminating zero */;
-  int column_precision, column_scale;
-  char column_character_set[20+1];
-  data_ptr_t **data = NULL;
-  /*@observer@*/ data_ptr_t data_ptr = NULL;
-  short **ind = NULL;
+  value_info_t column_value = { 0, 0, NULL, NULL, NULL, NULL };
+  unsigned int column_nr;
   unsigned int array_nr;
+#define column_count column_value.value_count
+#define column_name column_value.descr[column_nr].name
+#define column_type column_value.descr[column_nr].type
+#define column_length column_value.descr[column_nr].octet_length
+#define column_precision column_value.descr[column_nr].precision
+#define column_scale column_value.descr[column_nr].scale
+#define column_size column_value.size[column_nr]
+#define column_character_set column_value.descr[column_nr].character_set
+  /*@observer@*/ data_ptr_t data_ptr = NULL;
   unsigned int row_count;
 
 #ifdef WITH_DMALLOC
@@ -193,6 +193,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 #endif
 
   memset(&bind_value, 0, sizeof(bind_value));
+  memset(&column_value, 0, sizeof(column_value));
   nr_options = process_arguments(nr_arguments, arguments);
 
   userid = get_option(OPTION_USERID);
@@ -287,7 +288,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	    (value_description_t *) calloc((size_t) bind_value.value_count, sizeof(bind_value.descr[0]));
 	  assert(bind_value.descr != NULL);
 	  bind_value.size =
-	    (size_t *) calloc((size_t) bind_value.value_count, sizeof(bind_value.size[0]));
+	    (unsigned int *) calloc((size_t) bind_value.value_count, sizeof(bind_value.size[0]));
 	  assert(bind_value.size != NULL);
 	  bind_value.data =
 	    (value_data_t **) calloc((size_t) bind_value.value_count, sizeof(bind_value.data[0]));
@@ -308,7 +309,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 
 	      bind_value.ind[bind_variable_nr] = NULL; /* no bind variable indicators needed */
 	      bind_value.size[bind_variable_nr] =
-		sizeof(bind_value.data[bind_variable_nr][0].charz_ptr);
+		(sql_size_t) sizeof(bind_value.data[bind_variable_nr][0].charz_ptr);
 	      assert(bind_value.size[bind_variable_nr] % 4 == 0);
 	      bind_value.data[bind_variable_nr] =
 		(value_data_t *) calloc((size_t) bind_value.array_count, sizeof(bind_value.size[bind_variable_nr]));
@@ -342,11 +343,28 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	  if ((status = sql_column_count(&column_count)) != OK)
 	    break;
 
-	  data = (data_ptr_t **) calloc((size_t) column_count, sizeof(*data));
-	  assert(data != NULL);
+	  column_value.array_count = array_size;
 
-	  ind = (short **) calloc((size_t) column_count, sizeof(*ind));
-	  assert(ind != NULL);
+#ifdef lint
+	  free(column_value.descr);
+	  free(column_value.size);
+	  free(column_value.data);
+	  free(column_value.ind);
+#endif
+
+	  column_value.descr =
+	    (value_description_t *) calloc((size_t) column_count, sizeof(column_value.descr[0]));
+	  assert(column_value.descr != NULL);
+
+	  column_value.size =
+	    (sql_size_t *) calloc((size_t) column_value.value_count, sizeof(column_value.size[0]));
+	  assert(column_value.size != NULL);
+
+	  column_value.data = (value_data_ptr_t *) calloc((size_t) column_count, sizeof(*column_value.data));
+	  assert(column_value.data != NULL);
+
+	  column_value.ind = (short **) calloc((size_t) column_count, sizeof(*column_value.ind));
+	  assert(column_value.ind != NULL);
 
 	  for (column_nr = 0;
 	       column_nr < column_count;
@@ -443,60 +461,62 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 		 column_size % 4 == 2 => column_size += 2
 		 column_size % 4 == 3 => column_size += 1
 	      */
-	      column_size = ((unsigned int) ((column_size + 3) / 4)) * 4;
+	      column_size = ((column_size + 3) / 4) * 4;
 	      column_length = column_size - 1;
 
-	      data[column_nr] = (data_ptr_t *) calloc((size_t) array_size, sizeof(**data));
-	      assert(data[column_nr] != NULL);
+	      column_value.data[column_nr] = (value_data_ptr_t) calloc((size_t) array_size, sizeof(column_value.data[column_nr][0]));
+	      assert(column_value.data[column_nr] != NULL);
 
-	      /* data[column_nr][array_nr] points to memory in data[column_nr][0] */
-	      data[column_nr][0] = (data_ptr_t) calloc((size_t) array_size, column_size * sizeof(***data));
-	      assert(data[column_nr][0] != NULL);
+	      /* column_value.data[column_nr][array_nr] points to memory in column_value.data[column_nr][0] */
+	      column_value.data[column_nr][0].charz_alloc_ptr = (char *) calloc((size_t) array_size, (size_t) column_size);
+	      assert(column_value.data[column_nr][0].charz_alloc_ptr != NULL);
 
-	      DBUG_PRINT("info", ("data[%u][0]= %p", column_nr, data[column_nr][0]));
+	      DBUG_PRINT("info", ("column_value.data[%u][0]= %p", column_nr, column_value.data[column_nr][0]));
 
-	      for (array_nr = 0, data_ptr = data[column_nr][0];
+	      for (array_nr = 0, data_ptr = column_value.data[column_nr][0].charz_alloc_ptr;
 		   array_nr < array_size;
 		   array_nr++, data_ptr += column_size)
 		{
-		  /*@-modobserver@*/
-		  data[column_nr][array_nr] = data_ptr;
-		  /*@=modobserver@*/
+		  /*@-observertrans@*/
+		  /*@-dependenttrans@*/
+		  column_value.data[column_nr][array_nr].charz_alloc_ptr = data_ptr;
+		  /*@=observertrans@*/
+		  /*@=dependenttrans@*/
 
 #ifdef DBUG_MEMORY
-		  DBUG_PRINT("info", ("Dumping data[%u][%u] (%p)", column_nr, array_nr, data[column_nr][array_nr]));
-		  DBUG_DUMP("info", data[column_nr][array_nr], (unsigned int) column_size);
+		  DBUG_PRINT("info", ("Dumping column_value.data[%u][%u] (%p)", column_nr, array_nr, column_value.data[column_nr][array_nr].charz_alloc_ptr));
+		  DBUG_DUMP("info", column_value.data[column_nr][array_nr].charz_alloc_ptr, (unsigned int) column_size);
 #endif
 		  assert(array_nr == 0 ||
-			 ((char*)data[column_nr][array_nr] - (char*)data[column_nr][array_nr-1]) == (int)column_size);
+			 ((char*)column_value.data[column_nr][array_nr].charz_alloc_ptr - (char*)column_value.data[column_nr][array_nr-1].charz_alloc_ptr) == (int)column_size);
 		}
 
-	      ind[column_nr] = (short *) calloc((size_t) array_size, sizeof(**ind));
-	      assert(ind[column_nr] != NULL);
+	      column_value.ind[column_nr] = (short *) calloc((size_t) array_size, sizeof(**column_value.ind));
+	      assert(column_value.ind[column_nr] != NULL);
 
 #ifdef DBUG_MEMORY
-	      DBUG_PRINT("info", ("Dumping data[%u] (%p)", column_nr, data[column_nr]));
-	      DBUG_DUMP("info", data[column_nr], (unsigned int)(array_size * sizeof(**data)));
-	      DBUG_PRINT("info", ("Dumping ind[%u] (%p)", column_nr, ind[column_nr]));
-	      DBUG_DUMP("info", ind[column_nr], (unsigned int)(array_size * sizeof(**ind)));
+	      DBUG_PRINT("info", ("Dumping column_value.data[%u] (%p)", column_nr, column_value.data[column_nr]));
+	      DBUG_DUMP("info", column_value.data[column_nr], (unsigned int)(array_size * sizeof(**column_value.data)));
+	      DBUG_PRINT("info", ("Dumping column_value.ind[%u] (%p)", column_nr, column_value.ind[column_nr]));
+	      DBUG_DUMP("info", column_value.ind[column_nr], (unsigned int)(array_size * sizeof(**column_value.ind)));
 #endif
 
 	      if ((status = sql_define_column(column_nr + 1,
 					      column_type,
 					      column_length,
 					      array_size,
-					      data[column_nr][0],
-					      ind[column_nr])) != OK)
+					      column_value.data[column_nr][0].charz_alloc_ptr,
+					      column_value.ind[column_nr])) != OK)
 		break;
 	    }
 
 	  (void) printf("\n"); /* column heading end */
 
 #ifdef DBUG_MEMORY
-	  DBUG_PRINT("info", ("Dumping data (%p)", data));
-	  DBUG_DUMP("info", data, (unsigned int)(column_count * sizeof(*data)));
-	  DBUG_PRINT("info", ("Dumping ind (%p)", ind));
-	  DBUG_DUMP("info", ind, (unsigned int)(column_count * sizeof(*ind)));
+	  DBUG_PRINT("info", ("Dumping column_value.data (%p)", column_value.data));
+	  DBUG_DUMP("info", column_value.data, (unsigned int)(column_count * sizeof(*column_value.data)));
+	  DBUG_PRINT("info", ("Dumping column_value.ind (%p)", column_value.ind));
+	  DBUG_DUMP("info", column_value.ind, (unsigned int)(column_count * sizeof(*column_value.ind)));
 #endif
 	  row_count = 0;
 
@@ -518,35 +538,32 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 #ifdef DBUG_MEMORY
 		      if (array_nr == 0)
 			{
-			  DBUG_PRINT("info", ("Dumping data[%u] (%p)", column_nr, data[column_nr]));
+			  DBUG_PRINT("info", ("Dumping column_value.data[%u] (%p)", column_nr, column_value.data[column_nr]));
 			  DBUG_DUMP("info",
-				    data[column_nr],
-				    (unsigned int)(array_size * sizeof(**data)));
-			  DBUG_PRINT("info", ("Dumping ind[%u] (%p)", column_nr, ind[column_nr]));
+				    column_value.data[column_nr],
+				    (unsigned int)(array_size * sizeof(**column_value.data)));
+			  DBUG_PRINT("info", ("Dumping column_value.ind[%u] (%p)", column_nr, column_value.ind[column_nr]));
 			  DBUG_DUMP("info",
-				    ind[column_nr],
-				    (unsigned int)(array_size * sizeof(**ind)));
+				    column_value.ind[column_nr],
+				    (unsigned int)(array_size * sizeof(**column_value.ind)));
 			}
 
 		      DBUG_PRINT("info",
-				 ("Dumping data[%u][%u] (%p)",
+				 ("Dumping column_value.data[%u][%u] (%p)",
 				  column_nr,
 				  array_nr,
-				  data[column_nr][array_nr]));
+				  column_value.data[column_nr][array_nr]));
 		      DBUG_DUMP("info",
-				data[column_nr][array_nr],
-				(unsigned int) ((char*)data[column_nr][1] - (char*)data[column_nr][0]));
+				column_value.data[column_nr][array_nr],
+				(unsigned int) ((char*)column_value.data[column_nr][1] - (char*)column_value.data[column_nr][0]));
 #endif
 
-		      DBUG_PRINT("info", ("ind[%u][%u]= %d", column_nr, array_nr, ind[column_nr][array_nr]));
-		      DBUG_PRINT("info", ("data[%u][%u]= %s", column_nr, array_nr, data[column_nr][array_nr]));
-
-		      assert(data[column_nr] != NULL);
-		      assert(ind[column_nr] != NULL);
+		      assert(column_value.data[column_nr] != NULL);
+		      assert(column_value.ind[column_nr] != NULL);
 
 		      printf("%s%s",
 			     (column_nr > 0 ? "," : ""),
-			     (ind[column_nr][array_nr] == -1 ? "NULL" : data[column_nr][array_nr]));
+			     (column_value.ind[column_nr][array_nr] == -1 ? "NULL" : column_value.data[column_nr][array_nr].charz_alloc_ptr));
 		    }
 		  (void) printf("\n"); /* line end */
 		}
@@ -590,19 +607,28 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
   if (bind_value.size != NULL)
     free(bind_value.size);
 
-  if (data != NULL && ind != NULL)
+  if (column_value.data != NULL && column_value.ind != NULL)
     {
       for (column_nr = 0;
 	   column_nr < column_count;
 	   column_nr++)
 	{
-	  free(data[column_nr][0]);
-	  free(data[column_nr]);
-	  free(ind[column_nr]);
+	  if (column_value.data[column_nr] != NULL)
+	    {
+	      if (column_value.data[column_nr][0].charz_alloc_ptr != NULL)
+		free(column_value.data[column_nr][0].charz_alloc_ptr);
+	      free(column_value.data[column_nr]);
+	    }
+	  if (column_value.ind[column_nr] != NULL)
+	    free(column_value.ind[column_nr]);
 	}
-      free(data);
-      free(ind);
+      free(column_value.data);
+      free(column_value.ind);
     }
+  if (column_value.descr != NULL)
+    free(column_value.descr);
+  if (column_value.size != NULL)
+    free(column_value.size);
 
   if (status != OK)
     {

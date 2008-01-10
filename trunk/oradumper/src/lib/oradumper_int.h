@@ -50,15 +50,16 @@ typedef int error_t; /* sqlca.sqlcode */
 /* zero terminated character arrays */
 typedef char character_set_t[20 + 1];
 typedef char value_name_t[30 + 1];
+typedef unsigned int sql_size_t;
 
 typedef struct {
   /* the following fields are returned by exec sql get descriptor */
   value_name_t name;
   sql_datatype_t type;
-  unsigned int octect_length; /* length in bytes */
-  unsigned int length; /* length in characters */
-  unsigned int precision;
-  unsigned int scale;
+  sql_size_t octet_length; /* length in bytes */
+  sql_size_t length; /* length in characters */
+  int precision;
+  int scale;
   character_set_t character_set;
 } value_description_t;
 
@@ -69,6 +70,7 @@ typedef struct { unsigned short len; unsigned char arr[1]; } varchar_1_t;
 
 typedef union {
   /*@observer@*/ char *charz_ptr;
+  /*@only@*/ char *charz_alloc_ptr;
   charz_1_t charz;
   varchar_1_t varchar;
 } value_data_t;
@@ -86,7 +88,7 @@ typedef struct {
   /* this is the allocated size of value[x].data[y] */
   /* must be a multiple of 4 */
   /* size[value_count] */
-  /*@null@*/ /*@only@*/ size_t *size;
+  /*@null@*/ /*@only@*/ sql_size_t *size;
 
   /* data array: data[value_count][array_count] */
   /*@null@*/ /*@only@*/ value_data_ptr_t *data;
@@ -119,7 +121,7 @@ sql_execute_immediate(const char *statement);
 
 extern
 error_t
-sql_allocate_descriptors(const unsigned int max_array_size);
+sql_allocate_descriptors(const sql_size_t max_array_size);
 
 extern
 error_t
@@ -152,7 +154,7 @@ sql_describe_column(const unsigned int nr,
 		    const size_t size,
 		    /*@out@*/ char *name,
 		    /*@out@*/ int *type,
-		    /*@out@*/ unsigned int *length,
+		    /*@out@*/ sql_size_t *length,
 		    /*@out@*/ int *precision,
 		    /*@out@*/ int *scale,
 		    /*@out@*/ char character_set_name[20+1]);
@@ -162,7 +164,7 @@ extern
 error_t
 sql_define_column(const unsigned int nr,
 		  const int type,
-		  const unsigned int length,
+		  const sql_size_t length,
 		  const unsigned int array_size,
 		  const char *data,
 		  const short *ind);
@@ -185,6 +187,6 @@ sql_deallocate_descriptors(void);
 
 extern
 void
-sql_error(/*@out@*/ unsigned int *length, /*@out@*/ char **msg);
+sql_error(/*@out@*/ sql_size_t *length, /*@out@*/ char **msg);
 
 #endif
