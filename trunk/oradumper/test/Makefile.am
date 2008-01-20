@@ -20,10 +20,10 @@ MAINTAINERCLEANFILES = Makefile.in
 prog                 = $(top_builddir)/src/prog/oradumper$(EXEEXT)
 testlib              = $(top_builddir)/src/lib/liboradumper.la
 testprog             = ./oradumper$(EXEEXT)
-sqlstmt1_new         = "select 1234567890 as NR, 'mystring' as STR, to_date('1900-12-31 23:23:59') as DAY from dual\
+sqlstmt1             = "select 1234567890 as NR, 'mystring' as STR, to_date('1900-12-31 23:23:59') as DAY from dual\
                         union\
                         select 2345678901, 'ƒ Õ’ÿABCDE', to_date('20001231232359', 'yyyymmddhh24miss') from dual"
-sqlstmt1             = "select 1234567890 as NR, 'mystring' as STR, to_date('1900-12-31 23:23:59') as DAY from dual\
+sqlstmt1_old         = "select 1234567890 as NR, 'mystring' as STR, to_date('1900-12-31 23:23:59') as DAY from dual\
                         union\
                         select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') from dual"
 sqlstmt2             = "select to_clob(rpad('0123456789', 8000, '0123456789')) as myclob from dual"
