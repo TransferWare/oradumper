@@ -67,12 +67,12 @@ typedef struct {
 typedef char charz_1_t[1];
 /* character array with a length indicator */
 typedef struct { unsigned short len; unsigned char arr[1]; } varchar_1_t;
+typedef unsigned short utext; /* unicode */
 
 typedef union {
   /*@observer@*/ char *charz_ptr;
+  /*@only@*/ utext *utextz_alloc_ptr;
   /*@only@*/ char *charz_alloc_ptr;
-  charz_1_t charz;
-  varchar_1_t varchar;
 } value_data_t;
 
 typedef /*@null@*/ /*@only@*/ value_data_t *value_data_ptr_t;

@@ -3,6 +3,8 @@
 #endif
 
 #include <stdio.h>
+#include <locale.h>
+#include <wchar.h>
 
 #if HAVE_ASSERT_H
 #include <assert.h>
@@ -189,12 +191,21 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 #define column_scale column_value.descr[column_nr].scale
 #define column_size column_value.size[column_nr]
 #define column_character_set_name column_value.descr[column_nr].character_set_name
+
+#define USE_UCS2 1
+#ifdef  USE_UCS2
+#define alloc_ptr utextz_alloc_ptr
+#else
+#define alloc_ptr charz_alloc_ptr
+#endif
   /*@observer@*/ data_ptr_t data_ptr = NULL;
   unsigned int row_count;
 
 #ifdef WITH_DMALLOC
   unsigned long mark = 0;
 #endif
+
+  (void) setlocale(LC_ALL, "");
 
   memset(&bind_value, 0, sizeof(bind_value));
   (void) strcpy(bind_value.descriptor_name, "input");
@@ -408,6 +419,9 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 		case ORA_INTEGER:
 		case ORA_UNSIGNED:
 		  column_length = 45;
+		  column_type = ANSI_CHARACTER_VARYING;
+		  /* add 1 byte for a terminating zero */
+		  column_size = column_length + 1;
 		  break;
 
 		case ANSI_DECIMAL:
@@ -417,6 +431,9 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 		case ANSI_DOUBLE_PRECISION:
 		case ANSI_REAL:
 		  column_length = 100;
+		  column_type = ANSI_CHARACTER_VARYING;
+		  /* add 1 byte for a terminating zero */
+		  column_size = column_length + 1;
 		  break;
 
 		case ORA_LONG:
@@ -430,6 +447,9 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 		case ANSI_DATE:
 		case ORA_DATE:
 		  column_length = 25;
+		  column_type = ANSI_CHARACTER_VARYING;
+		  /* add 1 byte for a terminating zero */
+		  column_size = column_length + 1;
 		  break;
 
 		case ORA_RAW:
@@ -445,6 +465,23 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 		case ORA_VARCHAR2:
 		case ORA_STRING:
 		case ORA_VARCHAR:
+		  column_type = ORA_VARCHAR; /*ANSI_CHARACTER_VARYING; */
+		  /* column_size must be a multiple of 4 (word boundary): 
+		     column_size % 4 == 0 => column_size
+		     column_size % 4 == 1 => column_size += 3
+		     column_size % 4 == 2 => column_size += 2
+		     column_size % 4 == 3 => column_size += 1
+		  */
+		  /*		  column_size = ((column_size + 3) / 4) * 4;*/
+
+#ifdef USE_UCS2
+		  column_size *= sizeof(*column_value.data[column_nr][0].alloc_ptr);
+		  column_length *= sizeof(*column_value.data[column_nr][0].alloc_ptr);
+		  (void*) strcpy(column_character_set_name, "utf16");
+#endif
+		  /* add 2 bytes for the length field */
+		  column_size = column_length + 2;
+		  break;
 
 		case ORA_VARNUM:
 		case ORA_VARRAW:
@@ -453,48 +490,40 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 		case ORA_LONG_VARRAW:
 		case ORA_CHAR:
 		case ORA_CHARZ:
-
 		  break;
+
+		default:
+		  column_type = ANSI_CHARACTER_VARYING;
+		  /* add 1 byte for a terminating zero */
+		  column_size = column_length + 1;
 		}
-
-	      column_type = ANSI_CHARACTER_VARYING;
-	      /* add 1 byte for a terminating zero */
-	      column_size = column_length + 1;
-
-	      /* column_size must be a multiple of 4 (word boundary): 
-		 column_size % 4 == 0 => column_size
-		 column_size % 4 == 1 => column_size += 3
-		 column_size % 4 == 2 => column_size += 2
-		 column_size % 4 == 3 => column_size += 1
-	      */
-	      column_size = ((column_size + 3) / 4) * 4;
-	      column_length = column_size - 1;
 
 	      column_value.data[column_nr] = (value_data_ptr_t) calloc((size_t) array_size, sizeof(column_value.data[column_nr][0]));
 	      assert(column_value.data[column_nr] != NULL);
 
 	      /* column_value.data[column_nr][array_nr] points to memory in column_value.data[column_nr][0] */
-	      column_value.data[column_nr][0].charz_alloc_ptr = (char *) calloc((size_t) array_size, (size_t) column_size);
-	      assert(column_value.data[column_nr][0].charz_alloc_ptr != NULL);
+	      column_value.data[column_nr][0].alloc_ptr = (utext *) calloc((size_t) array_size, (size_t) column_size);
+	      assert(column_value.data[column_nr][0].alloc_ptr != NULL);
 
 	      DBUG_PRINT("info", ("column_value.data[%u][0]= %p", column_nr, column_value.data[column_nr][0]));
 
-	      for (array_nr = 0, data_ptr = column_value.data[column_nr][0].charz_alloc_ptr;
+	      for (array_nr = 0, data_ptr = (char *) column_value.data[column_nr][0].alloc_ptr;
 		   array_nr < array_size;
 		   array_nr++, data_ptr += column_size)
 		{
 		  /*@-observertrans@*/
 		  /*@-dependenttrans@*/
-		  column_value.data[column_nr][array_nr].charz_alloc_ptr = data_ptr;
+		  column_value.data[column_nr][array_nr].alloc_ptr = (utext *) data_ptr;
 		  /*@=observertrans@*/
 		  /*@=dependenttrans@*/
 
+#define DBUG_MEMORY 1
 #ifdef DBUG_MEMORY
-		  DBUG_PRINT("info", ("Dumping column_value.data[%u][%u] (%p)", column_nr, array_nr, column_value.data[column_nr][array_nr].charz_alloc_ptr));
-		  DBUG_DUMP("info", column_value.data[column_nr][array_nr].charz_alloc_ptr, (unsigned int) column_size);
+		  DBUG_PRINT("info", ("Dumping column_value.data[%u][%u] (%p)", column_nr, array_nr, column_value.data[column_nr][array_nr].alloc_ptr));
+		  DBUG_DUMP("info", column_value.data[column_nr][array_nr].alloc_ptr, (unsigned int) column_size);
 #endif
 		  assert(array_nr == 0 ||
-			 ((char*)column_value.data[column_nr][array_nr].charz_alloc_ptr - (char*)column_value.data[column_nr][array_nr-1].charz_alloc_ptr) == (int)column_size);
+			 ((char*)column_value.data[column_nr][array_nr].alloc_ptr - (char*)column_value.data[column_nr][array_nr-1].alloc_ptr) == (int)column_size);
 		}
 
 	      column_value.ind[column_nr] = (short *) calloc((size_t) array_size, sizeof(**column_value.ind));
@@ -511,7 +540,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 					  column_nr + 1,
 					  column_value.array_count,
 					  &column_value.descr[column_nr],
-					  column_value.data[column_nr][0].charz_alloc_ptr,
+					  (char *) column_value.data[column_nr][0].alloc_ptr,
 					  column_value.ind[column_nr])) != OK)
 		break;
 
@@ -547,35 +576,45 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 
 		  for (column_nr = 0; column_nr < column_count; column_nr++)
 		    {
-#ifdef DBUG_MEMORY
-		      if (array_nr == 0)
-			{
-			  DBUG_PRINT("info", ("Dumping column_value.data[%u] (%p)", column_nr, column_value.data[column_nr]));
-			  DBUG_DUMP("info",
-				    column_value.data[column_nr],
-				    (unsigned int)(array_size * sizeof(**column_value.data)));
-			  DBUG_PRINT("info", ("Dumping column_value.ind[%u] (%p)", column_nr, column_value.ind[column_nr]));
-			  DBUG_DUMP("info",
-				    column_value.ind[column_nr],
-				    (unsigned int)(array_size * sizeof(**column_value.ind)));
-			}
-
-		      DBUG_PRINT("info",
-				 ("Dumping column_value.data[%u][%u] (%p)",
-				  column_nr,
-				  array_nr,
-				  column_value.data[column_nr][array_nr]));
-		      DBUG_DUMP("info",
-				column_value.data[column_nr][array_nr],
-				(unsigned int) ((char*)column_value.data[column_nr][1] - (char*)column_value.data[column_nr][0]));
-#endif
-
 		      assert(column_value.data[column_nr] != NULL);
 		      assert(column_value.ind[column_nr] != NULL);
 
-		      printf("%s%s",
-			     (column_nr > 0 ? "," : ""),
-			     (column_value.ind[column_nr][array_nr] == -1 ? "NULL" : column_value.data[column_nr][array_nr].charz_alloc_ptr));
+#ifdef DBUG_MEMORY
+		      assert(column_value.data[column_nr][array_nr].alloc_ptr != NULL);
+
+		      DBUG_PRINT("info", ("Dumping column_value.data[%u][%u] (%p) after fetch", column_nr, array_nr, column_value.data[column_nr][array_nr].alloc_ptr));
+		      DBUG_DUMP("info",
+				column_value.data[column_nr][array_nr].alloc_ptr,
+				(unsigned int) column_size);
+#endif
+
+		      if (strcmp(column_character_set_name, "utf16") != 0)
+			{
+			  DBUG_PRINT("info", ("column_value.data[%u][%u]: %s", column_nr, array_nr, (char *) column_value.data[column_nr][array_nr].alloc_ptr));
+
+			  (void) printf("%s%s",
+					(column_nr > 0 ? "," : ""),
+					(column_value.ind[column_nr][array_nr] == -1 ? "NULL" : (char *) column_value.data[column_nr][array_nr].alloc_ptr));
+			}
+		      else
+			{
+			  (void) puts((column_nr > 0 ? "," : ""));
+			  if (column_value.ind[column_nr][array_nr] == -1)
+			    {
+			      (void) puts("NULL");
+			    }
+			  else
+			    { 
+			      utext *src = column_value.data[column_nr][array_nr].alloc_ptr;
+			      const size_t len = (size_t) src[0];
+			      size_t nr;
+
+			      for (nr = 1; nr <= len; nr++)
+				{
+				  (void) putwchar((wchar_t) src[nr]);
+				}
+			    }
+			}
 		    }
 		  (void) printf("\n"); /* line end */
 		}
@@ -627,8 +666,8 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	{
 	  if (column_value.data[column_nr] != NULL)
 	    {
-	      if (column_value.data[column_nr][0].charz_alloc_ptr != NULL)
-		free(column_value.data[column_nr][0].charz_alloc_ptr);
+	      if (column_value.data[column_nr][0].alloc_ptr != NULL)
+		free(column_value.data[column_nr][0].alloc_ptr);
 	      free(column_value.data[column_nr]);
 	    }
 	  if (column_value.ind[column_nr] != NULL)

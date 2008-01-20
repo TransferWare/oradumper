@@ -28,6 +28,9 @@
 #endif
 
 #include "oradumper.h"
+
+#define varchar_defined 1
+
 EXEC SQL INCLUDE "oradumper_int.h";
 
 /* declare a structure */
@@ -196,8 +199,7 @@ value_description_t *value_description;
   DBUG_ENTER("sql_value_get");
   DBUG_PRINT("input", ("descriptor_name: %s; nr: %u", descriptor_name, nr));
 
-  EXEC SQL GET DESCRIPTOR LOCAL :descriptor_name
-    VALUE :nr 
+  EXEC SQL GET DESCRIPTOR LOCAL :descriptor_name VALUE :nr 
     :name = NAME,
     :type = TYPE,
     :octet_length = OCTET_LENGTH,
@@ -227,6 +229,8 @@ value_description_t *value_description;
   EXEC SQL BEGIN DECLARE SECTION;
   int type = value_description->type;
   unsigned int length = value_description->length; /* length in characters */
+  char *character_set_name = value_description->character_set_name;
+  EXEC SQL VAR character_set_name IS STRING(20);
   EXEC SQL END DECLARE SECTION;
 
   DBUG_ENTER("sql_value_set");
@@ -241,7 +245,9 @@ value_description_t *value_description;
 	      ind));
 
   EXEC SQL SET DESCRIPTOR LOCAL :descriptor_name VALUE :nr
-    TYPE = :type, LENGTH = :length;
+    TYPE = :type,
+    LENGTH = :length,
+    CHARACTER_SET_NAME = :character_set_name;
    
   EXEC SQL FOR :array_size
     SET DESCRIPTOR LOCAL :descriptor_name VALUE :nr
