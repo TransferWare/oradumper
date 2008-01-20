@@ -50,8 +50,6 @@ EXEC SQL INCLUDE "oradumper_int.h";
 EXEC SQL INCLUDE sqlca;
 
 EXEC SQL BEGIN DECLARE SECTION;
-const char  indesc[]="input_descriptor";                /* descriptor names       */
-const char outdesc[]="output_descriptor";
 #define MAX_NAME_LEN 255
 EXEC SQL END DECLARE SECTION;
 
@@ -97,20 +95,18 @@ EXEC SQL END DECLARE SECTION;
 }
 
 error_t
-sql_allocate_descriptors(max_array_size)
+sql_allocate_descriptor(descriptor_name, max_array_size)
 EXEC SQL BEGIN DECLARE SECTION;
+const char *descriptor_name;
+EXEC SQL VAR descriptor_name IS STRING;
 const unsigned int max_array_size;
 EXEC SQL END DECLARE SECTION;
 {
-  DBUG_ENTER("sql_allocate_descriptors");
-  DBUG_PRINT("input", ("max_array_size: %u", max_array_size));
+  DBUG_ENTER("sql_allocate_descriptor");
+  DBUG_PRINT("input", ("descriptor_name: %s; max_array_size: %u", descriptor_name, max_array_size));
 
-  /* Allocate the input and output descriptors. */
-  /* The input is only used for query bind variables hence no array processing */
-  EXEC SQL
-    ALLOCATE DESCRIPTOR LOCAL :indesc;
   EXEC SQL FOR :max_array_size
-    ALLOCATE DESCRIPTOR LOCAL :outdesc;
+    ALLOCATE DESCRIPTOR LOCAL :descriptor_name;
       
   DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
   DBUG_LEAVE();
@@ -131,7 +127,6 @@ EXEC SQL END DECLARE SECTION;
   /* Prepare the statement and declare a cursor. */
   EXEC SQL PREPARE S FROM :select_statement;
   EXEC SQL DECLARE C CURSOR FOR S;
-  EXEC SQL DESCRIBE INPUT S USING DESCRIPTOR LOCAL :indesc;
 
   DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
   DBUG_LEAVE();
@@ -140,100 +135,36 @@ EXEC SQL END DECLARE SECTION;
 }
 
 error_t
-sql_bind_variable_count(count)
+sql_describe_input(descriptor_name)
 EXEC SQL BEGIN DECLARE SECTION;
-unsigned int *count;
+const char *descriptor_name;
+EXEC SQL VAR descriptor_name IS STRING;
 EXEC SQL END DECLARE SECTION;
 {
+  DBUG_ENTER("sql_describe_input");
+  DBUG_PRINT("input", ("descriptor_name: %s", descriptor_name));
 
-  DBUG_ENTER("sql_bind_variable_count");
-
-  EXEC SQL GET DESCRIPTOR LOCAL :indesc :count = COUNT; 
-
-  DBUG_PRINT("output", ("count: %u; return: %d", *count, sqlca.sqlcode));
-  DBUG_LEAVE();
-
-  return sqlca.sqlcode;
-}
-
-error_t
-sql_bind_variable_name(nr, size, name)
-EXEC SQL BEGIN DECLARE SECTION;
-unsigned int nr;
-char *name;
-EXEC SQL END DECLARE SECTION;
-const size_t size;
-{
-  EXEC SQL BEGIN DECLARE SECTION;
-  char bind_variable_name[MAX_NAME_LEN+1];
-  EXEC SQL END DECLARE SECTION;
-
-  DBUG_ENTER("sql_bind_variable_name");
-  DBUG_PRINT("input", ("nr: %u; size: %d", nr, (int) size));
-
-  EXEC SQL GET DESCRIPTOR LOCAL :indesc
-    VALUE :nr :bind_variable_name = NAME;
-
-  (void) strncpy(name, bind_variable_name, size - 1);
-  name[size - 1] = '\0';
-
-  DBUG_PRINT("output", ("name: %s; return: %d", name, sqlca.sqlcode));
-  DBUG_LEAVE();
-
-  return sqlca.sqlcode;
-}
-
-error_t
-sql_bind_variable(nr, value)
-EXEC SQL BEGIN DECLARE SECTION;
-unsigned int nr;
-EXEC SQL END DECLARE SECTION;
-const char *value;
-{
-  EXEC SQL BEGIN DECLARE SECTION;
-  const int type = ANSI_CHARACTER_VARYING;
-  const short ind = (value == NULL ? -1 : 0);
-  const char *value_ptr = (value == NULL ? "" : value);
-  EXEC SQL END DECLARE SECTION;
-
-  DBUG_ENTER("sql_bind_variable");
-  DBUG_PRINT("input", ("nr: %u; value: %s", nr, value));
-
-  EXEC SQL SET DESCRIPTOR LOCAL :indesc
-    VALUE :nr TYPE = :type, DATA = :value_ptr, INDICATOR = :ind;
-
-  DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
-  DBUG_LEAVE();
-
-  return sqlca.sqlcode;
-}
-
-error_t
-sql_open_cursor(void)
-{
-  DBUG_ENTER("sql_open_cursor");
-
-  /* Open the cursor and execute the statement. */
-  EXEC SQL
-    OPEN C USING DESCRIPTOR LOCAL :indesc;
-
-  DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
-  DBUG_LEAVE();
-
-  return sqlca.sqlcode;
-}
-
-error_t
-sql_column_count(count)
-EXEC SQL BEGIN DECLARE SECTION;
-unsigned int *count;
-EXEC SQL END DECLARE SECTION;
-{
-  DBUG_ENTER("sql_column_count");
-
-  EXEC SQL DESCRIBE OUTPUT S USING DESCRIPTOR LOCAL :outdesc;
+  EXEC SQL DESCRIBE INPUT S USING DESCRIPTOR LOCAL :descriptor_name;
    
-  EXEC SQL GET DESCRIPTOR LOCAL :outdesc :count = COUNT;
+  DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
+  DBUG_LEAVE();
+
+  return sqlca.sqlcode;
+}
+
+error_t
+sql_value_count(descriptor_name, count)
+EXEC SQL BEGIN DECLARE SECTION;
+const char *descriptor_name;
+EXEC SQL VAR descriptor_name IS STRING;
+unsigned int *count;
+EXEC SQL END DECLARE SECTION;
+{
+
+  DBUG_ENTER("sql_value_count");
+  DBUG_PRINT("input", ("descriptor_name: %s", descriptor_name));
+
+  EXEC SQL GET DESCRIPTOR LOCAL :descriptor_name :count = COUNT; 
 
   DBUG_PRINT("output", ("count: %u; return: %d", *count, sqlca.sqlcode));
   DBUG_LEAVE();
@@ -242,79 +173,78 @@ EXEC SQL END DECLARE SECTION;
 }
 
 error_t
-sql_describe_column(nr, size, name, type, length, precision, scale, character_set_name)
+sql_value_get(descriptor_name, nr, value_description)
 EXEC SQL BEGIN DECLARE SECTION;
-const unsigned int nr;
-char *name;
-int *type;
-unsigned int *length;
-int *precision;
-int *scale;
-char character_set_name[20+1];
-EXEC SQL VAR character_set_name IS STRING(20);
+const char *descriptor_name;
+EXEC SQL VAR descriptor_name IS STRING;
+unsigned int nr;
 EXEC SQL END DECLARE SECTION;
-const size_t size;
+value_description_t *value_description;
 {
   EXEC SQL BEGIN DECLARE SECTION;
-  char column_name[MAX_NAME_LEN+1];
+  char *name = value_description->name;
+  EXEC SQL VAR name IS STRING(30);
+  int *type = &value_description->type;
+  unsigned int *octet_length = &value_description->octet_length; /* length in bytes */
+  unsigned int *length = &value_description->length; /* length in characters */
+  int *precision = &value_description->precision;
+  int *scale = &value_description->scale;
+  char *character_set_name = value_description->character_set_name;
+  EXEC SQL VAR character_set_name IS STRING(20);
   EXEC SQL END DECLARE SECTION;
 
-  DBUG_ENTER("sql_describe_column");
-  DBUG_PRINT("input", ("nr: %u; size: %d", nr, (int) size));
+  DBUG_ENTER("sql_value_get");
+  DBUG_PRINT("input", ("descriptor_name: %s; nr: %u", descriptor_name, nr));
 
-  *type = 0;
-  column_name[0] = '\0';
-  *length = 0;
-  *precision = 0;
-  *scale = 0;
-  character_set_name[0] = '\0';
+  EXEC SQL GET DESCRIPTOR LOCAL :descriptor_name
+    VALUE :nr 
+    :name = NAME,
+    :type = TYPE,
+    :octet_length = OCTET_LENGTH,
+    :length = LENGTH,
+    :precision = PRECISION,
+    :scale = SCALE,
+    :character_set_name = CHARACTER_SET_NAME;
 
-  EXEC SQL GET DESCRIPTOR LOCAL :outdesc VALUE :nr
-    :type = TYPE, :column_name = NAME, :length = OCTET_LENGTH, :precision = PRECISION, :scale = SCALE, :character_set_name = CHARACTER_SET_NAME;
-
-  (void) strncpy(name, column_name, size - 1);
-  name[size - 1] = '\0';
-
-  DBUG_PRINT("output",
-	     ("name: %s; type: %d; length: %u; precision: %d; scale: %d; character set: %s; return: %d",
-	      name,
-	      *type,
-	      *length,
-	      *precision,
-	      *scale,
-	      character_set_name,
-	      sqlca.sqlcode));
+  DBUG_PRINT("output", ("name: %s; type: %d; octet_length: %u; length: %u; precision: %d; scale: %d; character set name: %s; return: %d", name, (int) *type, *octet_length, *length, *precision, *scale, character_set_name, sqlca.sqlcode));
   DBUG_LEAVE();
 
   return sqlca.sqlcode;
 }
 
 error_t
-sql_define_column(nr, type, length, array_size, data, ind)
+sql_value_set(descriptor_name, nr, array_size, value_description, data, ind)
 EXEC SQL BEGIN DECLARE SECTION;
+const char *descriptor_name;
+EXEC SQL VAR descriptor_name IS STRING;
 const unsigned int nr;
-const int type;
-const unsigned int length;
 const unsigned int array_size;
 const char *data;
 const short *ind;
 EXEC SQL END DECLARE SECTION;
+value_description_t *value_description;
 {
-  DBUG_ENTER("sql_define_column");
+  EXEC SQL BEGIN DECLARE SECTION;
+  int type = value_description->type;
+  unsigned int length = value_description->length; /* length in characters */
+  EXEC SQL END DECLARE SECTION;
+
+  DBUG_ENTER("sql_value_set");
   DBUG_PRINT("input",
-	     ("nr: %u; type: %d; length: %u; array_size: %u; data: %p; ind: %p",
+	     ("descriptor_name: %s; nr: %u; array_size: %u; type: %d; length: %u; data: %p; ind: %p",
+	      descriptor_name,
 	      nr,
+	      array_size,
 	      type,
 	      length,
-	      array_size,
 	      data,
 	      ind));
 
-  EXEC SQL SET DESCRIPTOR LOCAL :outdesc VALUE :nr
+  EXEC SQL SET DESCRIPTOR LOCAL :descriptor_name VALUE :nr
     TYPE = :type, LENGTH = :length;
    
   EXEC SQL FOR :array_size
-    SET DESCRIPTOR LOCAL :outdesc VALUE :nr
+    SET DESCRIPTOR LOCAL :descriptor_name VALUE :nr
     REF DATA = :data, REF INDICATOR = :ind;
 
   DBUG_LEAVE();
@@ -323,8 +253,47 @@ EXEC SQL END DECLARE SECTION;
 }
 
 error_t
-sql_fetch_rows(array_size, count)
+sql_open_cursor(descriptor_name)
 EXEC SQL BEGIN DECLARE SECTION;
+const char *descriptor_name;
+EXEC SQL VAR descriptor_name IS STRING;
+EXEC SQL END DECLARE SECTION;
+{
+  DBUG_ENTER("sql_open_cursor");
+
+  /* Open the cursor and execute the statement. */
+  EXEC SQL
+    OPEN C USING DESCRIPTOR LOCAL :descriptor_name;
+
+  DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
+  DBUG_LEAVE();
+
+  return sqlca.sqlcode;
+}
+
+error_t
+sql_describe_output(descriptor_name)
+EXEC SQL BEGIN DECLARE SECTION;
+const char *descriptor_name;
+EXEC SQL VAR descriptor_name IS STRING;
+EXEC SQL END DECLARE SECTION;
+{
+  DBUG_ENTER("sql_describe_output");
+  DBUG_PRINT("input", ("descriptor_name: %s", descriptor_name));
+
+  EXEC SQL DESCRIBE OUTPUT S USING DESCRIPTOR LOCAL :descriptor_name;
+   
+  DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
+  DBUG_LEAVE();
+
+  return sqlca.sqlcode;
+}
+
+error_t
+sql_fetch_rows(descriptor_name, array_size, count)
+EXEC SQL BEGIN DECLARE SECTION;
+const char *descriptor_name;
+EXEC SQL VAR descriptor_name IS STRING;
 const unsigned int array_size;
 EXEC SQL END DECLARE SECTION;
 unsigned int *count;
@@ -344,7 +313,7 @@ unsigned int *count;
 
       EXEC SQL WHENEVER NOT FOUND CONTINUE;
       EXEC SQL FOR :array_size 
-	FETCH C INTO DESCRIPTOR LOCAL :outdesc;
+	FETCH C INTO DESCRIPTOR LOCAL :descriptor_name;
 
       *count = sqlca.sqlerrd[2] - *count; /* fetch count */
       break;
@@ -387,13 +356,16 @@ sql_close_cursor(void)
 }
 
 error_t
-sql_deallocate_descriptors(void)
+sql_deallocate_descriptor(descriptor_name)
+EXEC SQL BEGIN DECLARE SECTION;
+const char *descriptor_name;
+EXEC SQL VAR descriptor_name IS STRING;
+EXEC SQL END DECLARE SECTION;
 {
-  DBUG_ENTER("sql_deallocate_descriptors");
+  DBUG_ENTER("sql_deallocate_descriptor");
+  DBUG_PRINT("input", ("descriptor_name: %s", descriptor_name));
 
-  /* Deallocate the descriptors */
-  EXEC SQL DEALLOCATE DESCRIPTOR LOCAL :indesc;
-  EXEC SQL DEALLOCATE DESCRIPTOR LOCAL :outdesc;
+  EXEC SQL DEALLOCATE DESCRIPTOR LOCAL :descriptor_name;
       
   DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
   DBUG_LEAVE();

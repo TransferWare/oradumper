@@ -145,10 +145,13 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
     STEP_NLS_DATE_FORMAT,
     STEP_NLS_TIMESTAMP_FORMAT,
     STEP_NLS_NUMERIC_CHARACTERS,
-    STEP_ALLOCATE_DESCRIPTORS,
+    STEP_ALLOCATE_DESCRIPTOR_IN,
+    STEP_ALLOCATE_DESCRIPTOR_OUT,
     STEP_PARSE,
+    STEP_DESCRIBE_INPUT,
     STEP_BIND_VARIABLE,
     STEP_OPEN_CURSOR,
+    STEP_DESCRIBE_OUTPUT,
     STEP_FETCH_ROWS
 
 #define STEP_MAX ((int) STEP_FETCH_ROWS)
@@ -168,23 +171,24 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
   unsigned int array_size = 0;
   const char *sqlstmt;
 
-  value_info_t bind_value = { 0, 0, NULL, NULL, NULL, NULL };
+  value_info_t bind_value = { 0, 0, "", NULL, NULL, NULL, NULL };
   unsigned int bind_variable_nr;
 #define bind_variable_count bind_value.value_count
 #define bind_variable_name bind_value.descr[bind_variable_nr].name
+#define bind_variable_ind bind_value.ind[bind_variable_nr][0]
 #define bind_variable_value bind_value.data[bind_variable_nr][0].charz_ptr
 
-  value_info_t column_value = { 0, 0, NULL, NULL, NULL, NULL };
+  value_info_t column_value = { 0, 0, "", NULL, NULL, NULL, NULL };
   unsigned int column_nr;
   unsigned int array_nr;
 #define column_count column_value.value_count
 #define column_name column_value.descr[column_nr].name
 #define column_type column_value.descr[column_nr].type
-#define column_length column_value.descr[column_nr].octet_length
+#define column_length column_value.descr[column_nr].length
 #define column_precision column_value.descr[column_nr].precision
 #define column_scale column_value.descr[column_nr].scale
 #define column_size column_value.size[column_nr]
-#define column_character_set column_value.descr[column_nr].character_set
+#define column_character_set_name column_value.descr[column_nr].character_set_name
   /*@observer@*/ data_ptr_t data_ptr = NULL;
   unsigned int row_count;
 
@@ -193,7 +197,9 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 #endif
 
   memset(&bind_value, 0, sizeof(bind_value));
+  (void) strcpy(bind_value.descriptor_name, "input");
   memset(&column_value, 0, sizeof(column_value));
+  (void) strcpy(column_value.descriptor_name, "output");
   nr_options = process_arguments(nr_arguments, arguments);
 
   userid = get_option(OPTION_USERID);
@@ -202,6 +208,10 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
   nls_numeric_characters = get_option(OPTION_NLS_NUMERIC_CHARACTERS);
   array_size_str = get_option(OPTION_ARRAYSIZE);
   sqlstmt = get_option(OPTION_SQLSTMT);
+
+  assert(array_size_str != NULL);
+
+  array_size = (unsigned int) atoi(array_size_str);
 
   DBUG_INIT(get_option(OPTION_DBUG_OPTIONS), "oradumper");
   DBUG_ENTER("oradumper");
@@ -255,12 +265,14 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	  status = sql_execute_immediate(nls_numeric_characters_stmt);
 	  break;
 
-	case STEP_ALLOCATE_DESCRIPTORS:
-	  assert(array_size_str != NULL);
+	case STEP_ALLOCATE_DESCRIPTOR_IN:
+	  bind_value.array_count = 1;
+	  status = sql_allocate_descriptor(bind_value.descriptor_name, 1); /* no input bind array */
+	  break;
 
-	  array_size = (unsigned int) atoi(array_size_str);
-
-	  status = sql_allocate_descriptors(array_size);
+	case STEP_ALLOCATE_DESCRIPTOR_OUT:
+	  column_value.array_count = array_size;
+	  status = sql_allocate_descriptor(column_value.descriptor_name, array_size);
 	  break;
 
 	case STEP_PARSE:
@@ -271,11 +283,14 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	  status = sql_parse(sqlstmt);
 	  break;
 
+	case STEP_DESCRIBE_INPUT:
+	  status = sql_describe_input(bind_value.descriptor_name);
+	  break;
+
 	case STEP_BIND_VARIABLE:
-	  if ((status = sql_bind_variable_count(&bind_variable_count)) != OK)
+	  if ((status = sql_value_count(bind_value.descriptor_name, &bind_variable_count)) != OK)
 	    break;
 
-	  bind_value.array_count = 1;
 
 #ifdef lint
 	  free(bind_value.descr);
@@ -302,12 +317,14 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	       bind_variable_nr++)
 	    {
 	      /* get the bind variable name */
-	      if ((status = sql_bind_variable_name(bind_variable_nr + 1,
-						   sizeof(bind_variable_name),
-						   bind_variable_name)) != OK)
+	      if ((status = sql_value_get(bind_value.descriptor_name,
+					  bind_variable_nr + 1,
+					  &bind_value.descr[bind_variable_nr])) != OK)
 		break;
 
-	      bind_value.ind[bind_variable_nr] = NULL; /* no bind variable indicators needed */
+	      bind_value.ind[bind_variable_nr] = (short *) calloc((size_t) bind_value.array_count, sizeof(**bind_value.ind));
+	      assert(bind_value.ind[bind_variable_nr] != NULL);
+
 	      bind_value.size[bind_variable_nr] =
 		(sql_size_t) sizeof(bind_value.data[bind_variable_nr][0].charz_ptr);
 	      assert(bind_value.size[bind_variable_nr] % 4 == 0);
@@ -317,11 +334,13 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 
 	      if (nr_options + bind_variable_nr < nr_arguments)
 		{
-		  bind_variable_value = arguments[nr_options + bind_variable_nr];
+		  bind_variable_ind = 0;
+		  bind_variable_value = (char *) arguments[nr_options + bind_variable_nr];
 		}
 	      else
 		{
-		  bind_variable_value = NULL;
+		  bind_variable_ind = -1;
+		  bind_variable_value = "";
 		}
 
 	      DBUG_PRINT("info",
@@ -330,20 +349,22 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 			  bind_variable_name,
 			  bind_variable_value));
 
-	      if ((status = sql_bind_variable(bind_variable_nr + 1, bind_variable_value)) != OK)
+	      if ((status = sql_value_set(bind_value.descriptor_name, bind_variable_nr + 1, bind_value.array_count, &bind_value.descr[bind_variable_nr], bind_variable_value, &bind_variable_ind)) != OK)
 		break;
 	    }
 	  break;
 
 	case STEP_OPEN_CURSOR:
-	  status = sql_open_cursor();
+	  status = sql_open_cursor(bind_value.descriptor_name);
+	  break;
+
+	case STEP_DESCRIBE_OUTPUT:
+	  status = sql_describe_output(column_value.descriptor_name);
 	  break;
 
 	case STEP_FETCH_ROWS:
-	  if ((status = sql_column_count(&column_count)) != OK)
+	  if ((status = sql_value_count(column_value.descriptor_name, &column_count)) != OK)
 	    break;
-
-	  column_value.array_count = array_size;
 
 #ifdef lint
 	  free(column_value.descr);
@@ -370,25 +391,10 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	       column_nr < column_count;
 	       column_nr++)
 	    {
-	      if ((status = sql_describe_column(column_nr + 1,
-						sizeof(column_name),
-						column_name,
-						&column_type,
-						&column_length,
-						&column_precision,
-						&column_scale,
-						column_character_set)) != OK)
+	      if ((status = sql_value_get(column_value.descriptor_name,
+					  column_nr + 1,
+					  &column_value.descr[column_nr])) != OK)
 		break;
-
-	      DBUG_PRINT("info",
-			 ("column: %u; name: %s; type: %d; length: %u; precision: %d; scale: %d; character set: %s",
-			  column_nr + 1,
-			  column_name,
-			  column_type,
-			  column_length, 
-			  column_precision,
-			  column_scale,
-			  column_character_set));
 
 	      /* print the column headings */
 	      printf("%s%s", (column_nr > 0 ? "," : ""), column_name);
@@ -501,12 +507,18 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	      DBUG_DUMP("info", column_value.ind[column_nr], (unsigned int)(array_size * sizeof(**column_value.ind)));
 #endif
 
-	      if ((status = sql_define_column(column_nr + 1,
-					      column_type,
-					      column_length,
-					      array_size,
-					      column_value.data[column_nr][0].charz_alloc_ptr,
-					      column_value.ind[column_nr])) != OK)
+	      if ((status = sql_value_set(column_value.descriptor_name,
+					  column_nr + 1,
+					  column_value.array_count,
+					  &column_value.descr[column_nr],
+					  column_value.data[column_nr][0].charz_alloc_ptr,
+					  column_value.ind[column_nr])) != OK)
+		break;
+
+	      /* get descriptor info again */
+	      if ((status = sql_value_get(column_value.descriptor_name,
+					  column_nr + 1,
+					  &column_value.descr[column_nr])) != OK)
 		break;
 	    }
 
@@ -522,7 +534,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 
 	  do
 	    {
-	      if ((status = sql_fetch_rows(array_size, &row_count)) != OK)
+	      if ((status = sql_fetch_rows(column_value.descriptor_name, column_value.array_count, &row_count)) != OK)
 		{
 		  break;
 		}
@@ -646,15 +658,22 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
     {
     case STEP_FETCH_ROWS:
       /*@fallthrough@*/
+    case STEP_DESCRIBE_OUTPUT:
+      /*@fallthrough@*/
     case STEP_OPEN_CURSOR:
       (void) sql_close_cursor();
       /*@fallthrough@*/
     case STEP_BIND_VARIABLE:
       /*@fallthrough@*/
+    case STEP_DESCRIBE_INPUT:
+      /*@fallthrough@*/
     case STEP_PARSE:
       /*@fallthrough@*/
-    case STEP_ALLOCATE_DESCRIPTORS:
-      (void) sql_deallocate_descriptors();
+    case STEP_ALLOCATE_DESCRIPTOR_OUT:
+      (void) sql_deallocate_descriptor(column_value.descriptor_name);
+      /*@fallthrough@*/
+    case STEP_ALLOCATE_DESCRIPTOR_IN:
+      (void) sql_deallocate_descriptor(bind_value.descriptor_name);
       /*@fallthrough@*/
     case STEP_NLS_NUMERIC_CHARACTERS:
       /*@fallthrough@*/
