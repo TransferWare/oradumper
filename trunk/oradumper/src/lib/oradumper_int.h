@@ -48,7 +48,7 @@ typedef enum {
 typedef int error_t; /* sqlca.sqlcode */
 
 /* zero terminated character arrays */
-typedef char character_set_t[20 + 1];
+typedef char character_set_name_t[20 + 1];
 typedef char value_name_t[30 + 1];
 typedef unsigned int sql_size_t;
 
@@ -60,7 +60,7 @@ typedef struct {
   sql_size_t length; /* length in characters */
   int precision;
   int scale;
-  character_set_t character_set;
+  character_set_name_t character_set_name;
 } value_description_t;
 
 /* zero terminated character array */
@@ -82,6 +82,7 @@ typedef /*@null@*/ /*@only@*/ short *short_ptr_t;
 typedef struct {
   unsigned int value_count; /* number of values (bind variables or columns) */
   unsigned int array_count; /* each value is actually an array of this size */
+  value_name_t descriptor_name;
   /* descr[value_count] */
   /*@null@*/ /*@only@*/ value_description_t *descr;
 
@@ -121,7 +122,7 @@ sql_execute_immediate(const char *statement);
 
 extern
 error_t
-sql_allocate_descriptors(const sql_size_t max_array_size);
+sql_allocate_descriptor(const char *descriptor_name, const sql_size_t max_array_size);
 
 extern
 error_t
@@ -129,49 +130,31 @@ sql_parse(const char *select_statement);
 
 extern
 error_t
-sql_bind_variable_count(/*@out@*/ unsigned int *count);
+sql_describe_input(const char *descriptor_name);
 
 extern
 error_t
-sql_bind_variable_name(const unsigned int nr, const size_t size, /*@out@*/ char *name);
+sql_value_count(const char *descriptor_name, /*@out@*/ unsigned int *count);
 
 extern
 error_t
-sql_bind_variable(const unsigned int nr, /*@null@*/ const char *value);
+sql_value_get(const char *descriptor_name, const unsigned int nr, /*@out@*/ value_description_t *value_description);
 
 extern
 error_t
-sql_open_cursor(void);
+sql_value_set(const char *descriptor_name, const unsigned int nr, const unsigned int array_size, /*@in@*/ value_description_t *value_description, const char *data, const short *ind);
 
 extern
 error_t
-sql_column_count(/*@out@*/ unsigned int *count);
-
-/*@-fixedformalarray@*/
-extern
-error_t
-sql_describe_column(const unsigned int nr,
-		    const size_t size,
-		    /*@out@*/ char *name,
-		    /*@out@*/ int *type,
-		    /*@out@*/ sql_size_t *length,
-		    /*@out@*/ int *precision,
-		    /*@out@*/ int *scale,
-		    /*@out@*/ char character_set_name[20+1]);
-/*@=fixedformalarray@*/
+sql_open_cursor(const char *descriptor_name);
 
 extern
 error_t
-sql_define_column(const unsigned int nr,
-		  const int type,
-		  const sql_size_t length,
-		  const unsigned int array_size,
-		  const char *data,
-		  const short *ind);
+sql_describe_output(const char *descriptor_name);
 
 extern
 error_t
-sql_fetch_rows(const unsigned int array_size, /*@out@*/ unsigned int *count);
+sql_fetch_rows(const char *descriptor_name, const unsigned int array_size, /*@out@*/ unsigned int *count);
 
 extern
 error_t
@@ -183,7 +166,7 @@ sql_close_cursor(void);
 
 extern
 error_t
-sql_deallocate_descriptors(void);
+sql_deallocate_descriptor(const char *descriptor_name);
 
 extern
 void
