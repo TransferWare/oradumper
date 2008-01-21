@@ -173,14 +173,10 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
   unsigned int array_size = 0;
   const char *sqlstmt;
 
-  value_info_t bind_value = { 0, 0, "", NULL, NULL, NULL, NULL };
+  value_info_t bind_value = { 0, 0, "", NULL, NULL, NULL, NULL, NULL };
   unsigned int bind_variable_nr;
-#define bind_variable_count bind_value.value_count
-#define bind_variable_name bind_value.descr[bind_variable_nr].name
-#define bind_variable_ind bind_value.ind[bind_variable_nr][0]
-#define bind_variable_value bind_value.data[bind_variable_nr][0].charz_ptr
 
-  value_info_t column_value = { 0, 0, "", NULL, NULL, NULL, NULL };
+  value_info_t column_value = { 0, 0, "", NULL, NULL, NULL, NULL, NULL };
   unsigned int column_nr;
   unsigned int array_nr;
 #define column_count column_value.value_count
@@ -192,12 +188,6 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 #define column_size column_value.size[column_nr]
 #define column_character_set_name column_value.descr[column_nr].character_set_name
 
-#define USE_UCS2 1
-#ifdef  USE_UCS2
-#define alloc_ptr utextz_alloc_ptr
-#else
-#define alloc_ptr charz_alloc_ptr
-#endif
   /*@observer@*/ data_ptr_t data_ptr = NULL;
   unsigned int row_count;
 
@@ -299,13 +289,14 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	  break;
 
 	case STEP_BIND_VARIABLE:
-	  if ((status = sql_value_count(bind_value.descriptor_name, &bind_variable_count)) != OK)
+	  if ((status = sql_value_count(bind_value.descriptor_name, &bind_value.value_count)) != OK)
 	    break;
 
 
 #ifdef lint
 	  free(bind_value.descr);
 	  free(bind_value.size);
+	  free(bind_value.buf);
 	  free(bind_value.data);
 	  free(bind_value.ind);
 #endif
@@ -313,18 +304,22 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	  bind_value.descr =
 	    (value_description_t *) calloc((size_t) bind_value.value_count, sizeof(bind_value.descr[0]));
 	  assert(bind_value.descr != NULL);
-	  bind_value.size =
-	    (unsigned int *) calloc((size_t) bind_value.value_count, sizeof(bind_value.size[0]));
-	  assert(bind_value.size != NULL);
+
+	  /* bind_value.data[x][y] will point to an argument, hence no allocation is necessary */
+	  bind_value.size = NULL;
+	  assert(bind_value.size == NULL);
+	  bind_value.buf = NULL;
+	  assert(bind_value.buf == NULL);
+
 	  bind_value.data =
 	    (value_data_t **) calloc((size_t) bind_value.value_count, sizeof(bind_value.data[0]));
 	  assert(bind_value.data != NULL);
 	  bind_value.ind =
-	    (short **) calloc((size_t) bind_value.value_count, sizeof(bind_value.ind[0]));
+	    (short_ptr_t *) calloc((size_t) bind_value.value_count, sizeof(bind_value.ind[0]));
 	  assert(bind_value.ind != NULL);
 
 	  for (bind_variable_nr = 0;
-	       bind_variable_nr < bind_variable_count;
+	       bind_variable_nr < bind_value.value_count;
 	       bind_variable_nr++)
 	    {
 	      /* get the bind variable name */
@@ -333,34 +328,38 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 					  &bind_value.descr[bind_variable_nr])) != OK)
 		break;
 
-	      bind_value.ind[bind_variable_nr] = (short *) calloc((size_t) bind_value.array_count, sizeof(**bind_value.ind));
-	      assert(bind_value.ind[bind_variable_nr] != NULL);
-
-	      bind_value.size[bind_variable_nr] =
-		(sql_size_t) sizeof(bind_value.data[bind_variable_nr][0].charz_ptr);
-	      assert(bind_value.size[bind_variable_nr] % 4 == 0);
 	      bind_value.data[bind_variable_nr] =
-		(value_data_t *) calloc((size_t) bind_value.array_count, sizeof(bind_value.size[bind_variable_nr]));
+		(value_data_ptr_t) calloc((size_t) bind_value.array_count,
+					  sizeof(**bind_value.data));
 	      assert(bind_value.data[bind_variable_nr] != NULL);
+	      bind_value.ind[bind_variable_nr] =
+		(short_ptr_t) calloc((size_t) bind_value.array_count,
+				     sizeof(**bind_value.ind));
+	      assert(bind_value.ind[bind_variable_nr] != NULL);
 
 	      if (nr_options + bind_variable_nr < nr_arguments)
 		{
-		  bind_variable_ind = 0;
-		  bind_variable_value = (char *) arguments[nr_options + bind_variable_nr];
+		  bind_value.ind[bind_variable_nr][0] = 0;
+		  bind_value.data[bind_variable_nr][0] = (value_data_t) arguments[nr_options + bind_variable_nr];
 		}
 	      else
 		{
-		  bind_variable_ind = -1;
-		  bind_variable_value = "";
+		  bind_value.ind[bind_variable_nr][0] = -1;
+		  bind_value.data[bind_variable_nr][0] = (value_data_t) "";
 		}
 
 	      DBUG_PRINT("info",
 			 ("bind variable %u has name %s and value %s",
 			  bind_variable_nr + 1,
-			  bind_variable_name,
-			  bind_variable_value));
+			  bind_value.descr[bind_variable_nr].name,
+			  bind_value.data[bind_variable_nr][0]));
 
-	      if ((status = sql_value_set(bind_value.descriptor_name, bind_variable_nr + 1, bind_value.array_count, &bind_value.descr[bind_variable_nr], bind_variable_value, &bind_variable_ind)) != OK)
+	      if ((status = sql_value_set(bind_value.descriptor_name,
+					  bind_variable_nr + 1,
+					  bind_value.array_count,
+					  &bind_value.descr[bind_variable_nr],
+					  (char *) bind_value.data[bind_variable_nr][0],
+					  &bind_value.ind[bind_variable_nr][0])) != OK)
 		break;
 	    }
 	  break;
@@ -380,22 +379,27 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 #ifdef lint
 	  free(column_value.descr);
 	  free(column_value.size);
+	  free(column_value.buf);
 	  free(column_value.data);
 	  free(column_value.ind);
 #endif
 
 	  column_value.descr =
-	    (value_description_t *) calloc((size_t) column_count, sizeof(column_value.descr[0]));
+	    (value_description_t *) calloc((size_t) column_count, sizeof(*column_value.descr));
 	  assert(column_value.descr != NULL);
 
 	  column_value.size =
-	    (sql_size_t *) calloc((size_t) column_value.value_count, sizeof(column_value.size[0]));
+	    (sql_size_t *) calloc((size_t) column_value.value_count, sizeof(*column_value.size));
 	  assert(column_value.size != NULL);
+
+	  column_value.buf =
+	    (byte_ptr_t *) calloc((size_t) column_value.value_count, sizeof(*column_value.buf));
+	  assert(column_value.buf != NULL);
 
 	  column_value.data = (value_data_ptr_t *) calloc((size_t) column_count, sizeof(*column_value.data));
 	  assert(column_value.data != NULL);
 
-	  column_value.ind = (short **) calloc((size_t) column_count, sizeof(*column_value.ind));
+	  column_value.ind = (short_ptr_t *) calloc((size_t) column_count, sizeof(*column_value.ind));
 	  assert(column_value.ind != NULL);
 
 	  for (column_nr = 0;
@@ -465,22 +469,9 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 		case ORA_VARCHAR2:
 		case ORA_STRING:
 		case ORA_VARCHAR:
-		  column_type = ORA_VARCHAR; /*ANSI_CHARACTER_VARYING; */
-		  /* column_size must be a multiple of 4 (word boundary): 
-		     column_size % 4 == 0 => column_size
-		     column_size % 4 == 1 => column_size += 3
-		     column_size % 4 == 2 => column_size += 2
-		     column_size % 4 == 3 => column_size += 1
-		  */
-		  /*		  column_size = ((column_size + 3) / 4) * 4;*/
-
-#ifdef USE_UCS2
-		  column_size *= sizeof(*column_value.data[column_nr][0].alloc_ptr);
-		  column_length *= sizeof(*column_value.data[column_nr][0].alloc_ptr);
-		  (void*) strcpy(column_character_set_name, "utf16");
-#endif
-		  /* add 2 bytes for the length field */
-		  column_size = column_length + 2;
+		  column_type = ANSI_CHARACTER_VARYING;
+		  /* add 1 byte for a terminating zero */
+		  column_size = column_length + 1;
 		  break;
 
 		case ORA_VARNUM:
@@ -492,38 +483,54 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 		case ORA_CHARZ:
 		  break;
 
+		case ORA_UROWID:
+		case ORA_CLOB:
+		case ORA_INTERVAL:
+		  column_type = ANSI_CHARACTER_VARYING;
+		  /* add 1 byte for a terminating zero */
+		  column_size = column_length + 1;
+		  break;
+
+		case ORA_BLOB:
+		  column_size = column_length;
+		  break;
+
+#ifndef lint
 		default:
 		  column_type = ANSI_CHARACTER_VARYING;
 		  /* add 1 byte for a terminating zero */
 		  column_size = column_length + 1;
+#endif
 		}
 
-	      column_value.data[column_nr] = (value_data_ptr_t) calloc((size_t) array_size, sizeof(column_value.data[column_nr][0]));
+	      /* column_value.data[column_nr][array_nr] points to memory in column_value.buf[column_nr] */
+	      column_value.buf[column_nr] = (byte_ptr_t) calloc((size_t) array_size, (size_t) column_size);
+	      assert(column_value.buf[column_nr] != NULL);
+
+	      column_value.data[column_nr] =
+		(value_data_ptr_t) calloc((size_t) array_size,
+					  sizeof(column_value.data[column_nr][0]));
 	      assert(column_value.data[column_nr] != NULL);
 
-	      /* column_value.data[column_nr][array_nr] points to memory in column_value.data[column_nr][0] */
-	      column_value.data[column_nr][0].alloc_ptr = (utext *) calloc((size_t) array_size, (size_t) column_size);
-	      assert(column_value.data[column_nr][0].alloc_ptr != NULL);
+	      DBUG_PRINT("info", ("column_value.buf[%u]= %p", column_nr, column_value.buf[column_nr]));
 
-	      DBUG_PRINT("info", ("column_value.data[%u][0]= %p", column_nr, column_value.data[column_nr][0]));
-
-	      for (array_nr = 0, data_ptr = (char *) column_value.data[column_nr][0].alloc_ptr;
+	      for (array_nr = 0, data_ptr = (char *) column_value.buf[column_nr];
 		   array_nr < array_size;
 		   array_nr++, data_ptr += column_size)
 		{
 		  /*@-observertrans@*/
 		  /*@-dependenttrans@*/
-		  column_value.data[column_nr][array_nr].alloc_ptr = (utext *) data_ptr;
+		  column_value.data[column_nr][array_nr] = (value_data_t) data_ptr;
 		  /*@=observertrans@*/
 		  /*@=dependenttrans@*/
 
 #define DBUG_MEMORY 1
 #ifdef DBUG_MEMORY
-		  DBUG_PRINT("info", ("Dumping column_value.data[%u][%u] (%p)", column_nr, array_nr, column_value.data[column_nr][array_nr].alloc_ptr));
-		  DBUG_DUMP("info", column_value.data[column_nr][array_nr].alloc_ptr, (unsigned int) column_size);
+		  DBUG_PRINT("info", ("Dumping column_value.data[%u][%u] (%p)", column_nr, array_nr, column_value.data[column_nr][array_nr]));
+		  DBUG_DUMP("info", column_value.data[column_nr][array_nr], (unsigned int) column_size);
 #endif
 		  assert(array_nr == 0 ||
-			 ((char*)column_value.data[column_nr][array_nr].alloc_ptr - (char*)column_value.data[column_nr][array_nr-1].alloc_ptr) == (int)column_size);
+			 (column_value.data[column_nr][array_nr] - column_value.data[column_nr][array_nr-1]) == (int)column_size);
 		}
 
 	      column_value.ind[column_nr] = (short *) calloc((size_t) array_size, sizeof(**column_value.ind));
@@ -540,7 +547,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 					  column_nr + 1,
 					  column_value.array_count,
 					  &column_value.descr[column_nr],
-					  (char *) column_value.data[column_nr][0].alloc_ptr,
+					  (char *) column_value.data[column_nr][0],
 					  column_value.ind[column_nr])) != OK)
 		break;
 
@@ -580,41 +587,19 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 		      assert(column_value.ind[column_nr] != NULL);
 
 #ifdef DBUG_MEMORY
-		      assert(column_value.data[column_nr][array_nr].alloc_ptr != NULL);
+		      assert(column_value.data[column_nr][array_nr] != NULL);
 
-		      DBUG_PRINT("info", ("Dumping column_value.data[%u][%u] (%p) after fetch", column_nr, array_nr, column_value.data[column_nr][array_nr].alloc_ptr));
+		      DBUG_PRINT("info", ("Dumping column_value.data[%u][%u] (%p) after fetch", column_nr, array_nr, column_value.data[column_nr][array_nr]));
 		      DBUG_DUMP("info",
-				column_value.data[column_nr][array_nr].alloc_ptr,
+				column_value.data[column_nr][array_nr],
 				(unsigned int) column_size);
 #endif
 
-		      if (strcmp(column_character_set_name, "utf16") != 0)
-			{
-			  DBUG_PRINT("info", ("column_value.data[%u][%u]: %s", column_nr, array_nr, (char *) column_value.data[column_nr][array_nr].alloc_ptr));
+		      DBUG_PRINT("info", ("column_value.data[%u][%u]: %s", column_nr, array_nr, (char *) column_value.data[column_nr][array_nr]));
 
-			  (void) printf("%s%s",
-					(column_nr > 0 ? "," : ""),
-					(column_value.ind[column_nr][array_nr] == -1 ? "NULL" : (char *) column_value.data[column_nr][array_nr].alloc_ptr));
-			}
-		      else
-			{
-			  (void) puts((column_nr > 0 ? "," : ""));
-			  if (column_value.ind[column_nr][array_nr] == -1)
-			    {
-			      (void) puts("NULL");
-			    }
-			  else
-			    { 
-			      utext *src = column_value.data[column_nr][array_nr].alloc_ptr;
-			      const size_t len = (size_t) src[0];
-			      size_t nr;
-
-			      for (nr = 1; nr <= len; nr++)
-				{
-				  (void) putwchar((wchar_t) src[nr]);
-				}
-			    }
-			}
+		      (void) printf("%s%s",
+				    (column_nr > 0 ? "," : ""),
+				    (column_value.ind[column_nr][array_nr] == -1 ? "NULL" : (char *) column_value.data[column_nr][array_nr]));
 		    }
 		  (void) printf("\n"); /* line end */
 		}
@@ -631,10 +616,21 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
     }
   
   /* Cleanup all resources but do not disconnect */
+  if (bind_value.buf != NULL)
+    {
+      for (bind_variable_nr = 0;
+	   bind_variable_nr < bind_value.value_count;
+	   bind_variable_nr++)
+	{
+	  if (bind_value.buf[bind_variable_nr] != NULL)
+	    free(bind_value.buf[bind_variable_nr]);
+	}
+      free(bind_value.buf);
+    }
   if (bind_value.data != NULL)
     {
       for (bind_variable_nr = 0;
-	   bind_variable_nr < bind_variable_count;
+	   bind_variable_nr < bind_value.value_count;
 	   bind_variable_nr++)
 	{
 	  if (bind_value.data[bind_variable_nr] != NULL)
@@ -645,7 +641,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
   if (bind_value.ind != NULL)
     {
       for (bind_variable_nr = 0;
-	   bind_variable_nr < bind_variable_count;
+	   bind_variable_nr < bind_value.value_count;
 	   bind_variable_nr++)
 	{
 	  if (bind_value.ind[bind_variable_nr] != NULL)
@@ -658,28 +654,30 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
   if (bind_value.size != NULL)
     free(bind_value.size);
 
-  if (column_value.data != NULL && column_value.ind != NULL)
+  for (column_nr = 0;
+       column_nr < column_count;
+       column_nr++)
     {
-      for (column_nr = 0;
-	   column_nr < column_count;
-	   column_nr++)
-	{
-	  if (column_value.data[column_nr] != NULL)
-	    {
-	      if (column_value.data[column_nr][0].alloc_ptr != NULL)
-		free(column_value.data[column_nr][0].alloc_ptr);
-	      free(column_value.data[column_nr]);
-	    }
-	  if (column_value.ind[column_nr] != NULL)
-	    free(column_value.ind[column_nr]);
-	}
-      free(column_value.data);
-      free(column_value.ind);
+      if (column_value.buf != NULL && column_value.buf[column_nr] != NULL)
+	free(column_value.buf[column_nr]);
+
+      if (column_value.data != NULL && column_value.data[column_nr] != NULL)
+	free(column_value.data[column_nr]);
+
+      if (column_value.ind != NULL && column_value.ind[column_nr] != NULL)
+	free(column_value.ind[column_nr]);
     }
+
   if (column_value.descr != NULL)
     free(column_value.descr);
   if (column_value.size != NULL)
     free(column_value.size);
+  if (column_value.buf != NULL)
+    free(column_value.buf);
+  if (column_value.data != NULL)
+    free(column_value.data);
+  if (column_value.ind != NULL)
+    free(column_value.ind);
 
   if (status != OK)
     {
