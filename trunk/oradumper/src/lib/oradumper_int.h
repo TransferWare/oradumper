@@ -3,8 +3,8 @@
 
 typedef enum {
   ANSI_CHARACTER = 1,
-  ANSI_CHARACTER_VARYING = 12,
-  ANSI_DATE = 9,
+  ANSI_CHARACTER_VARYING = 12, /* VARCHAR2, NVARCHAR */
+  ANSI_DATE = 9, /* DATE (char 7), TIMESTAMP (char 11), TIMESTAMP WITH TIME ZONE (char 11) */
   ANSI_DECIMAL = 3,
   ANSI_DOUBLE_PRECISION = 8,
   ANSI_FLOAT = 6,
@@ -24,7 +24,7 @@ typedef enum {
   ORA_ROWID = -11, /* char[n] */
   ORA_DATE = -12, /* char[n] */
   ORA_VARRAW = -15, /* char[n] */
-  ORA_RAW = -23, /* unsigned char[n] */
+  ORA_RAW = -23, /* RAW: unsigned char[n] */
   ORA_LONG_RAW = -24, /* unsigned char[n] */
   ORA_UNSIGNED = -68, /* unsigned int */
   ORA_DISPLAY = -91, /* char[n] */
@@ -32,6 +32,10 @@ typedef enum {
   ORA_LONG_VARRAW = -95, /* unsigned char[n+4] */
   ORA_CHAR = -96, /* char[n] */
   ORA_CHARZ = -97, /* char[n+1] */
+  ORA_UROWID = -104, /* UROWID: char[4] */
+  ORA_CLOB = -112, /* CLOB, NCLOB */
+  ORA_BLOB = -113, /* BLOB */
+  ORA_INTERVAL = 10 /* unsigned char[11] */
 } sql_datatype_t;
 
 typedef enum {
@@ -69,11 +73,9 @@ typedef char charz_1_t[1];
 typedef struct { unsigned short len; unsigned char arr[1]; } varchar_1_t;
 typedef unsigned short utext; /* unicode */
 
-typedef union {
-  /*@observer@*/ char *charz_ptr;
-  /*@only@*/ utext *utextz_alloc_ptr;
-  /*@only@*/ char *charz_alloc_ptr;
-} value_data_t;
+typedef /*@null@*/ /*@only@*/ unsigned char *byte_ptr_t;
+
+typedef /*@observer@*/ unsigned char *value_data_t;
 
 typedef /*@null@*/ /*@only@*/ value_data_t *value_data_ptr_t;
 typedef /*@null@*/ /*@only@*/ short *short_ptr_t;
@@ -91,7 +93,11 @@ typedef struct {
   /* size[value_count] */
   /*@null@*/ /*@only@*/ sql_size_t *size;
 
+  /* buffer array: buf[value_count] is the buffer for data[value_count[array_count] */
+  /*@null@*/ /*@only@*/ byte_ptr_t *buf;
+
   /* data array: data[value_count][array_count] */
+  /* data[value_count][array_count] may point to somewhere in buffer[data[value_count] */
   /*@null@*/ /*@only@*/ value_data_ptr_t *data;
 
   /* indicator array: ind[value_count][array_count] */
