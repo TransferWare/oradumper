@@ -17,6 +17,8 @@
 
 MAINTAINERCLEANFILES = Makefile.in
 
+CLEANFILES           = *.log *.err $(TESTS) $(testprog)
+
 prog                 = $(top_builddir)/src/prog/oradumper$(EXEEXT)
 testlib              = $(top_builddir)/src/lib/liboradumper.la
 testprog             = ./oradumper$(EXEEXT)
