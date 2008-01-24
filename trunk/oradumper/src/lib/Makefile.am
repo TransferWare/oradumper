@@ -46,4 +46,4 @@ EXTRA_DIST              =
 	$(PROC) $(PROCINCLUDES) $(PROCFLAGS) DYNAMIC=ANSI MODE=ANSI INAME=$< ONAME=$@
 
 # to difficult to lint oradumper.pc yet
-oradumper.ln: ;
+#oradumper.ln: ;
