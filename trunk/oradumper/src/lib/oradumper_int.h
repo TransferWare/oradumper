@@ -38,17 +38,6 @@ typedef enum {
   ORA_INTERVAL = 10 /* unsigned char[11] */
 } sql_datatype_t;
 
-typedef enum {
-  OPTION_USERID = 0,
-  OPTION_SQLSTMT,
-  OPTION_ARRAYSIZE,
-  OPTION_DBUG_OPTIONS,
-  OPTION_NLS_DATE_FORMAT,
-  OPTION_NLS_TIMESTAMP_FORMAT,
-  OPTION_NLS_NUMERIC_CHARACTERS,
-  OPTION_DETAILS,
-} option_t;
-
 typedef int error_t; /* sqlca.sqlcode */
 
 /* zero terminated character arrays */
