@@ -39,6 +39,34 @@
 
 typedef /*observer*/ char *data_ptr_t;
 
+/**
+ * The maximum number of dots per line before a new line
+ */
+#define DOTS_PER_LINE 75
+
+typedef enum {
+  OPTION_USERID = 0,
+  OPTION_SQLSTMT,
+  OPTION_FETCH_SIZE,
+  OPTION_DBUG_OPTIONS,
+  OPTION_NLS_LANGUAGE,
+  OPTION_NLS_DATE_FORMAT,
+  OPTION_NLS_TIMESTAMP_FORMAT,
+  OPTION_NLS_NUMERIC_CHARACTERS,
+  OPTION_DETAILS,
+  OPTION_RECORD_DELIMITER,
+  OPTION_FEEDBACK,
+  OPTION_COLUMN_HEADING,
+  OPTION_FIXED_COLUMN_LENGTH,
+  OPTION_COLUMN_SEPARATOR,
+  OPTION_ENCLOSURE_STRING,
+  OPTION_OUTPUT_FILE,
+  OPTION_OUTPUT_APPEND,
+  OPTION_NULL,
+} option_t;
+
+#define OPTION_TRUE(opt) (opt != NULL && opt[0] == '1')
+
 static struct {
   /*@observer@*/ char *name; /* name */
   int mandatory;
@@ -48,13 +76,56 @@ static struct {
 } opt[] = { 
   { "userid", 0, "Oracle connect string", NULL, NULL }, /* userid may be NULL when oradumper is used as a library */
   { "sqlstmt", 1, "Select statement", NULL, NULL },
-  { "arraysize", 1, "Array size", "10", NULL },
+  { "fetch_size", 1, "Array size", "10", NULL },
   { "dbug_options", 1, "DBUG options", "", NULL },
-  { "nls_date_format", 1, "NLS date format", "yyyy-mm-dd hh24:mi:ss", NULL },
-  { "nls_timestamp_format", 1, "NLS timestamp format", "yyyy-mm-dd hh24:mi:ss", NULL },
-  { "nls_numeric_characters", 1, "NLS numeric characters", ".,", NULL },
+  { "nls_language", 0, "NLS language", NULL, NULL },
+  { "nls_date_format", 0, "NLS date format", NULL, NULL },
+  { "nls_timestamp_format", 0, "NLS timestamp format", NULL, NULL },
+  { "nls_numeric_characters", 0, "NLS numeric characters", NULL, NULL },
   { "details", 0, "Print details about input and output values: yes, only or no", "no", NULL },
+  { "record_delimiter", 1, "Record delimiter", "\n", NULL },
+  { "feedback", 1, "Give feedback after every fetch (0 = no feedback)", "0", NULL },
+  { "column_heading", 1, "Include column names in first line (1 = yes)", "1", NULL },
+  { "fixed_column_length", 1, "Fixed column length: 0 = yes (fixed), 1 = no (variable)", "0", NULL },
+  { "column_separator", 1, "The column separator (e.g. a comma or semi-colon)", ",", NULL },
+  { "enclosure_string", 0, "Characters around a character column in variable length data", NULL, NULL },
+  { "output_file", 0, "The output file", NULL, NULL },
+  { "output_append", 0, "Append to the output file (1 = yes)?", NULL, NULL },
+  { "null", 1, "Value to print for NULL values", "NULL", NULL },
 };
+
+static
+/*@null@*//*@observer@*/
+const char *
+get_option(const option_t option)
+{
+  switch(option)
+    {
+    case OPTION_USERID:
+    case OPTION_SQLSTMT:
+    case OPTION_FETCH_SIZE:
+    case OPTION_DBUG_OPTIONS:
+    case OPTION_NLS_LANGUAGE:
+    case OPTION_NLS_DATE_FORMAT:
+    case OPTION_NLS_TIMESTAMP_FORMAT:
+    case OPTION_NLS_NUMERIC_CHARACTERS:
+    case OPTION_DETAILS:
+    case OPTION_RECORD_DELIMITER:
+    case OPTION_FEEDBACK:
+    case OPTION_COLUMN_HEADING:
+    case OPTION_FIXED_COLUMN_LENGTH:
+    case OPTION_COLUMN_SEPARATOR:
+    case OPTION_ENCLOSURE_STRING:
+    case OPTION_OUTPUT_FILE:
+    case OPTION_OUTPUT_APPEND:
+    case OPTION_NULL:
+      return opt[option].value;
+    }
+
+#ifndef lint
+  return NULL;
+#endif
+}
 
 static
 void
@@ -120,7 +191,7 @@ process_arguments(const unsigned int nr_arguments, const char **arguments)
 
 static
 int
-prepare_fetch(const unsigned int array_size, value_info_t *column_value)
+prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 {
   int status;
   unsigned int column_nr;
@@ -257,18 +328,18 @@ prepare_fetch(const unsigned int array_size, value_info_t *column_value)
 	    }
 
 	  /* column_value->data[column_nr][array_nr] points to memory in column_value->buf[column_nr] */
-	  column_value->buf[column_nr] = (byte_ptr_t) calloc((size_t) array_size, (size_t) column_value->size[column_nr]);
+	  column_value->buf[column_nr] = (byte_ptr_t) calloc((size_t) fetch_size, (size_t) column_value->size[column_nr]);
 	  assert(column_value->buf[column_nr] != NULL);
 
 	  column_value->data[column_nr] =
-	    (value_data_ptr_t) calloc((size_t) array_size,
+	    (value_data_ptr_t) calloc((size_t) fetch_size,
 				      sizeof(column_value->data[column_nr][0]));
 	  assert(column_value->data[column_nr] != NULL);
 
 	  DBUG_PRINT("info", ("column_value->buf[%u]= %p", column_nr, column_value->buf[column_nr]));
 
 	  for (array_nr = 0, data_ptr = (char *) column_value->buf[column_nr];
-	       array_nr < array_size;
+	       array_nr < fetch_size;
 	       array_nr++, data_ptr += column_value->size[column_nr])
 	    {
 	      /*@-observertrans@*/
@@ -286,14 +357,14 @@ prepare_fetch(const unsigned int array_size, value_info_t *column_value)
 		     (column_value->data[column_nr][array_nr] - column_value->data[column_nr][array_nr-1]) == (int)column_value->size[column_nr]);
 	    }
 
-	  column_value->ind[column_nr] = (short *) calloc((size_t) array_size, sizeof(**column_value->ind));
+	  column_value->ind[column_nr] = (short *) calloc((size_t) fetch_size, sizeof(**column_value->ind));
 	  assert(column_value->ind[column_nr] != NULL);
 
 #ifdef DBUG_MEMORY
 	  DBUG_PRINT("info", ("Dumping column_value->data[%u] (%p)", column_nr, column_value->data[column_nr]));
-	  DBUG_DUMP("info", column_value->data[column_nr], (unsigned int)(array_size * sizeof(**column_value->data)));
+	  DBUG_DUMP("info", column_value->data[column_nr], (unsigned int)(fetch_size * sizeof(**column_value->data)));
 	  DBUG_PRINT("info", ("Dumping column_value->ind[%u] (%p)", column_nr, column_value->ind[column_nr]));
-	  DBUG_DUMP("info", column_value->ind[column_nr], (unsigned int)(array_size * sizeof(**column_value->ind)));
+	  DBUG_DUMP("info", column_value->ind[column_nr], (unsigned int)(fetch_size * sizeof(**column_value->ind)));
 #endif
 
 	  if ((status = sql_value_set(column_value->descriptor_name,
@@ -316,26 +387,184 @@ prepare_fetch(const unsigned int array_size, value_info_t *column_value)
 }
 
 static
-/*@null@*//*@observer@*/
-const char *
-get_option(const option_t option)
+void
+print_heading(/*@in@*/ value_info_t *column_value, FILE *fout)
+/*@requires notnull column_value->descr, column_value->size @*/
 {
-  switch(option)
+  unsigned int column_nr;
+  const char *record_delimiter = get_option(OPTION_RECORD_DELIMITER);
+  const char *column_heading = get_option(OPTION_COLUMN_HEADING);
+  const char *fixed_column_length = get_option(OPTION_FIXED_COLUMN_LENGTH);
+  const char *column_separator = get_option(OPTION_COLUMN_SEPARATOR);
+  const char *enclosure_string = get_option(OPTION_ENCLOSURE_STRING);
+
+  if (column_heading != NULL && strcmp(column_heading, "1") == 0)
     {
-    case OPTION_USERID:
-    case OPTION_SQLSTMT:
-    case OPTION_ARRAYSIZE:
-    case OPTION_DBUG_OPTIONS:
-    case OPTION_NLS_DATE_FORMAT:
-    case OPTION_NLS_TIMESTAMP_FORMAT:
-    case OPTION_NLS_NUMERIC_CHARACTERS:
-    case OPTION_DETAILS:
-      return opt[option].value;
+      /* print the column headings */
+      for (column_nr = 0;
+	   column_nr < column_value->value_count;
+	   column_nr++)
+	{
+	  if (column_nr > 0 && column_separator != NULL)
+	    (void) fputs(column_separator, fout);
+	  if (OPTION_TRUE(fixed_column_length))
+	    {
+	      (void) fprintf(fout, "%.*s", (int) column_value->size[column_nr], column_value->descr[column_nr].name);
+	    }
+	  else
+	    {
+	      const char *data = column_value->descr[column_nr].name;
+
+	      /* only enclose character data of variable length
+	         containing the column separator */
+	      if (column_separator != NULL &&
+		  column_separator[0] != '\0' &&
+		  enclosure_string != NULL &&
+		  enclosure_string[0] != '\0' &&
+		  strstr(data, column_separator) != NULL)
+		{
+		  char *ptr1;
+		  char *ptr2;
+
+		  (void) fputs(enclosure_string, fout);
+
+		  /* Add each enclosure string twice.
+		     That is what Excel does and SQL*Loader expects. */
+
+		  for (ptr1 = (char *) data;
+		       (ptr2 = strstr(ptr1, enclosure_string)) != NULL;
+		       ptr1 = ptr2 + strlen(enclosure_string))
+		    {
+		      (void) fprintf(fout, "%*.*s", ptr2 - ptr1, ptr2 - ptr1, ptr1);
+		      (void) fputs(enclosure_string, fout);
+		      (void) fputs(enclosure_string, fout);
+		    }
+
+		  (void) fputs(ptr1, fout); /* the remainder */
+		  (void) fputs(enclosure_string, fout);
+		}
+	      else
+		{
+		  (void) fputs(data, fout);
+		}
+	    }
+	}
+      if (record_delimiter != NULL)
+	{
+	  (void) fputs(record_delimiter, fout); /* column heading end */
+	}
+    }
+}
+
+static
+void
+print_data(const unsigned int fetch_size, const unsigned int total_fetch_size, /*@in@*/ value_info_t *column_value, FILE *fout)
+/*@requires notnull column_value->data, column_value->ind, column_value->size @*/
+{
+  unsigned int column_nr, array_nr;
+  const char *record_delimiter = get_option(OPTION_RECORD_DELIMITER);
+  const char *feedback = get_option(OPTION_FEEDBACK);
+  const char *fixed_column_length = get_option(OPTION_FIXED_COLUMN_LENGTH);
+  const char *column_separator = get_option(OPTION_COLUMN_SEPARATOR);
+  const char *enclosure_string = get_option(OPTION_ENCLOSURE_STRING);
+  const char *null = get_option(OPTION_NULL);
+
+  for (array_nr = 0; array_nr < fetch_size; array_nr++)
+    {
+      DBUG_PRINT("info", ("array_nr: %u", array_nr));
+
+      for (column_nr = 0; column_nr < column_value->value_count; column_nr++)
+	{
+	  assert(column_value->data[column_nr] != NULL);
+	  assert(column_value->ind[column_nr] != NULL);
+
+#ifdef DBUG_MEMORY
+	  assert(column_value->data[column_nr][array_nr] != NULL);
+
+	  DBUG_PRINT("info",
+		     ("Dumping column_value->data[%u][%u] (%p) after fetch",
+		      column_nr,
+		      array_nr,
+		      column_value->data[column_nr][array_nr]));
+	  DBUG_DUMP("info",
+		    column_value->data[column_nr][array_nr],
+		    (unsigned int) column_value->size[column_nr]);
+#endif
+
+	  DBUG_PRINT("info",
+		     ("column_value->data[%u][%u]: %s",
+		      column_nr,
+		      array_nr,
+		      (char *) column_value->data[column_nr][array_nr]));
+
+	  if (column_nr > 0 && column_separator != NULL)
+	    (void) fputs(column_separator, fout);
+	  if (column_value->ind[column_nr][array_nr] != -1)
+	    {
+	      if (OPTION_TRUE(fixed_column_length))
+		{
+		  (void) fprintf(fout, "%.*s", (int) column_value->size[column_nr], (char *) column_value->data[column_nr][array_nr]);
+		}
+	      else
+		{
+		  const char *data = (char *) column_value->data[column_nr][array_nr];
+
+		  /* only enclose character data of variable length
+		     containing the column separator */
+		  if (column_separator != NULL &&
+		      column_separator[0] != '\0' &&
+		      enclosure_string != NULL &&
+		      enclosure_string[0] != '\0' &&
+		      strstr(data, column_separator) != NULL)
+		    {
+		      char *ptr1;
+		      char *ptr2;
+
+		      (void) fputs(enclosure_string, fout);
+
+		      /* Add each enclosure string twice.
+			 That is what Excel does and SQL*Loader expects. */
+
+		      for (ptr1 = (char *) data;
+			   (ptr2 = strstr(ptr1, enclosure_string)) != NULL;
+			   ptr1 = ptr2 + strlen(enclosure_string))
+			{
+			  (void) fprintf(fout, "%*.*s", ptr2 - ptr1, ptr2 - ptr1, ptr1);
+			  (void) fputs(enclosure_string, fout);
+			  (void) fputs(enclosure_string, fout);
+			}
+
+		      (void) fputs(ptr1, fout); /* the remainder */
+		      (void) fputs(enclosure_string, fout);
+		    }
+		  else
+		    {
+		      (void) fputs(data, fout);
+		    }
+		}
+	    }
+	  else if (null != NULL)
+	    {
+	      (void) fputs(null, fout);
+	    }
+	}
+      if (record_delimiter != NULL)
+	{
+	  (void) fputs(record_delimiter, fout); /* column heading end */
+	}
     }
 
-#ifndef lint
-  return NULL;
-#endif
+  if (OPTION_TRUE(feedback))
+    {
+      if ((total_fetch_size / fetch_size) % DOTS_PER_LINE == 0)
+	{
+	  (void) fputs(".\n", stderr);
+	}
+      else
+	{
+	  (void) fputs(".", stderr);
+	}
+    }
 }
 
 int
@@ -344,6 +573,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
   unsigned int nr_options;
   typedef enum {
     STEP_CONNECT = 0,
+    STEP_NLS_LANGUAGE,
     STEP_NLS_DATE_FORMAT,
     STEP_NLS_TIMESTAMP_FORMAT,
     STEP_NLS_NUMERIC_CHARACTERS,
@@ -362,29 +592,39 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 
   int status = OK;
 #define NLS_MAX_SIZE 100
+  char nls_language_stmt[NLS_MAX_SIZE+1];
   char nls_date_format_stmt[NLS_MAX_SIZE+1];
   char nls_timestamp_format_stmt[NLS_MAX_SIZE+1];
   char nls_numeric_characters_stmt[NLS_MAX_SIZE+1];
   const char *userid;
+  const char *nls_language;
   const char *nls_date_format;
   const char *nls_timestamp_format;
   const char *nls_numeric_characters;
-  const char *array_size_str;
-  unsigned int array_size = 0;
+  const char *fetch_size_str;
+  unsigned int fetch_size = 0;
+  unsigned int total_fetch_size = 0;
   const char *sqlstmt;
-
   value_info_t bind_value = { 0, 0, "", NULL, NULL, NULL, NULL, NULL };
   unsigned int bind_variable_nr;
-
   value_info_t column_value = { 0, 0, "", NULL, NULL, NULL, NULL, NULL };
   unsigned int column_nr;
-  unsigned int array_nr;
-
   unsigned int row_count;
+  FILE *fout = stdout;
+  const char *output_file = get_option(OPTION_OUTPUT_FILE);
+  const char *output_append = get_option(OPTION_OUTPUT_APPEND);
 
 #ifdef WITH_DMALLOC
   unsigned long mark = 0;
 #endif
+
+  if (output_file != NULL)
+    {
+      if ((fout = fopen(output_file, (OPTION_TRUE(output_append) ? "a" : "w"))) == NULL)
+	perror(output_file);
+
+      assert(fout != NULL);
+    }
 
   (void) setlocale(LC_ALL, "");
 
@@ -395,15 +635,16 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
   nr_options = process_arguments(nr_arguments, arguments);
 
   userid = get_option(OPTION_USERID);
+  nls_language = get_option(OPTION_NLS_LANGUAGE);
   nls_date_format = get_option(OPTION_NLS_DATE_FORMAT);
   nls_timestamp_format = get_option(OPTION_NLS_TIMESTAMP_FORMAT);
   nls_numeric_characters = get_option(OPTION_NLS_NUMERIC_CHARACTERS);
-  array_size_str = get_option(OPTION_ARRAYSIZE);
+  fetch_size_str = get_option(OPTION_FETCH_SIZE);
   sqlstmt = get_option(OPTION_SQLSTMT);
 
-  assert(array_size_str != NULL);
+  assert(fetch_size_str != NULL);
 
-  array_size = (unsigned int) atoi(array_size_str);
+  fetch_size = (unsigned int) atoi(fetch_size_str);
 
   DBUG_INIT(get_option(OPTION_DBUG_OPTIONS), "oradumper");
   DBUG_ENTER("oradumper");
@@ -420,12 +661,24 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	    }
 	  break;
 
-	case STEP_NLS_DATE_FORMAT:
+	case STEP_NLS_LANGUAGE:
 #ifdef WITH_DMALLOC
 	  mark = dmalloc_mark();
 #endif
+	  if (nls_language == NULL)
+	    break;
 
-	  assert(nls_date_format != NULL);
+	  (void) snprintf(nls_language_stmt,
+			  sizeof(nls_language_stmt),
+			  "ALTER SESSION SET NLS_LANGUAGE = '%s'",
+			  nls_language);
+
+	  status = sql_execute_immediate(nls_language_stmt);
+	  break;
+
+	case STEP_NLS_DATE_FORMAT:
+	  if (nls_date_format == NULL)
+	    break;
 
 	  (void) snprintf(nls_date_format_stmt,
 			  sizeof(nls_date_format_stmt),
@@ -436,7 +689,8 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	  break;
 
 	case STEP_NLS_TIMESTAMP_FORMAT:
-	  assert(nls_timestamp_format != NULL);
+	  if (nls_timestamp_format == NULL)
+	    break;
 
 	  (void) snprintf(nls_timestamp_format_stmt,
 			  sizeof(nls_timestamp_format_stmt),
@@ -447,7 +701,8 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	  break;
 
 	case STEP_NLS_NUMERIC_CHARACTERS:
-	  assert(nls_numeric_characters != NULL);
+	  if (nls_numeric_characters == NULL)
+	    break;
 	
 	  (void) snprintf(nls_numeric_characters_stmt,
 			  sizeof(nls_numeric_characters_stmt),
@@ -463,8 +718,8 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	  break;
 
 	case STEP_ALLOCATE_DESCRIPTOR_OUT:
-	  column_value.array_count = array_size;
-	  status = sql_allocate_descriptor(column_value.descriptor_name, array_size);
+	  column_value.array_count = fetch_size;
+	  status = sql_allocate_descriptor(column_value.descriptor_name, fetch_size);
 	  break;
 
 	case STEP_PARSE:
@@ -563,7 +818,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	  break;
 
 	case STEP_FETCH_ROWS:
-	  if ((status = prepare_fetch(array_size, &column_value)) != OK)
+	  if ((status = prepare_fetch(fetch_size, &column_value)) != OK)
 	    break;
 
 	  assert(column_value.descr != NULL);
@@ -572,15 +827,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	  assert(column_value.data != NULL);
 	  assert(column_value.ind != NULL);
 
-	  for (column_nr = 0;
-	       column_nr < column_value.value_count;
-	       column_nr++)
-	    {
-	      assert(column_value.descr[column_nr] != NULL);
-	      /* print the column headings */
-	      printf("%s%s", (column_nr > 0 ? "," : ""), column_value.descr[column_nr].name);
-	    }
-	  (void) printf("\n"); /* column heading end */
+	  print_heading(&column_value, fout);
 
 #ifdef DBUG_MEMORY
 	  DBUG_PRINT("info", ("Dumping column_value.data (%p)", column_value.data));
@@ -599,34 +846,12 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 
 	      DBUG_PRINT("info", ("rows fetched: %u", row_count));
 
-	      for (array_nr = 0; array_nr < array_size && array_nr < row_count; array_nr++)
-		{
-		  DBUG_PRINT("info", ("array_nr: %u", array_nr));
+#define min(x, y) ((x) < (y) ? (x) : (y))
 
-		  for (column_nr = 0; column_nr < column_value.value_count; column_nr++)
-		    {
-		      assert(column_value.data[column_nr] != NULL);
-		      assert(column_value.ind[column_nr] != NULL);
-
-#ifdef DBUG_MEMORY
-		      assert(column_value.data[column_nr][array_nr] != NULL);
-
-		      DBUG_PRINT("info", ("Dumping column_value.data[%u][%u] (%p) after fetch", column_nr, array_nr, column_value.data[column_nr][array_nr]));
-		      DBUG_DUMP("info",
-				column_value.data[column_nr][array_nr],
-				(unsigned int) column_value.size[column_nr]);
-#endif
-
-		      DBUG_PRINT("info", ("column_value.data[%u][%u]: %s", column_nr, array_nr, (char *) column_value.data[column_nr][array_nr]));
-
-		      (void) printf("%s%s",
-				    (column_nr > 0 ? "," : ""),
-				    (column_value.ind[column_nr][array_nr] == -1 ? "NULL" : (char *) column_value.data[column_nr][array_nr]));
-		    }
-		  (void) printf("\n"); /* line end */
-		}
+	      total_fetch_size += min(row_count, fetch_size);
+	      print_data(min(row_count, fetch_size), total_fetch_size, &column_value, fout);
 	    }
-	  while (status == OK && row_count == array_size); /* row_count < array_size means nothing more to fetch */
+	  while (status == OK && row_count == fetch_size); /* row_count < fetch_size means nothing more to fetch */
 
 	  if ((status = sql_rows_processed(&row_count)) != OK)
 	    break;
@@ -740,9 +965,14 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
       /*@fallthrough@*/
     case STEP_NLS_DATE_FORMAT:
       /*@fallthrough@*/
+    case STEP_NLS_LANGUAGE:
+      /*@fallthrough@*/
     case STEP_CONNECT:
       break;
     }
+
+  if (output_file != NULL)
+    (void) fclose(fout);
 
 #ifdef WITH_DMALLOC
   dmalloc_log_changed(mark, 1, 0, 0);
