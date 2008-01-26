@@ -1,6 +1,6 @@
 /* -*-mode: c-*- */
 
-#define EXEC_SQL_BEGIN_LINT_FLAGS \
+#define LINT_FLAGS_PROC_BEGIN \
 /*@-shadow@*/ \
 /*@-fullinitblock@*/ \
 /*@-immediatetrans@*/ \
@@ -14,7 +14,7 @@
 /*@-observertrans@*/ \
 /*@-varuse@*/
 
-#define EXEC_SQL_END_LINT_FLAGS \
+#define LINT_FLAGS_PROC_END \
 /*@=shadow@*/ \
 /*@=fullinitblock@*/ \
 /*@=immediatetrans@*/ \
@@ -59,9 +59,9 @@
 
 #define varchar_defined 1
 
-EXEC_SQL_BEGIN_LINT_FLAGS
+LINT_FLAGS_PROC_BEGIN;
 EXEC SQL INCLUDE "oradumper_int.h";
-EXEC_SQL_END_LINT_FLAGS
+LINT_FLAGS_PROC_END;
 
 /* declare a structure */
 #ifdef SQLCA_NONE 
@@ -80,9 +80,9 @@ EXEC_SQL_END_LINT_FLAGS
 #define SQLCA_INIT
 #endif
 
-EXEC_SQL_BEGIN_LINT_FLAGS
+LINT_FLAGS_PROC_BEGIN;
 EXEC SQL INCLUDE sqlca;
-EXEC_SQL_END_LINT_FLAGS
+LINT_FLAGS_PROC_END;
 
 EXEC SQL BEGIN DECLARE SECTION;
 #define MAX_NAME_LEN 255
@@ -99,11 +99,11 @@ EXEC SQL END DECLARE SECTION;
 {
   DBUG_ENTER("sql_connect");
 
-  EXEC_SQL_BEGIN_LINT_FLAGS
+  LINT_FLAGS_PROC_BEGIN;
   EXEC SQL WHENEVER SQLERROR CONTINUE;
 
   EXEC SQL CONNECT :userid;
-  EXEC_SQL_END_LINT_FLAGS
+  LINT_FLAGS_PROC_END;
 
   DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
   DBUG_LEAVE();
@@ -121,11 +121,11 @@ EXEC SQL END DECLARE SECTION;
   DBUG_ENTER("sql_execute_immediate");
   DBUG_PRINT("input", ("statement: %s", statement));
 
-  EXEC_SQL_BEGIN_LINT_FLAGS
+  LINT_FLAGS_PROC_BEGIN;
   EXEC SQL WHENEVER SQLERROR CONTINUE;
 
   EXEC SQL EXECUTE IMMEDIATE :statement;
-  EXEC_SQL_END_LINT_FLAGS
+  LINT_FLAGS_PROC_END;
 
   DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
   DBUG_LEAVE();
@@ -144,10 +144,10 @@ EXEC SQL END DECLARE SECTION;
   DBUG_ENTER("sql_allocate_descriptor");
   DBUG_PRINT("input", ("descriptor_name: %s; max_array_size: %u", descriptor_name, max_array_size));
 
-  EXEC_SQL_BEGIN_LINT_FLAGS
+  LINT_FLAGS_PROC_BEGIN;
   EXEC SQL FOR :max_array_size
     ALLOCATE DESCRIPTOR LOCAL :descriptor_name;
-  EXEC_SQL_END_LINT_FLAGS
+  LINT_FLAGS_PROC_END;
     
   DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
   DBUG_LEAVE();
@@ -166,10 +166,10 @@ EXEC SQL END DECLARE SECTION;
   DBUG_PRINT("input", ("select_statement: %s", select_statement));
 
   /* Prepare the statement and declare a cursor. */
-  EXEC_SQL_BEGIN_LINT_FLAGS
+  LINT_FLAGS_PROC_BEGIN;
   EXEC SQL PREPARE S FROM :select_statement;
   EXEC SQL DECLARE C CURSOR FOR S;
-  EXEC_SQL_END_LINT_FLAGS
+  LINT_FLAGS_PROC_END;
 
   DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
   DBUG_LEAVE();
@@ -187,9 +187,9 @@ EXEC SQL END DECLARE SECTION;
   DBUG_ENTER("sql_describe_input");
   DBUG_PRINT("input", ("descriptor_name: %s", descriptor_name));
 
-  EXEC_SQL_BEGIN_LINT_FLAGS
+  LINT_FLAGS_PROC_BEGIN;
   EXEC SQL DESCRIBE INPUT S USING DESCRIPTOR LOCAL :descriptor_name;
-  EXEC_SQL_END_LINT_FLAGS
+  LINT_FLAGS_PROC_END;
  
   DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
   DBUG_LEAVE();
@@ -209,9 +209,9 @@ EXEC SQL END DECLARE SECTION;
   DBUG_ENTER("sql_value_count");
   DBUG_PRINT("input", ("descriptor_name: %s", descriptor_name));
 
-  EXEC_SQL_BEGIN_LINT_FLAGS
+  LINT_FLAGS_PROC_BEGIN;
   EXEC SQL GET DESCRIPTOR LOCAL :descriptor_name :count = COUNT; 
-  EXEC_SQL_END_LINT_FLAGS
+  LINT_FLAGS_PROC_END;
 
   DBUG_PRINT("output", ("count: %u; return: %d", *count, sqlca.sqlcode));
   DBUG_LEAVE();
@@ -243,7 +243,7 @@ value_description_t *value_description;
   DBUG_ENTER("sql_value_get");
   DBUG_PRINT("input", ("descriptor_name: %s; nr: %u", descriptor_name, nr));
 
-  EXEC_SQL_BEGIN_LINT_FLAGS
+  LINT_FLAGS_PROC_BEGIN;
   EXEC SQL GET DESCRIPTOR LOCAL :descriptor_name VALUE :nr 
     :name = NAME,
     :type = TYPE,
@@ -252,7 +252,7 @@ value_description_t *value_description;
     :precision = PRECISION,
     :scale = SCALE,
     :character_set_name = CHARACTER_SET_NAME;
-  EXEC_SQL_END_LINT_FLAGS
+  LINT_FLAGS_PROC_END;
 
   DBUG_PRINT("output", ("name: %s; type: %d; octet_length: %u; length: %u; precision: %d; scale: %d; character set name: %s; return: %d", name, (int) *type, *octet_length, *length, *precision, *scale, character_set_name, sqlca.sqlcode));
   DBUG_LEAVE();
@@ -290,7 +290,7 @@ value_description_t *value_description;
 	      data,
 	      ind));
 
-  EXEC_SQL_BEGIN_LINT_FLAGS
+  LINT_FLAGS_PROC_BEGIN;
   EXEC SQL SET DESCRIPTOR LOCAL :descriptor_name VALUE :nr
     TYPE = :type,
     LENGTH = :length,
@@ -298,7 +298,7 @@ value_description_t *value_description;
   EXEC SQL FOR :array_size
     SET DESCRIPTOR LOCAL :descriptor_name VALUE :nr
     REF DATA = :data, REF INDICATOR = :ind;
-  EXEC_SQL_END_LINT_FLAGS
+  LINT_FLAGS_PROC_END;
 
   DBUG_LEAVE();
 
@@ -315,10 +315,10 @@ EXEC SQL END DECLARE SECTION;
   DBUG_ENTER("sql_open_cursor");
 
   /* Open the cursor and execute the statement. */
-  EXEC_SQL_BEGIN_LINT_FLAGS
+  LINT_FLAGS_PROC_BEGIN;
   EXEC SQL
     OPEN C USING DESCRIPTOR LOCAL :descriptor_name;
-  EXEC_SQL_END_LINT_FLAGS
+  LINT_FLAGS_PROC_END;
 
   DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
   DBUG_LEAVE();
@@ -336,9 +336,9 @@ EXEC SQL END DECLARE SECTION;
   DBUG_ENTER("sql_describe_output");
   DBUG_PRINT("input", ("descriptor_name: %s", descriptor_name));
 
-  EXEC_SQL_BEGIN_LINT_FLAGS
+  LINT_FLAGS_PROC_BEGIN;
   EXEC SQL DESCRIBE OUTPUT S USING DESCRIPTOR LOCAL :descriptor_name;
-  EXEC_SQL_END_LINT_FLAGS
+  LINT_FLAGS_PROC_END;
  
   DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
   DBUG_LEAVE();
@@ -368,11 +368,11 @@ unsigned int *count;
     case OK:
       *count = (unsigned int) sqlca.sqlerrd[2]; /* save old cumulative count */
 
-      EXEC_SQL_BEGIN_LINT_FLAGS
+      LINT_FLAGS_PROC_BEGIN;
       EXEC SQL WHENEVER NOT FOUND CONTINUE;
       EXEC SQL FOR :array_size 
 	FETCH C INTO DESCRIPTOR LOCAL :descriptor_name;
-      EXEC_SQL_END_LINT_FLAGS
+      LINT_FLAGS_PROC_END;
 
       *count = (unsigned int) sqlca.sqlerrd[2] - *count; /* fetch count */
       break;
@@ -406,9 +406,9 @@ sql_close_cursor(void)
 {
   DBUG_ENTER("sql_close_cursor");
 
-  EXEC_SQL_BEGIN_LINT_FLAGS
+  LINT_FLAGS_PROC_BEGIN;
   EXEC SQL CLOSE C;
-  EXEC_SQL_END_LINT_FLAGS
+  LINT_FLAGS_PROC_END;
 
   DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
   DBUG_LEAVE();
@@ -426,9 +426,9 @@ EXEC SQL END DECLARE SECTION;
   DBUG_ENTER("sql_deallocate_descriptor");
   DBUG_PRINT("input", ("descriptor_name: %s", descriptor_name));
 
-  EXEC_SQL_BEGIN_LINT_FLAGS
+  LINT_FLAGS_PROC_BEGIN;
   EXEC SQL DEALLOCATE DESCRIPTOR LOCAL :descriptor_name;
-  EXEC_SQL_END_LINT_FLAGS
+  LINT_FLAGS_PROC_END;
     
   DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
   DBUG_LEAVE();

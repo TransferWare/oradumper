@@ -106,17 +106,6 @@ typedef struct {
 
 #define OK 0
 
-/*@-exportlocal@*/
-extern
-unsigned int
-process_arguments(const unsigned int nr_arguments, const char **arguments);
-
-extern
-/*@null@*//*@observer@*/
-const char *
-get_option(const option_t option);
-/*@=exportlocal@*/
-
 /* functions to be declared in the PRO*C source */
 extern
 error_t
