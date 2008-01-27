@@ -16,8 +16,8 @@
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 AUTOMAKE_OPTIONS 	= 
-SUBDIRS 		= replace src test
+SUBDIRS 		= replace src . test
 MAINTAINERCLEANFILES 	= Makefile.in aclocal.m4 configure config-h.in \
-  			  stamp-h.in $(AUX_DIST)
+			  stamp-h.in $(AUX_DIST)
 EXTRA_DIST              = 
 

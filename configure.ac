@@ -74,7 +74,7 @@ ACX_EPC
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([assert.h ctype.h dbug.h malloc.h sqlcpr.h stdlib.h string.h strings.h])
+AC_CHECK_HEADERS([assert.h ctype.h dbug.h locale.h malloc.h sqlcpr.h stdbool.h stdlib.h string.h strings.h wchar.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
