@@ -3,8 +3,6 @@
 #endif
 
 #include <stdio.h>
-#include <locale.h>
-#include <wchar.h>
 
 #if HAVE_ASSERT_H
 #include <assert.h>
@@ -14,8 +12,20 @@
 #include <ctype.h>
 #endif
 
+#if HAVE_LOCALE_H
+#include <locale.h>
+#else
+#define setlocale(/*@sef@*/x, /*@sef@*/y)
+#endif
+
 #if HAVE_MALLOC_H
 #include <malloc.h>
+#endif
+
+#if HAVE_STDBOOL_H
+#include <stdbool.h>
+#else
+typedef int bool;
 #endif
 
 #if HAVE_STDLIB_H
@@ -24,6 +34,10 @@
 
 #if HAVE_STRING_H
 #include <string.h>
+#endif
+
+#if HAVE_WCHAR_H
+#include <wchar.h>
 #endif
 
 #if HAVE_DBUG_H
@@ -65,7 +79,28 @@ typedef enum {
   OPTION_NULL,
 } option_t;
 
-#define OPTION_TRUE(opt) (opt != NULL && opt[0] == '1')
+typedef struct {
+  /*@null@*/ /*@observer@*/ char *userid;
+  /*@observer@*/ char *sqlstmt;
+  unsigned int fetch_size;
+  /*@observer@*/ char *dbug_options;
+  /*@null@*/ /*@observer@*/ char *nls_language;
+  /*@null@*/ /*@observer@*/ char *nls_date_format;
+  /*@null@*/ /*@observer@*/ char *nls_timestamp_format;
+  /*@null@*/ /*@observer@*/ char *nls_numeric_characters;
+  bool details;
+  /*@observer@*/ char *record_delimiter;
+  bool feedback;
+  bool column_heading;
+  bool fixed_column_length;
+  /*@observer@*/ char *column_separator;
+  /*@null@*/ /*@observer@*/ char *enclosure_string;
+  /*@null@*/ /*@observer@*/ char *output_file;
+  bool output_append;
+  /*@observer@*/ char *null;
+} settings_t;
+
+#define OPTION_TRUE(opt) strcmp((opt == NULL ? "" : opt), "1") == 0;
 
 static struct {
   /*@observer@*/ char *name; /* name */
@@ -96,7 +131,7 @@ static struct {
 
 static
 /*@null@*//*@observer@*/
-const char *
+char *
 get_option(const option_t option)
 {
   switch(option)
@@ -246,8 +281,16 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 	    case ANSI_INTEGER:
 	    case ORA_INTEGER:
 	    case ORA_UNSIGNED:
-	      column_value->descr[column_nr].length = 45;
+	      column_value->descr[column_nr].length =
+		(sql_size_t) (column_value->descr[column_nr].precision <= 0
+			      ? 38
+			      : column_value->descr[column_nr].precision);
+	      /* Add one character for the decimal dot (or comma) */
+	      if (column_value->descr[column_nr].precision > 0)
+		column_value->descr[column_nr].length++;
+
 	      column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
+	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
 	      /* add 1 byte for a terminating zero */
 	      column_value->size[column_nr] = column_value->descr[column_nr].length + 1;
 	      break;
@@ -258,34 +301,48 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 	    case ORA_FLOAT:
 	    case ANSI_DOUBLE_PRECISION:
 	    case ANSI_REAL:
-	      column_value->descr[column_nr].length = 100;
+	      column_value->descr[column_nr].length =
+		(sql_size_t) (column_value->descr[column_nr].precision <= 0
+			      ? 38
+			      : column_value->descr[column_nr].precision);
+	      /* Add one character for the decimal dot (or comma) */
+	      column_value->descr[column_nr].length++;
+	      /* Add the mantisse and so on */
+	      column_value->descr[column_nr].length += 5;
+
 	      column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
+	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
 	      /* add 1 byte for a terminating zero */
 	      column_value->size[column_nr] = column_value->descr[column_nr].length + 1;
 	      break;
 
 	    case ORA_LONG:
 	      column_value->descr[column_nr].length = 2000;
+	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
 	      break;
 
 	    case ORA_ROWID:
 	      column_value->descr[column_nr].length = 18;
+	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
 	      break;
 
 	    case ANSI_DATE:
 	    case ORA_DATE:
 	      column_value->descr[column_nr].length = 25;
 	      column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
+	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
 	      /* add 1 byte for a terminating zero */
 	      column_value->size[column_nr] = column_value->descr[column_nr].length + 1;
 	      break;
 
 	    case ORA_RAW:
 	      column_value->descr[column_nr].length = ( column_value->descr[column_nr].length == 0 ? 512U : column_value->descr[column_nr].length );
+	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
 	      break;
 
 	    case ORA_LONG_RAW:
 	      column_value->descr[column_nr].length = 2000;
+	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
 	      break;
 
 	    case ANSI_CHARACTER:
@@ -388,88 +445,52 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 
 static
 void
-print_heading(/*@in@*/ value_info_t *column_value, FILE *fout)
+print_heading(/*@in@*/ const settings_t *settings, /*@in@*/ value_info_t *column_value, FILE *fout)
 /*@requires notnull column_value->descr, column_value->size @*/
 {
   unsigned int column_nr;
-  const char *record_delimiter = get_option(OPTION_RECORD_DELIMITER);
-  const char *column_heading = get_option(OPTION_COLUMN_HEADING);
-  const char *fixed_column_length = get_option(OPTION_FIXED_COLUMN_LENGTH);
-  const char *column_separator = get_option(OPTION_COLUMN_SEPARATOR);
-  const char *enclosure_string = get_option(OPTION_ENCLOSURE_STRING);
 
-  if (column_heading != NULL && strcmp(column_heading, "1") == 0)
+  if (settings->column_heading)
     {
       /* print the column headings */
       for (column_nr = 0;
 	   column_nr < column_value->value_count;
 	   column_nr++)
 	{
-	  if (column_nr > 0 && column_separator != NULL)
-	    (void) fputs(column_separator, fout);
-	  if (OPTION_TRUE(fixed_column_length))
+	  if (column_nr > 0 && settings->column_separator != NULL)
+	    (void) fputs(settings->column_separator, fout);
+	  if (settings->fixed_column_length)
 	    {
-	      (void) fprintf(fout, "%.*s", (int) column_value->size[column_nr], column_value->descr[column_nr].name);
+	      (void) fprintf(fout,
+			     "%-*.*s",
+			     (int) column_value->size[column_nr],
+			     (int) column_value->size[column_nr],
+			     column_value->descr[column_nr].name);
 	    }
 	  else
 	    {
-	      const char *data = column_value->descr[column_nr].name;
-
-	      /* only enclose character data of variable length
-	         containing the column separator */
-	      if (column_separator != NULL &&
-		  column_separator[0] != '\0' &&
-		  enclosure_string != NULL &&
-		  enclosure_string[0] != '\0' &&
-		  strstr(data, column_separator) != NULL)
-		{
-		  char *ptr1;
-		  char *ptr2;
-
-		  (void) fputs(enclosure_string, fout);
-
-		  /* Add each enclosure string twice.
-		     That is what Excel does and SQL*Loader expects. */
-
-		  for (ptr1 = (char *) data;
-		       (ptr2 = strstr(ptr1, enclosure_string)) != NULL;
-		       ptr1 = ptr2 + strlen(enclosure_string))
-		    {
-		      (void) fprintf(fout, "%*.*s", ptr2 - ptr1, ptr2 - ptr1, ptr1);
-		      (void) fputs(enclosure_string, fout);
-		      (void) fputs(enclosure_string, fout);
-		    }
-
-		  (void) fputs(ptr1, fout); /* the remainder */
-		  (void) fputs(enclosure_string, fout);
-		}
-	      else
-		{
-		  (void) fputs(data, fout);
-		}
+	      (void) fputs(column_value->descr[column_nr].name, fout);
 	    }
 	}
-      if (record_delimiter != NULL)
+      if (settings->record_delimiter != NULL)
 	{
-	  (void) fputs(record_delimiter, fout); /* column heading end */
+	  (void) fputs(settings->record_delimiter, fout); /* column heading end */
 	}
     }
 }
 
 static
 void
-print_data(const unsigned int fetch_size, const unsigned int total_fetch_size, /*@in@*/ value_info_t *column_value, FILE *fout)
+print_data(/*@in@*/ const settings_t *settings,
+	   const unsigned int row_count,
+	   const unsigned int total_fetch_size,
+	   /*@in@*/ value_info_t *column_value,
+	   FILE *fout)
 /*@requires notnull column_value->data, column_value->ind, column_value->size @*/
 {
   unsigned int column_nr, array_nr;
-  const char *record_delimiter = get_option(OPTION_RECORD_DELIMITER);
-  const char *feedback = get_option(OPTION_FEEDBACK);
-  const char *fixed_column_length = get_option(OPTION_FIXED_COLUMN_LENGTH);
-  const char *column_separator = get_option(OPTION_COLUMN_SEPARATOR);
-  const char *enclosure_string = get_option(OPTION_ENCLOSURE_STRING);
-  const char *null = get_option(OPTION_NULL);
 
-  for (array_nr = 0; array_nr < fetch_size; array_nr++)
+  for (array_nr = 0; array_nr < row_count; array_nr++)
     {
       DBUG_PRINT("info", ("array_nr: %u", array_nr));
 
@@ -497,13 +518,17 @@ print_data(const unsigned int fetch_size, const unsigned int total_fetch_size, /
 		      array_nr,
 		      (char *) column_value->data[column_nr][array_nr]));
 
-	  if (column_nr > 0 && column_separator != NULL)
-	    (void) fputs(column_separator, fout);
-	  if (column_value->ind[column_nr][array_nr] != -1)
+	  if (column_nr > 0 && settings->column_separator != NULL)
+	    (void) fputs(settings->column_separator, fout);
+	  if (column_value->ind[column_nr][array_nr] != -1) /* not a NULL value? */
 	    {
-	      if (OPTION_TRUE(fixed_column_length))
+	      if (settings->fixed_column_length)
 		{
-		  (void) fprintf(fout, "%.*s", (int) column_value->size[column_nr], (char *) column_value->data[column_nr][array_nr]);
+		  (void) fprintf(fout,
+				 "%-*.*s",
+				 (int) column_value->size[column_nr],
+				 (int) column_value->size[column_nr],
+				 (char *) column_value->data[column_nr][array_nr]);
 		}
 	      else
 		{
@@ -511,31 +536,31 @@ print_data(const unsigned int fetch_size, const unsigned int total_fetch_size, /
 
 		  /* only enclose character data of variable length
 		     containing the column separator */
-		  if (column_separator != NULL &&
-		      column_separator[0] != '\0' &&
-		      enclosure_string != NULL &&
-		      enclosure_string[0] != '\0' &&
-		      strstr(data, column_separator) != NULL)
+		  if (settings->column_separator != NULL &&
+		      settings->column_separator[0] != '\0' &&
+		      settings->enclosure_string != NULL &&
+		      settings->enclosure_string[0] != '\0' &&
+		      strstr(data, settings->column_separator) != NULL)
 		    {
 		      char *ptr1;
 		      char *ptr2;
 
-		      (void) fputs(enclosure_string, fout);
+		      (void) fputs(settings->enclosure_string, fout);
 
 		      /* Add each enclosure string twice.
 			 That is what Excel does and SQL*Loader expects. */
 
 		      for (ptr1 = (char *) data;
-			   (ptr2 = strstr(ptr1, enclosure_string)) != NULL;
-			   ptr1 = ptr2 + strlen(enclosure_string))
+			   (ptr2 = strstr(ptr1, settings->enclosure_string)) != NULL;
+			   ptr1 = ptr2 + strlen(settings->enclosure_string))
 			{
 			  (void) fprintf(fout, "%*.*s", ptr2 - ptr1, ptr2 - ptr1, ptr1);
-			  (void) fputs(enclosure_string, fout);
-			  (void) fputs(enclosure_string, fout);
+			  (void) fputs(settings->enclosure_string, fout);
+			  (void) fputs(settings->enclosure_string, fout);
 			}
 
 		      (void) fputs(ptr1, fout); /* the remainder */
-		      (void) fputs(enclosure_string, fout);
+		      (void) fputs(settings->enclosure_string, fout);
 		    }
 		  else
 		    {
@@ -543,20 +568,28 @@ print_data(const unsigned int fetch_size, const unsigned int total_fetch_size, /
 		    }
 		}
 	    }
-	  else if (null != NULL)
+	  else
 	    {
-	      (void) fputs(null, fout);
+	      /* print a NULL value */
+	      if (settings->fixed_column_length)
+		{
+		  (void) fprintf(fout,
+				 "%-*.*s",
+				 (int) column_value->size[column_nr],
+				 (int) column_value->size[column_nr],
+				 (settings->null != NULL ? settings->null : ""));
+		}
 	    }
 	}
-      if (record_delimiter != NULL)
+      if (settings->record_delimiter != NULL)
 	{
-	  (void) fputs(record_delimiter, fout); /* column heading end */
+	  (void) fputs(settings->record_delimiter, fout); /* column heading end */
 	}
     }
 
-  if (OPTION_TRUE(feedback))
+  if (settings->feedback)
     {
-      if ((total_fetch_size / fetch_size) % DOTS_PER_LINE == 0)
+      if ((total_fetch_size / settings->fetch_size) % DOTS_PER_LINE == 0)
 	{
 	  (void) fputs(".\n", stderr);
 	}
@@ -589,42 +622,24 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 #define STEP_MAX ((int) STEP_FETCH_ROWS)
   } step_t;
   int step;
-
   int status = OK;
 #define NLS_MAX_SIZE 100
   char nls_language_stmt[NLS_MAX_SIZE+1];
   char nls_date_format_stmt[NLS_MAX_SIZE+1];
   char nls_timestamp_format_stmt[NLS_MAX_SIZE+1];
   char nls_numeric_characters_stmt[NLS_MAX_SIZE+1];
-  const char *userid;
-  const char *nls_language;
-  const char *nls_date_format;
-  const char *nls_timestamp_format;
-  const char *nls_numeric_characters;
-  const char *fetch_size_str;
-  unsigned int fetch_size = 0;
   unsigned int total_fetch_size = 0;
-  const char *sqlstmt;
   value_info_t bind_value = { 0, 0, "", NULL, NULL, NULL, NULL, NULL };
   unsigned int bind_variable_nr;
   value_info_t column_value = { 0, 0, "", NULL, NULL, NULL, NULL, NULL };
   unsigned int column_nr;
   unsigned int row_count;
   FILE *fout = stdout;
-  const char *output_file = get_option(OPTION_OUTPUT_FILE);
-  const char *output_append = get_option(OPTION_OUTPUT_APPEND);
+  settings_t settings;
 
 #ifdef WITH_DMALLOC
   unsigned long mark = 0;
 #endif
-
-  if (output_file != NULL)
-    {
-      if ((fout = fopen(output_file, (OPTION_TRUE(output_append) ? "a" : "w"))) == NULL)
-	perror(output_file);
-
-      assert(fout != NULL);
-    }
 
   (void) setlocale(LC_ALL, "");
 
@@ -634,19 +649,34 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
   (void) strcpy(column_value.descriptor_name, "output");
   nr_options = process_arguments(nr_arguments, arguments);
 
-  userid = get_option(OPTION_USERID);
-  nls_language = get_option(OPTION_NLS_LANGUAGE);
-  nls_date_format = get_option(OPTION_NLS_DATE_FORMAT);
-  nls_timestamp_format = get_option(OPTION_NLS_TIMESTAMP_FORMAT);
-  nls_numeric_characters = get_option(OPTION_NLS_NUMERIC_CHARACTERS);
-  fetch_size_str = get_option(OPTION_FETCH_SIZE);
-  sqlstmt = get_option(OPTION_SQLSTMT);
+  settings.userid = get_option(OPTION_USERID);
+  settings.sqlstmt = get_option(OPTION_SQLSTMT);
+  settings.fetch_size = (unsigned int) atoi(get_option(OPTION_FETCH_SIZE) == NULL ? "100" : get_option(OPTION_FETCH_SIZE));
+  settings.dbug_options = get_option(OPTION_DBUG_OPTIONS);
+  settings.nls_language = get_option(OPTION_NLS_LANGUAGE);
+  settings.nls_date_format = get_option(OPTION_NLS_DATE_FORMAT);
+  settings.nls_timestamp_format = get_option(OPTION_NLS_TIMESTAMP_FORMAT);
+  settings.nls_numeric_characters = get_option(OPTION_NLS_NUMERIC_CHARACTERS);
+  settings.details = OPTION_TRUE(get_option(OPTION_DETAILS));
+  settings.record_delimiter = get_option(OPTION_RECORD_DELIMITER);
+  settings.feedback = OPTION_TRUE(get_option(OPTION_FEEDBACK));
+  settings.column_heading = OPTION_TRUE(get_option(OPTION_COLUMN_HEADING));
+  settings.fixed_column_length = OPTION_TRUE(get_option(OPTION_FIXED_COLUMN_LENGTH));
+  settings.column_separator = get_option(OPTION_COLUMN_SEPARATOR);
+  settings.enclosure_string = get_option(OPTION_ENCLOSURE_STRING);
+  settings.output_file = get_option(OPTION_OUTPUT_FILE);
+  settings.output_append = OPTION_TRUE(get_option(OPTION_OUTPUT_APPEND));
+  settings.null = get_option(OPTION_NULL);
 
-  assert(fetch_size_str != NULL);
+  if (settings.output_file != NULL)
+    {
+      if ((fout = fopen(settings.output_file, (settings.output_append ? "a" : "w"))) == NULL)
+	perror(settings.output_file);
 
-  fetch_size = (unsigned int) atoi(fetch_size_str);
+      assert(fout != NULL);
+    }
 
-  DBUG_INIT(get_option(OPTION_DBUG_OPTIONS), "oradumper");
+  DBUG_INIT(settings.dbug_options, "oradumper");
   DBUG_ENTER("oradumper");
 
   for (step = (step_t) 0; step <= STEP_MAX && status == OK; step++)
@@ -654,10 +684,10 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
       switch((step_t) step)
 	{
 	case STEP_CONNECT:
-	  if (userid != NULL)
+	  if (settings.userid != NULL)
 	    {
 	      (void) fprintf(stderr, "Connecting.\n");
-	      status = sql_connect(userid);
+	      status = sql_connect(settings.userid);
 	    }
 	  break;
 
@@ -665,49 +695,49 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 #ifdef WITH_DMALLOC
 	  mark = dmalloc_mark();
 #endif
-	  if (nls_language == NULL)
+	  if (settings.nls_language == NULL)
 	    break;
 
 	  (void) snprintf(nls_language_stmt,
 			  sizeof(nls_language_stmt),
 			  "ALTER SESSION SET NLS_LANGUAGE = '%s'",
-			  nls_language);
+			  settings.nls_language);
 
 	  status = sql_execute_immediate(nls_language_stmt);
 	  break;
 
 	case STEP_NLS_DATE_FORMAT:
-	  if (nls_date_format == NULL)
+	  if (settings.nls_date_format == NULL)
 	    break;
 
 	  (void) snprintf(nls_date_format_stmt,
 			  sizeof(nls_date_format_stmt),
 			  "ALTER SESSION SET NLS_DATE_FORMAT = '%s'",
-			  nls_date_format);
+			  settings.nls_date_format);
 
 	  status = sql_execute_immediate(nls_date_format_stmt);
 	  break;
 
 	case STEP_NLS_TIMESTAMP_FORMAT:
-	  if (nls_timestamp_format == NULL)
+	  if (settings.nls_timestamp_format == NULL)
 	    break;
 
 	  (void) snprintf(nls_timestamp_format_stmt,
 			  sizeof(nls_timestamp_format_stmt),
 			  "ALTER SESSION SET NLS_TIMESTAMP_FORMAT = '%s'",
-			  nls_timestamp_format);
+			  settings.nls_timestamp_format);
 
 	  status = sql_execute_immediate(nls_timestamp_format_stmt);
 	  break;
 
 	case STEP_NLS_NUMERIC_CHARACTERS:
-	  if (nls_numeric_characters == NULL)
+	  if (settings.nls_numeric_characters == NULL)
 	    break;
 	
 	  (void) snprintf(nls_numeric_characters_stmt,
 			  sizeof(nls_numeric_characters_stmt),
 			  "ALTER SESSION SET NLS_NUMERIC_CHARACTERS = '%s'",
-			  nls_numeric_characters);
+			  settings.nls_numeric_characters);
       
 	  status = sql_execute_immediate(nls_numeric_characters_stmt);
 	  break;
@@ -718,16 +748,16 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	  break;
 
 	case STEP_ALLOCATE_DESCRIPTOR_OUT:
-	  column_value.array_count = fetch_size;
-	  status = sql_allocate_descriptor(column_value.descriptor_name, fetch_size);
+	  column_value.array_count = settings.fetch_size;
+	  status = sql_allocate_descriptor(column_value.descriptor_name, settings.fetch_size);
 	  break;
 
 	case STEP_PARSE:
-	  assert(sqlstmt != NULL);
+	  assert(settings.sqlstmt != NULL);
 
-	  (void) fprintf(stderr, "Parsing \"%s\".\n", sqlstmt);
+	  (void) fprintf(stderr, "Parsing \"%s\".\n", settings.sqlstmt);
 
-	  status = sql_parse(sqlstmt);
+	  status = sql_parse(settings.sqlstmt);
 	  break;
 
 	case STEP_DESCRIBE_INPUT:
@@ -818,7 +848,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	  break;
 
 	case STEP_FETCH_ROWS:
-	  if ((status = prepare_fetch(fetch_size, &column_value)) != OK)
+	  if ((status = prepare_fetch(settings.fetch_size, &column_value)) != OK)
 	    break;
 
 	  assert(column_value.descr != NULL);
@@ -827,7 +857,9 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	  assert(column_value.data != NULL);
 	  assert(column_value.ind != NULL);
 
-	  print_heading(&column_value, fout);
+	  /*@-nullstate@*/
+	  print_heading(&settings, &column_value, fout);
+	  /*@=nullstate@*/
 
 #ifdef DBUG_MEMORY
 	  DBUG_PRINT("info", ("Dumping column_value.data (%p)", column_value.data));
@@ -848,10 +880,13 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 
 #define min(x, y) ((x) < (y) ? (x) : (y))
 
-	      total_fetch_size += min(row_count, fetch_size);
-	      print_data(min(row_count, fetch_size), total_fetch_size, &column_value, fout);
+	      total_fetch_size += min(row_count, settings.fetch_size);
+	      /*@-nullstate@*/
+	      print_data(&settings, min(row_count, settings.fetch_size), total_fetch_size, &column_value, fout);
+	      /*@=nullstate@*/
 	    }
-	  while (status == OK && row_count == fetch_size); /* row_count < fetch_size means nothing more to fetch */
+	  /* row_count < settings.fetch_size means nothing more to fetch */
+	  while (status == OK && row_count == settings.fetch_size); 
 
 	  if ((status = sql_rows_processed(&row_count)) != OK)
 	    break;
@@ -971,7 +1006,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
       break;
     }
 
-  if (output_file != NULL)
+  if (settings.output_file != NULL)
     (void) fclose(fout);
 
 #ifdef WITH_DMALLOC
