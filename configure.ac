@@ -54,6 +54,9 @@ esac
 AM_INIT_AUTOMAKE
 AM_C_PROTOTYPES
 AM_WITH_DMALLOC
+m4_pattern_allow([^AM_PATH_CHECK$])
+AM_PATH_CHECK
+# PKG_CHECK_MODULES([CHECK], [check >= 0.9.4)])
 
 # Checks for programs.
 AC_PROG_CC

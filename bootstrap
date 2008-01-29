@@ -30,7 +30,7 @@ test -L config/acoracle.m4 || ln -s ${EPC_HOME:=`pwd`/../epc}/config/acoracle.m4
 test -L config/epc.m4 || ln -s ${EPC_HOME:=`pwd`/../epc}/config/epc.m4 config
 
 set -e
-aclocal -I config
+aclocal -I /usr/local/share/aclocal -I config
 libtoolize --force --copy
 autoheader
 automake --add-missing --copy
