@@ -21,7 +21,7 @@ TESTS                   = oradumper_check
 check_PROGRAMS          = $(TESTS)
 oradumper_check_SOURCES = oradumper_check.c $(top_srcdir)/src/oradumper.h $(top_srcdir)/src/oradumper_int.h
 oradumper_check_CFLAGS  = @CHECK_CFLAGS@
-oradumper_check_LDADD   = @CHECK_LIBS@ $(top_builddir)/src/lib/liboradumper.la
+oradumper_check_LDADD   = $(top_builddir)/src/lib/liboradumper.la @CHECK_LIBS@ @DBUG_LDADD@
 
 CLEANFILES              = *.log *.err $(TESTS)
 

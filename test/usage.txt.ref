@@ -1,0 +1,23 @@
+
+Usage: oradumper [OPTION=VALUE]... [VALUE]...
+
+OPTION:
+  userid                          Oracle connect string
+  sqlstmt                         Select statement
+  fetch_size                      Array size (10)
+  dbug_options                    DBUG options ()
+  nls_language                    NLS language
+  nls_date_format                 NLS date format
+  nls_timestamp_format            NLS timestamp format
+  nls_numeric_characters          NLS numeric characters
+  details                         Print details about input and output values: yes, only or no (no)
+  record_delimiter                Record delimiter (
+)
+  feedback                        Give feedback after every fetch (0 = no feedback) (0)
+  column_heading                  Include column names in first line (1 = yes) (1)
+  fixed_column_length             Fixed column length: 0 = yes (fixed), 1 = no (variable) (0)
+  column_separator                The column separator (e.g. a comma or semi-colon) (,)
+  enclosure_string                Characters around a character column in variable length data
+  output_file                     The output file
+  output_append                   Append to the output file (1 = yes)?
+  null                            Value to print for NULL values (NULL)
