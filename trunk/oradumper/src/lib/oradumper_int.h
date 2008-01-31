@@ -95,7 +95,19 @@ typedef struct {
 
 #define OK 0
 
-/* functions to be declared in the PRO*C source */
+/* functions which need to be tested only are defined in the internal oradumper source */
+
+/*@-exportlocal@*/
+extern
+void
+oradumper_usage(FILE *fout);
+
+extern
+unsigned int
+oradumper_process_arguments(const unsigned int nr_arguments, const char **arguments);
+/*@=exportlocal@*/
+
+/* functions defined in the PRO*C source */
 extern
 error_t
 sql_connect(const char *userid);

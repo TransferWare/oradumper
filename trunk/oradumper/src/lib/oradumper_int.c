@@ -26,6 +26,8 @@
 #include <stdbool.h>
 #else
 typedef int bool;
+#define false 0
+#define true 1
 #endif
 
 #if HAVE_STDLIB_H
@@ -34,6 +36,10 @@ typedef int bool;
 
 #if HAVE_STRING_H
 #include <string.h>
+#endif
+
+#if HAVE_SYS_ERRNO_H
+#include <sys/errno.h>
 #endif
 
 #if HAVE_WCHAR_H
@@ -162,29 +168,25 @@ get_option(const option_t option)
 #endif
 }
 
-static
 void
-usage(void)
+oradumper_usage(FILE *fout)
 {
   size_t i;
 
-  (void) fprintf( stderr, "\nUsage: oradumper [OPTION=VALUE]... [VALUE]...\n\nOPTION:\n");
+  (void) fprintf( fout, "\nUsage: oradumper [OPTION=VALUE]... [VALUE]...\n\nOPTION:\n");
   for (i = 0; i < sizeof(opt)/sizeof(opt[0]); i++)
     {
-      (void) fprintf( stderr, "  %-30s  %s", opt[i].name, opt[i].desc);
+      (void) fprintf( fout, "  %-30s  %s", opt[i].name, opt[i].desc);
       if (opt[i].def != NULL)
 	{
-	  (void) fprintf( stderr, " (%s)", opt[i].def);
+	  (void) fprintf( fout, " (%s)", opt[i].def);
 	}
-      (void) fprintf( stderr, "\n");
+      (void) fprintf( fout, "\n");
     }
-
-  exit(EXIT_FAILURE);
 }
 
-static
 unsigned int
-process_arguments(const unsigned int nr_arguments, const char **arguments)
+oradumper_process_arguments(const unsigned int nr_arguments, const char **arguments)
 {
   size_t i, j;
 
@@ -217,7 +219,9 @@ process_arguments(const unsigned int nr_arguments, const char **arguments)
       if (opt[j].mandatory != 0 && opt[j].value == NULL)
 	{
 	  (void) fprintf(stderr, "\nERROR: Option %s mandatory.\n", opt[j].name);
-	  usage();
+	  oradumper_usage(stderr);
+	  i = 0; /* number of options should be at least 1: the statement */
+	  break;
 	}
     }
 
@@ -647,7 +651,25 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
   (void) strcpy(bind_value.descriptor_name, "input");
   memset(&column_value, 0, sizeof(column_value));
   (void) strcpy(column_value.descriptor_name, "output");
-  nr_options = process_arguments(nr_arguments, arguments);
+  nr_options = oradumper_process_arguments(nr_arguments, arguments);
+
+  if (nr_options == 0)
+    {
+#ifdef lint
+      free(bind_value.descr);
+      free(bind_value.size);
+      free(bind_value.buf);
+      free(bind_value.data);
+      free(bind_value.ind);
+
+      free(column_value.descr);
+      free(column_value.size);
+      free(column_value.buf);
+      free(column_value.data);
+      free(column_value.ind);
+#endif
+      return EXIT_FAILURE;
+    }
 
   settings.userid = get_option(OPTION_USERID);
   settings.sqlstmt = get_option(OPTION_SQLSTMT);
@@ -668,13 +690,27 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
   settings.output_append = OPTION_TRUE(get_option(OPTION_OUTPUT_APPEND));
   settings.null = get_option(OPTION_NULL);
 
-  if (settings.output_file != NULL)
+  if (settings.output_file != NULL &&
+      (fout = fopen(settings.output_file, (settings.output_append ? "a" : "w"))) == NULL)
     {
-      if ((fout = fopen(settings.output_file, (settings.output_append ? "a" : "w"))) == NULL)
-	perror(settings.output_file);
+      fprintf(stderr, "Could not write to file %s: %s", settings.output_file, strerror(errno));
+#ifdef lint
+      free(bind_value.descr);
+      free(bind_value.size);
+      free(bind_value.buf);
+      free(bind_value.data);
+      free(bind_value.ind);
 
-      assert(fout != NULL);
+      free(column_value.descr);
+      free(column_value.size);
+      free(column_value.buf);
+      free(column_value.data);
+      free(column_value.ind);
+#endif
+      return EXIT_FAILURE;
     }
+
+  assert(fout != NULL);
 
   DBUG_INIT(settings.dbug_options, "oradumper");
   DBUG_ENTER("oradumper");
@@ -1017,5 +1053,5 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
   DBUG_LEAVE();
   DBUG_DONE();
 
-  return status;
+  return status == OK ? EXIT_SUCCESS : EXIT_FAILURE;
 }
