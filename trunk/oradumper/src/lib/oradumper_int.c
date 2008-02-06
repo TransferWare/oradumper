@@ -66,7 +66,7 @@ typedef /*observer*/ char *data_ptr_t;
 
 typedef enum {
   OPTION_USERID = 0,
-  OPTION_SQLSTMT,
+  OPTION_QUERY,
   OPTION_FETCH_SIZE,
   OPTION_DBUG_OPTIONS,
   OPTION_NLS_LANGUAGE,
@@ -87,7 +87,7 @@ typedef enum {
 
 typedef struct {
   /*@null@*/ /*@observer@*/ char *userid;
-  /*@observer@*/ char *sqlstmt;
+  /*@observer@*/ char *query;
   unsigned int fetch_size;
   /*@observer@*/ char *dbug_options;
   /*@null@*/ /*@observer@*/ char *nls_language;
@@ -116,7 +116,7 @@ static struct {
   /*@observer@*//*@null@*/ char *value; /* value */
 } opt[] = { 
   { "userid", 0, "Oracle connect string", NULL, NULL }, /* userid may be NULL when oradumper is used as a library */
-  { "sqlstmt", 1, "Select statement", NULL, NULL },
+  { "query", 1, "Select statement", NULL, NULL },
   { "fetch_size", 1, "Array size", "10", NULL },
   { "dbug_options", 1, "DBUG options", "", NULL },
   { "nls_language", 0, "NLS language", NULL, NULL },
@@ -143,7 +143,7 @@ get_option(const option_t option)
   switch(option)
     {
     case OPTION_USERID:
-    case OPTION_SQLSTMT:
+    case OPTION_QUERY:
     case OPTION_FETCH_SIZE:
     case OPTION_DBUG_OPTIONS:
     case OPTION_NLS_LANGUAGE:
@@ -239,7 +239,7 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
   
   do
     {
-      if ((status = sql_value_count(column_value->descriptor_name, &column_value->value_count)) != OK)
+      if ((status = orasql_value_count(column_value->descriptor_name, &column_value->value_count)) != OK)
 	break;
 
 #ifdef lint
@@ -255,7 +255,7 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
       assert(column_value->descr != NULL);
 
       column_value->size =
-	(sql_size_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->size));
+	(orasql_size_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->size));
       assert(column_value->size != NULL);
 
       column_value->buf =
@@ -272,9 +272,9 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 	   column_nr < column_value->value_count;
 	   column_nr++)
 	{
-	  if ((status = sql_value_get(column_value->descriptor_name,
-				      column_nr + 1,
-				      &column_value->descr[column_nr])) != OK)
+	  if ((status = orasql_value_get(column_value->descriptor_name,
+					 column_nr + 1,
+					 &column_value->descr[column_nr])) != OK)
 	    break;
 
 	  switch (column_value->descr[column_nr].type)
@@ -286,9 +286,9 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 	    case ORA_INTEGER:
 	    case ORA_UNSIGNED:
 	      column_value->descr[column_nr].length =
-		(sql_size_t) (column_value->descr[column_nr].precision <= 0
-			      ? 38
-			      : column_value->descr[column_nr].precision);
+		(orasql_size_t) (column_value->descr[column_nr].precision <= 0
+				 ? 38
+				 : column_value->descr[column_nr].precision);
 	      /* Add one character for the decimal dot (or comma) */
 	      if (column_value->descr[column_nr].precision > 0)
 		column_value->descr[column_nr].length++;
@@ -306,9 +306,9 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 	    case ANSI_DOUBLE_PRECISION:
 	    case ANSI_REAL:
 	      column_value->descr[column_nr].length =
-		(sql_size_t) (column_value->descr[column_nr].precision <= 0
-			      ? 38
-			      : column_value->descr[column_nr].precision);
+		(orasql_size_t) (column_value->descr[column_nr].precision <= 0
+				 ? 38
+				 : column_value->descr[column_nr].precision);
 	      /* Add one character for the decimal dot (or comma) */
 	      column_value->descr[column_nr].length++;
 	      /* Add the mantisse and so on */
@@ -428,18 +428,18 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 	  DBUG_DUMP("info", column_value->ind[column_nr], (unsigned int)(fetch_size * sizeof(**column_value->ind)));
 #endif
 
-	  if ((status = sql_value_set(column_value->descriptor_name,
-				      column_nr + 1,
-				      column_value->array_count,
-				      &column_value->descr[column_nr],
-				      (char *) column_value->data[column_nr][0],
-				      column_value->ind[column_nr])) != OK)
+	  if ((status = orasql_value_set(column_value->descriptor_name,
+					 column_nr + 1,
+					 column_value->array_count,
+					 &column_value->descr[column_nr],
+					 (char *) column_value->data[column_nr][0],
+					 column_value->ind[column_nr])) != OK)
 	    break;
 
 	  /* get descriptor info again */
-	  if ((status = sql_value_get(column_value->descriptor_name,
-				      column_nr + 1,
-				      &column_value->descr[column_nr])) != OK)
+	  if ((status = orasql_value_get(column_value->descriptor_name,
+					 column_nr + 1,
+					 &column_value->descr[column_nr])) != OK)
 	    break;
 	}
     } while (0);
@@ -672,7 +672,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
     }
 
   settings.userid = get_option(OPTION_USERID);
-  settings.sqlstmt = get_option(OPTION_SQLSTMT);
+  settings.query = get_option(OPTION_QUERY);
   settings.fetch_size = (unsigned int) atoi(get_option(OPTION_FETCH_SIZE) == NULL ? "100" : get_option(OPTION_FETCH_SIZE));
   settings.dbug_options = get_option(OPTION_DBUG_OPTIONS);
   settings.nls_language = get_option(OPTION_NLS_LANGUAGE);
@@ -723,7 +723,26 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	  if (settings.userid != NULL)
 	    {
 	      (void) fprintf(stderr, "Connecting.\n");
-	      status = sql_connect(settings.userid);
+	      status = orasql_connect(settings.userid);
+	    }
+	  else if ((status = orasql_connected()) != OK)
+	    {
+	      /* not connected */
+	      char userid[100+1];
+	      (void) fputs("Enter userid (e.g. username/password@tns): ", stdout);
+	      if (fgets(userid, (int) sizeof(userid), stdin) != NULL)
+		{
+		  /* strip newline */
+		  char *nl = strchr(userid, '\n');
+
+		  if (nl != NULL)
+		    {
+		      *nl = '\0';
+		    }
+
+		  (void) fprintf(stderr, "Connecting.\n");
+		  status = orasql_connect(userid);
+		}
 	    }
 	  break;
 
@@ -739,7 +758,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 			  "ALTER SESSION SET NLS_LANGUAGE = '%s'",
 			  settings.nls_language);
 
-	  status = sql_execute_immediate(nls_language_stmt);
+	  status = orasql_execute_immediate(nls_language_stmt);
 	  break;
 
 	case STEP_NLS_DATE_FORMAT:
@@ -751,7 +770,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 			  "ALTER SESSION SET NLS_DATE_FORMAT = '%s'",
 			  settings.nls_date_format);
 
-	  status = sql_execute_immediate(nls_date_format_stmt);
+	  status = orasql_execute_immediate(nls_date_format_stmt);
 	  break;
 
 	case STEP_NLS_TIMESTAMP_FORMAT:
@@ -763,7 +782,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 			  "ALTER SESSION SET NLS_TIMESTAMP_FORMAT = '%s'",
 			  settings.nls_timestamp_format);
 
-	  status = sql_execute_immediate(nls_timestamp_format_stmt);
+	  status = orasql_execute_immediate(nls_timestamp_format_stmt);
 	  break;
 
 	case STEP_NLS_NUMERIC_CHARACTERS:
@@ -775,33 +794,33 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 			  "ALTER SESSION SET NLS_NUMERIC_CHARACTERS = '%s'",
 			  settings.nls_numeric_characters);
       
-	  status = sql_execute_immediate(nls_numeric_characters_stmt);
+	  status = orasql_execute_immediate(nls_numeric_characters_stmt);
 	  break;
 
 	case STEP_ALLOCATE_DESCRIPTOR_IN:
 	  bind_value.array_count = 1;
-	  status = sql_allocate_descriptor(bind_value.descriptor_name, 1); /* no input bind array */
+	  status = orasql_allocate_descriptor(bind_value.descriptor_name, 1); /* no input bind array */
 	  break;
 
 	case STEP_ALLOCATE_DESCRIPTOR_OUT:
 	  column_value.array_count = settings.fetch_size;
-	  status = sql_allocate_descriptor(column_value.descriptor_name, settings.fetch_size);
+	  status = orasql_allocate_descriptor(column_value.descriptor_name, settings.fetch_size);
 	  break;
 
 	case STEP_PARSE:
-	  assert(settings.sqlstmt != NULL);
+	  assert(settings.query != NULL);
 
-	  (void) fprintf(stderr, "Parsing \"%s\".\n", settings.sqlstmt);
+	  (void) fprintf(stderr, "Parsing \"%s\".\n", settings.query);
 
-	  status = sql_parse(settings.sqlstmt);
+	  status = orasql_parse(settings.query);
 	  break;
 
 	case STEP_DESCRIBE_INPUT:
-	  status = sql_describe_input(bind_value.descriptor_name);
+	  status = orasql_describe_input(bind_value.descriptor_name);
 	  break;
 
 	case STEP_BIND_VARIABLE:
-	  if ((status = sql_value_count(bind_value.descriptor_name, &bind_value.value_count)) != OK)
+	  if ((status = orasql_value_count(bind_value.descriptor_name, &bind_value.value_count)) != OK)
 	    break;
 
 #ifdef lint
@@ -834,9 +853,9 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	       bind_variable_nr++)
 	    {
 	      /* get the bind variable name */
-	      if ((status = sql_value_get(bind_value.descriptor_name,
-					  bind_variable_nr + 1,
-					  &bind_value.descr[bind_variable_nr])) != OK)
+	      if ((status = orasql_value_get(bind_value.descriptor_name,
+					     bind_variable_nr + 1,
+					     &bind_value.descr[bind_variable_nr])) != OK)
 		break;
 
 	      bind_value.data[bind_variable_nr] =
@@ -865,22 +884,22 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 			  bind_value.descr[bind_variable_nr].name,
 			  bind_value.data[bind_variable_nr][0]));
 
-	      if ((status = sql_value_set(bind_value.descriptor_name,
-					  bind_variable_nr + 1,
-					  bind_value.array_count,
-					  &bind_value.descr[bind_variable_nr],
-					  (char *) bind_value.data[bind_variable_nr][0],
-					  &bind_value.ind[bind_variable_nr][0])) != OK)
+	      if ((status = orasql_value_set(bind_value.descriptor_name,
+					     bind_variable_nr + 1,
+					     bind_value.array_count,
+					     &bind_value.descr[bind_variable_nr],
+					     (char *) bind_value.data[bind_variable_nr][0],
+					     &bind_value.ind[bind_variable_nr][0])) != OK)
 		break;
 	    }
 	  break;
 
 	case STEP_OPEN_CURSOR:
-	  status = sql_open_cursor(bind_value.descriptor_name);
+	  status = orasql_open_cursor(bind_value.descriptor_name);
 	  break;
 
 	case STEP_DESCRIBE_OUTPUT:
-	  status = sql_describe_output(column_value.descriptor_name);
+	  status = orasql_describe_output(column_value.descriptor_name);
 	  break;
 
 	case STEP_FETCH_ROWS:
@@ -907,7 +926,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 
 	  do
 	    {
-	      if ((status = sql_fetch_rows(column_value.descriptor_name, column_value.array_count, &row_count)) != OK)
+	      if ((status = orasql_fetch_rows(column_value.descriptor_name, column_value.array_count, &row_count)) != OK)
 		{
 		  break;
 		}
@@ -924,7 +943,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
 	  /* row_count < settings.fetch_size means nothing more to fetch */
 	  while (status == OK && row_count == settings.fetch_size); 
 
-	  if ((status = sql_rows_processed(&row_count)) != OK)
+	  if ((status = orasql_rows_processed(&row_count)) != OK)
 	    break;
 	  
 	  (void) fprintf(stderr, "\n%u row(s) processed.\n", row_count);
@@ -1002,7 +1021,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
       unsigned int msg_length;
       char *msg;
 
-      sql_error(&msg_length, &msg);
+      orasql_error(&msg_length, &msg);
 
       (void) fprintf(stderr, "%*s\n", (int) msg_length, msg);
     }
@@ -1016,7 +1035,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
     case STEP_DESCRIBE_OUTPUT:
       /*@fallthrough@*/
     case STEP_OPEN_CURSOR:
-      (void) sql_close_cursor();
+      (void) orasql_close_cursor();
       /*@fallthrough@*/
     case STEP_BIND_VARIABLE:
       /*@fallthrough@*/
@@ -1025,10 +1044,10 @@ oradumper(const unsigned int nr_arguments, const char **arguments)
     case STEP_PARSE:
       /*@fallthrough@*/
     case STEP_ALLOCATE_DESCRIPTOR_OUT:
-      (void) sql_deallocate_descriptor(column_value.descriptor_name);
+      (void) orasql_deallocate_descriptor(column_value.descriptor_name);
       /*@fallthrough@*/
     case STEP_ALLOCATE_DESCRIPTOR_IN:
-      (void) sql_deallocate_descriptor(bind_value.descriptor_name);
+      (void) orasql_deallocate_descriptor(bind_value.descriptor_name);
       /*@fallthrough@*/
     case STEP_NLS_NUMERIC_CHARACTERS:
       /*@fallthrough@*/

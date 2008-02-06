@@ -36,21 +36,21 @@ typedef enum {
   ORA_CLOB = -112, /* CLOB, NCLOB */
   ORA_BLOB = -113, /* BLOB */
   ORA_INTERVAL = 10 /* unsigned char[11] */
-} sql_datatype_t;
+} orasql_datatype_t;
 
 typedef int error_t; /* sqlca.sqlcode */
 
 /* zero terminated character arrays */
 typedef char character_set_name_t[20 + 1];
 typedef char value_name_t[30 + 1];
-typedef unsigned int sql_size_t;
+typedef unsigned int orasql_size_t;
 
 typedef struct {
   /* the following fields are returned by exec sql get descriptor */
   value_name_t name;
-  sql_datatype_t type;
-  sql_size_t octet_length; /* length in bytes */
-  sql_size_t length; /* length in characters */
+  orasql_datatype_t type;
+  orasql_size_t octet_length; /* length in bytes */
+  orasql_size_t length; /* length in characters */
   int precision;
   int scale;
   character_set_name_t character_set_name;
@@ -80,7 +80,7 @@ typedef struct {
   /* this is the allocated size of value[x].data[y] */
   /* must be a multiple of 4 */
   /* size[value_count] */
-  /*@null@*/ /*@only@*/ sql_size_t *size;
+  /*@null@*/ /*@only@*/ orasql_size_t *size;
 
   /* buffer array: buf[value_count] is the buffer for data[value_count[array_count] */
   /*@null@*/ /*@only@*/ byte_ptr_t *buf;
@@ -110,62 +110,75 @@ oradumper_process_arguments(const unsigned int nr_arguments, const char **argume
 /* functions defined in the PRO*C source */
 extern
 error_t
-sql_connect(const char *userid);
+orasql_connect(const char *userid);
 
 extern
 error_t
-sql_execute_immediate(const char *statement);
+orasql_connected(void);
 
 extern
 error_t
-sql_allocate_descriptor(const char *descriptor_name, const sql_size_t max_array_size);
+orasql_execute_immediate(const char *statement);
 
 extern
 error_t
-sql_parse(const char *select_statement);
+orasql_allocate_descriptor(const char *descriptor_name, const orasql_size_t max_array_size);
 
 extern
 error_t
-sql_describe_input(const char *descriptor_name);
+orasql_parse(const char *select_statement);
 
 extern
 error_t
-sql_value_count(const char *descriptor_name, /*@out@*/ unsigned int *count);
+orasql_describe_input(const char *descriptor_name);
 
 extern
 error_t
-sql_value_get(const char *descriptor_name, const unsigned int nr, /*@out@*/ value_description_t *value_description);
+orasql_value_count(const char *descriptor_name, /*@out@*/ unsigned int *count);
 
 extern
 error_t
-sql_value_set(const char *descriptor_name, const unsigned int nr, const unsigned int array_size, /*@in@*/ value_description_t *value_description, const char *data, const short *ind);
+orasql_value_get(const char *descriptor_name,
+		 const unsigned int nr,
+		 /*@out@*/ value_description_t *value_description);
 
 extern
 error_t
-sql_open_cursor(const char *descriptor_name);
+orasql_value_set(const char *descriptor_name,
+		 const unsigned int nr,
+		 const unsigned int array_size,
+		 /*@in@*/ value_description_t *value_description,
+		 const char *data,
+		 const short *ind);
 
 extern
 error_t
-sql_describe_output(const char *descriptor_name);
+orasql_open_cursor(const char *descriptor_name);
 
 extern
 error_t
-sql_fetch_rows(const char *descriptor_name, const unsigned int array_size, /*@out@*/ unsigned int *count);
+orasql_describe_output(const char *descriptor_name);
 
 extern
 error_t
-sql_rows_processed(/*out@*/ unsigned int *count);
+orasql_fetch_rows(const char *descriptor_name,
+		  const unsigned int array_size,
+		  /*@out@*/ unsigned int *count);
 
 extern
 error_t
-sql_close_cursor(void);
+orasql_rows_processed(/*out@*/ unsigned int *count);
 
 extern
 error_t
-sql_deallocate_descriptor(const char *descriptor_name);
+orasql_close_cursor(void);
+
+extern
+error_t
+orasql_deallocate_descriptor(const char *descriptor_name);
 
 extern
 void
-sql_error(/*@out@*/ sql_size_t *length, /*@out@*/ char **msg);
+orasql_error(/*@out@*/ orasql_size_t *length, /*@out@*/ char **msg);
 
 #endif
