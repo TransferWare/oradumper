@@ -91,13 +91,13 @@ EXEC SQL END DECLARE SECTION;
 #define NO_DATA_FOUND 100
 
 error_t
-sql_connect(userid)
+orasql_connect(userid)
 EXEC SQL BEGIN DECLARE SECTION;
 const char *userid;
 EXEC SQL VAR userid IS STRING;
 EXEC SQL END DECLARE SECTION;
 {
-  DBUG_ENTER("sql_connect");
+  DBUG_ENTER("orasql_connect");
 
   LINT_FLAGS_PROC_BEGIN;
   EXEC SQL WHENEVER SQLERROR CONTINUE;
@@ -112,13 +112,33 @@ EXEC SQL END DECLARE SECTION;
 }
 
 error_t
-sql_execute_immediate(statement)
+orasql_connected(void)
+{
+  DBUG_ENTER("orasql_connected");
+
+  LINT_FLAGS_PROC_BEGIN;
+  EXEC SQL WHENEVER SQLERROR CONTINUE;
+  EXEC SQL EXECUTE
+  begin
+    null;
+  end;
+  END-EXEC;
+  LINT_FLAGS_PROC_END;
+
+  DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
+  DBUG_LEAVE();
+
+  return sqlca.sqlcode;
+}
+
+error_t
+orasql_execute_immediate(statement)
 EXEC SQL BEGIN DECLARE SECTION;
 const char *statement;
 EXEC SQL VAR statement IS STRING;
 EXEC SQL END DECLARE SECTION;
 {
-  DBUG_ENTER("sql_execute_immediate");
+  DBUG_ENTER("orasql_execute_immediate");
   DBUG_PRINT("input", ("statement: %s", statement));
 
   LINT_FLAGS_PROC_BEGIN;
@@ -134,14 +154,14 @@ EXEC SQL END DECLARE SECTION;
 }
 
 error_t
-sql_allocate_descriptor(descriptor_name, max_array_size)
+orasql_allocate_descriptor(descriptor_name, max_array_size)
 EXEC SQL BEGIN DECLARE SECTION;
 const char *descriptor_name;
 EXEC SQL VAR descriptor_name IS STRING;
 const unsigned int max_array_size;
 EXEC SQL END DECLARE SECTION;
 {
-  DBUG_ENTER("sql_allocate_descriptor");
+  DBUG_ENTER("orasql_allocate_descriptor");
   DBUG_PRINT("input", ("descriptor_name: %s; max_array_size: %u", descriptor_name, max_array_size));
 
   LINT_FLAGS_PROC_BEGIN;
@@ -156,13 +176,13 @@ EXEC SQL END DECLARE SECTION;
 }
 
 error_t
-sql_parse(select_statement)
+orasql_parse(select_statement)
 EXEC SQL BEGIN DECLARE SECTION;
 const char *select_statement;
 EXEC SQL VAR select_statement IS STRING;
 EXEC SQL END DECLARE SECTION;
 {
-  DBUG_ENTER("sql_parse");
+  DBUG_ENTER("orasql_parse");
   DBUG_PRINT("input", ("select_statement: %s", select_statement));
 
   /* Prepare the statement and declare a cursor. */
@@ -178,13 +198,13 @@ EXEC SQL END DECLARE SECTION;
 }
 
 error_t
-sql_describe_input(descriptor_name)
+orasql_describe_input(descriptor_name)
 EXEC SQL BEGIN DECLARE SECTION;
 const char *descriptor_name;
 EXEC SQL VAR descriptor_name IS STRING;
 EXEC SQL END DECLARE SECTION;
 {
-  DBUG_ENTER("sql_describe_input");
+  DBUG_ENTER("orasql_describe_input");
   DBUG_PRINT("input", ("descriptor_name: %s", descriptor_name));
 
   LINT_FLAGS_PROC_BEGIN;
@@ -198,7 +218,7 @@ EXEC SQL END DECLARE SECTION;
 }
 
 error_t
-sql_value_count(descriptor_name, count)
+orasql_value_count(descriptor_name, count)
 EXEC SQL BEGIN DECLARE SECTION;
 const char *descriptor_name;
 EXEC SQL VAR descriptor_name IS STRING;
@@ -206,7 +226,7 @@ unsigned int *count;
 EXEC SQL END DECLARE SECTION;
 {
 
-  DBUG_ENTER("sql_value_count");
+  DBUG_ENTER("orasql_value_count");
   DBUG_PRINT("input", ("descriptor_name: %s", descriptor_name));
 
   LINT_FLAGS_PROC_BEGIN;
@@ -220,7 +240,7 @@ EXEC SQL END DECLARE SECTION;
 }
 
 error_t
-sql_value_get(descriptor_name, nr, value_description)
+orasql_value_get(descriptor_name, nr, value_description)
 EXEC SQL BEGIN DECLARE SECTION;
 const char *descriptor_name;
 EXEC SQL VAR descriptor_name IS STRING;
@@ -240,7 +260,7 @@ value_description_t *value_description;
   EXEC SQL VAR character_set_name IS STRING(20);
   EXEC SQL END DECLARE SECTION;
 
-  DBUG_ENTER("sql_value_get");
+  DBUG_ENTER("orasql_value_get");
   DBUG_PRINT("input", ("descriptor_name: %s; nr: %u", descriptor_name, nr));
 
   LINT_FLAGS_PROC_BEGIN;
@@ -261,7 +281,7 @@ value_description_t *value_description;
 }
 
 error_t
-sql_value_set(descriptor_name, nr, array_size, value_description, data, ind)
+orasql_value_set(descriptor_name, nr, array_size, value_description, data, ind)
 EXEC SQL BEGIN DECLARE SECTION;
 const char *descriptor_name;
 EXEC SQL VAR descriptor_name IS STRING;
@@ -279,7 +299,7 @@ value_description_t *value_description;
   EXEC SQL VAR character_set_name IS STRING(20);
   EXEC SQL END DECLARE SECTION;
 
-  DBUG_ENTER("sql_value_set");
+  DBUG_ENTER("orasql_value_set");
   DBUG_PRINT("input",
 	     ("descriptor_name: %s; nr: %u; array_size: %u; type: %d; length: %u; data: %p; ind: %p",
 	      descriptor_name,
@@ -306,13 +326,13 @@ value_description_t *value_description;
 }
 
 error_t
-sql_open_cursor(descriptor_name)
+orasql_open_cursor(descriptor_name)
 EXEC SQL BEGIN DECLARE SECTION;
 const char *descriptor_name;
 EXEC SQL VAR descriptor_name IS STRING;
 EXEC SQL END DECLARE SECTION;
 {
-  DBUG_ENTER("sql_open_cursor");
+  DBUG_ENTER("orasql_open_cursor");
 
   /* Open the cursor and execute the statement. */
   LINT_FLAGS_PROC_BEGIN;
@@ -327,13 +347,13 @@ EXEC SQL END DECLARE SECTION;
 }
 
 error_t
-sql_describe_output(descriptor_name)
+orasql_describe_output(descriptor_name)
 EXEC SQL BEGIN DECLARE SECTION;
 const char *descriptor_name;
 EXEC SQL VAR descriptor_name IS STRING;
 EXEC SQL END DECLARE SECTION;
 {
-  DBUG_ENTER("sql_describe_output");
+  DBUG_ENTER("orasql_describe_output");
   DBUG_PRINT("input", ("descriptor_name: %s", descriptor_name));
 
   LINT_FLAGS_PROC_BEGIN;
@@ -347,7 +367,7 @@ EXEC SQL END DECLARE SECTION;
 }
 
 error_t
-sql_fetch_rows(descriptor_name, array_size, count)
+orasql_fetch_rows(descriptor_name, array_size, count)
 EXEC SQL BEGIN DECLARE SECTION;
 const char *descriptor_name;
 EXEC SQL VAR descriptor_name IS STRING;
@@ -355,7 +375,7 @@ const unsigned int array_size;
 EXEC SQL END DECLARE SECTION;
 unsigned int *count;
 {
-  DBUG_ENTER("sql_fetch_rows");
+  DBUG_ENTER("orasql_fetch_rows");
   DBUG_PRINT("input", ("array_size: %u", array_size));
 
   switch (sqlca.sqlcode)
@@ -384,12 +404,12 @@ unsigned int *count;
   DBUG_PRINT("output", ("count: %u; return: %d", *count, sqlca.sqlcode));
   DBUG_LEAVE();
 
-  /* when no data is found (sqlca.sqlcode == NO_DATA_FOUND) the next sql_fetch_rows() must return *count == 0 */
+  /* when no data is found (sqlca.sqlcode == NO_DATA_FOUND) the next orasql_fetch_rows() must return *count == 0 */
   return sqlca.sqlcode == NO_DATA_FOUND ? OK : sqlca.sqlcode;
 }
 
 error_t
-sql_rows_processed(unsigned int *count)
+orasql_rows_processed(unsigned int *count)
 {
   *count = (unsigned int) sqlca.sqlerrd[2];
 
@@ -402,9 +422,9 @@ sql_rows_processed(unsigned int *count)
 }
 
 error_t
-sql_close_cursor(void)
+orasql_close_cursor(void)
 {
-  DBUG_ENTER("sql_close_cursor");
+  DBUG_ENTER("orasql_close_cursor");
 
   LINT_FLAGS_PROC_BEGIN;
   EXEC SQL CLOSE C;
@@ -417,13 +437,13 @@ sql_close_cursor(void)
 }
 
 error_t
-sql_deallocate_descriptor(descriptor_name)
+orasql_deallocate_descriptor(descriptor_name)
 EXEC SQL BEGIN DECLARE SECTION;
 const char *descriptor_name;
 EXEC SQL VAR descriptor_name IS STRING;
 EXEC SQL END DECLARE SECTION;
 {
-  DBUG_ENTER("sql_deallocate_descriptor");
+  DBUG_ENTER("orasql_deallocate_descriptor");
   DBUG_PRINT("input", ("descriptor_name: %s", descriptor_name));
 
   LINT_FLAGS_PROC_BEGIN;
@@ -437,7 +457,7 @@ EXEC SQL END DECLARE SECTION;
 }
 
 void
-sql_error(unsigned int *length, char **msg)
+orasql_error(unsigned int *length, char **msg)
 {
   *length = (unsigned int) sqlca.sqlerrm.sqlerrml;
   *msg = (char *) sqlca.sqlerrm.sqlerrmc;

@@ -3,7 +3,7 @@ Usage: oradumper [OPTION=VALUE]... [VALUE]...
 
 OPTION:
   userid                          Oracle connect string
-  sqlstmt                         Select statement
+  query                           Select statement
   fetch_size                      Array size (10)
   dbug_options                    DBUG options ()
   nls_language                    NLS language

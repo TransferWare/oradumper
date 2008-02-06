@@ -23,13 +23,5 @@ oradumper_check_SOURCES = oradumper_check.c $(top_srcdir)/src/oradumper.h $(top_
 oradumper_check_CFLAGS  = @CHECK_CFLAGS@
 oradumper_check_LDADD   = $(top_builddir)/src/lib/liboradumper.la @CHECK_LIBS@ @DBUG_LDADD@
 
-CLEANFILES              = *.log *.err $(TESTS)
+CLEANFILES              = *.lis *~ *.log $(TESTS)
 
-sqlstmt1_new         = "select 1234567890 as NR, 'mystring' as STR, to_date('1900-12-31 23:23:59') as DAY from dual\
-                        union\
-                        select 2345678901, 'ƒ Õ’ÿABCDE', to_date('20001231232359', 'yyyymmddhh24miss') from dual"
-sqlstmt1             = "select 1234567890 as NR, 'mystring' as STR, to_date('1900-12-31 23:23:59') as DAY from dual\
-                        union\
-                        select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') from dual"
-sqlstmt2             = "select to_clob(rpad('0123456789', 8000, '0123456789')) as myclob from dual"
-sqlstmt3             = "select object_name, object_type from all_objects where owner = 'SYS' and object_type <> 'JAVA CLASS' and rownum <= 1000 order by object_name"
