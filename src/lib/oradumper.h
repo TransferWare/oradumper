@@ -2,6 +2,6 @@
 #define ORADUMPER_H
 
 extern
-int oradumper(const unsigned int nr_arguments, const char **arguments);
+int oradumper(const unsigned int nr_arguments, const char **arguments, const int disconnect);
 
 #endif

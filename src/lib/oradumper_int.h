@@ -101,10 +101,6 @@ typedef struct {
 extern
 void
 oradumper_usage(FILE *fout);
-
-extern
-unsigned int
-oradumper_process_arguments(const unsigned int nr_arguments, const char **arguments);
 /*@=exportlocal@*/
 
 /* functions defined in the PRO*C source */
@@ -115,6 +111,10 @@ orasql_connect(const char *userid);
 extern
 error_t
 orasql_connected(void);
+
+extern
+error_t
+orasql_disconnect(void);
 
 extern
 error_t
