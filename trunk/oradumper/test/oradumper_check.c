@@ -60,6 +60,10 @@ static char *cmp_files(const char *file1, const char *file2)
 	    {
 	      break;
 	    }
+	  else if (ch1 != ch2)
+	    {
+	      break;
+	    }
 	}
     }
   
@@ -74,7 +78,7 @@ static char *cmp_files(const char *file1, const char *file2)
 
   if (!(ch1 == EOF && ch2 == EOF))
     {
-      (void) snprintf(result, sizeof(result), "File '%s' and '%s' differ at position %d", file1, file2, nr);
+      (void) snprintf(result, sizeof(result), "Files '%s' and '%s' differ at position %d", file1, file2, nr);
       return result;
     }
   else

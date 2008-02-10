@@ -11,7 +11,7 @@ OPTION:
   nls_timestamp_format            NLS timestamp format
   nls_numeric_characters          NLS numeric characters
   details                         Print details about input and output values: yes, only or no (no)
-  record_delimiter                Record delimiter (hexadecimal) (0d)
+  record_delimiter                Record delimiter (hexadecimal) (0a)
   feedback                        Give feedback after every fetch (0 = no feedback) (0)
   column_heading                  Include column names in first line (1 = yes) (1)
   fixed_column_length             Fixed column length: 0 = yes (fixed), 1 = no (variable) (0)
