@@ -134,14 +134,14 @@ select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') f
   (void) strncat(last_option, getenv("USERID"), sizeof(last_option) - strlen(last_option));
   (void) strncat(output_file, query1_lis, sizeof(output_file) - strlen(output_file));
 
-  oradumper(sizeof(options)/sizeof(options[0]), options, 0);
+  fail_unless(EXIT_SUCCESS == oradumper(sizeof(options)/sizeof(options[0]), options, 0), NULL);
   /* skip connect, but append */
   strcpy(last_option, "output_append=1");
   fetch_size[strlen(fetch_size)-1] = '2';
-  oradumper(sizeof(options)/sizeof(options[0]), options, 0);
+  fail_unless(EXIT_SUCCESS == oradumper(sizeof(options)/sizeof(options[0]), options, 0), NULL);
   /* disconnect */
   fetch_size[strlen(fetch_size)-1] = '3';
-  oradumper(sizeof(options)/sizeof(options[0]), options, 1);
+  fail_unless(EXIT_SUCCESS == oradumper(sizeof(options)/sizeof(options[0]), options, 1), NULL);
 
   error = cmp_files(query1_lis, query1_lis_ref);
   fail_if(error != NULL, error);
@@ -173,7 +173,7 @@ select to_clob(rpad('0123456789', 8000, '0123456789')) as myclob from dual",
   (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
   (void) strncat(output_file, query2_lis, sizeof(output_file) - strlen(output_file));
 
-  oradumper(sizeof(options)/sizeof(options[0]), options, 1);
+  fail_unless(EXIT_SUCCESS == oradumper(sizeof(options)/sizeof(options[0]), options, 1), NULL);
 
   error = cmp_files(query2_lis, query2_lis_ref);
   fail_if(error != NULL, error);
@@ -194,7 +194,7 @@ START_TEST(test_query3)
     "nls_numeric_characters=.,",
     dbug_options,
     "query=\
-select object_name, object_type from all_objects where owner = 'SYS' and object_type <> 'JAVA CLASS' and rownum <= to_number(:b1) order by object_name",
+select object_name, object_type from all_objects where owner = 'SYS' and object_type <> 'JAVA CLASS' and rownum <= :b1 order by object_name",
     output_file,
     "fixed_column_length=0",
     "1000" /* bind variable */
@@ -206,7 +206,7 @@ select object_name, object_type from all_objects where owner = 'SYS' and object_
   (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
   (void) strncat(output_file, query3_lis, sizeof(output_file) - strlen(output_file));
 
-  oradumper(sizeof(options)/sizeof(options[0]), options, 1);
+  fail_unless(EXIT_SUCCESS == oradumper(sizeof(options)/sizeof(options[0]), options, 1), NULL);
 
   error = cmp_files(query3_lis, query3_lis_ref);
   fail_if(error != NULL, error);
@@ -214,38 +214,38 @@ select object_name, object_type from all_objects where owner = 'SYS' and object_
 END_TEST
 
 Suite *
-options_suite (void)
+options_suite(void)
 {
-  Suite *s = suite_create ("General");
+  Suite *s = suite_create("General");
 
   /* Core test case */
-  TCase *tc_interface = tcase_create ("Interface");
+  TCase *tc_interface = tcase_create("Interface");
 
   tcase_set_timeout(tc_interface, 10);
-  tcase_add_test (tc_interface, test_sizes);
-  tcase_add_test (tc_interface, test_usage);
-  tcase_add_test (tc_interface, test_query1);
-  tcase_add_test (tc_interface, test_query2);
-  tcase_add_test (tc_interface, test_query3);
-  suite_add_tcase (s, tc_interface);
+  tcase_add_test(tc_interface, test_sizes);
+  tcase_add_test(tc_interface, test_usage);
+  tcase_add_test(tc_interface, test_query1);
+  tcase_add_test(tc_interface, test_query2);
+  tcase_add_test(tc_interface, test_query3);
+  suite_add_tcase(s, tc_interface);
 
   return s;
 }
 
 int
-main (void)
+main(void)
 {
   int number_failed;
-  Suite *s = options_suite ();
-  SRunner *sr = srunner_create (s);
+  Suite *s = options_suite();
+  SRunner *sr = srunner_create(s);
 
   if (getenv("DBUG_OPTIONS") != NULL)
     {
       (void) strcat(dbug_options, getenv("DBUG_OPTIONS"));
     }
 
-  srunner_run_all (sr, CK_NORMAL);
-  number_failed = srunner_ntests_failed (sr);
-  srunner_free (sr);
+  srunner_run_all(sr, CK_ENV); /* Use environment variable CK_VERBOSITY, which can have the values "silent", "minimal", "normal", "verbose" */
+  number_failed = srunner_ntests_failed(sr);
+  srunner_free(sr);
   return (number_failed == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
 }
