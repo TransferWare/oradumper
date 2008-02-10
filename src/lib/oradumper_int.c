@@ -126,7 +126,7 @@ static const struct {
   { "nls_timestamp_format", false, "NLS timestamp format", NULL },
   { "nls_numeric_characters", false, "NLS numeric characters", NULL },
   { "details", false, "Print details about input and output values: yes, only or no", "no" },
-  { "record_delimiter", true, "Record delimiter (hexadecimal)", "0d" },
+  { "record_delimiter", true, "Record delimiter (hexadecimal)", "0a" }, /* LF */
   { "feedback", true, "Give feedback after every fetch (0 = no feedback)", "0" },
   { "column_heading", true, "Include column names in first line (1 = yes)", "1" },
   { "fixed_column_length", true, "Fixed column length: 0 = yes (fixed), 1 = no (variable)", "0" },
@@ -761,8 +761,7 @@ print_heading(/*@in@*/ const settings_t *settings, /*@in@*/ value_info_t *column
 	  if (settings->fixed_column_length)
 	    {
 	      (void) fprintf(fout,
-			     "%-*.*s",
-			     (int) column_value->size[column_nr],
+			     "%-*s",
 			     (int) column_value->size[column_nr],
 			     column_value->descr[column_nr].name);
 	    }
@@ -824,9 +823,8 @@ print_data(/*@in@*/ const settings_t *settings,
 	      if (settings->fixed_column_length)
 		{
 		  (void) fprintf(fout,
-				 "%-*.*s",
-				 (int) column_value->size[column_nr],
-				 (int) column_value->size[column_nr],
+				 "%-.*s",
+				 (int) strlen(column_value->descr[column_nr].name),
 				 (char *) column_value->data[column_nr][array_nr]);
 		}
 	      else
@@ -1330,6 +1328,14 @@ oradumper(const unsigned int nr_arguments,
       break;
     }
 
+#ifndef DBUG_OFF
+  if (settings.dbug_options != NULL && settings.dbug_options[0] != '\0')
+    {
+      (void)dbug_leave(__LINE__, NULL);
+      (void)dbug_done();
+    }
+#endif
+
 #ifdef lint
   if (settings.userid != NULL)
 #endif
@@ -1382,11 +1388,6 @@ oradumper(const unsigned int nr_arguments,
 #ifdef WITH_DMALLOC
   dmalloc_log_changed(mark, 1, 0, 0);
   /*  assert(dmalloc_count_changed(mark, 1, 0) == 0);*/
-#endif
-
-#ifndef DBUG_OFF
-  (void)dbug_leave(__LINE__, NULL);
-  (void)dbug_done();
 #endif
 
   return error;

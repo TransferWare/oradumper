@@ -30,7 +30,7 @@ int main( int argc, char **argv )
 			sizeof(error_msg),
 			error_msg))
     {
-      (void) fputs(error_msg, stderr);
+      (void) fprintf(stderr, "\nERROR: %s\n", error_msg);
       return EXIT_FAILURE;
     }
   else
