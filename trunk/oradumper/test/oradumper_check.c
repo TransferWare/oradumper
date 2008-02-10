@@ -38,6 +38,7 @@ typedef int bool;
 #endif
 
 static char dbug_options[1000+1] = "dbug_options=";
+static char error_msg[1000+1] = "";
 
 static char *cmp_files(const char *file1, const char *file2)
 {
@@ -134,14 +135,14 @@ select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') f
   (void) strncat(last_option, getenv("USERID"), sizeof(last_option) - strlen(last_option));
   (void) strncat(output_file, query1_lis, sizeof(output_file) - strlen(output_file));
 
-  fail_unless(EXIT_SUCCESS == oradumper(sizeof(options)/sizeof(options[0]), options, 0), NULL);
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg), error_msg);
   /* skip connect, but append */
   strcpy(last_option, "output_append=1");
   fetch_size[strlen(fetch_size)-1] = '2';
-  fail_unless(EXIT_SUCCESS == oradumper(sizeof(options)/sizeof(options[0]), options, 0), NULL);
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg), error_msg);
   /* disconnect */
   fetch_size[strlen(fetch_size)-1] = '3';
-  fail_unless(EXIT_SUCCESS == oradumper(sizeof(options)/sizeof(options[0]), options, 1), NULL);
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg), error_msg);
 
   error = cmp_files(query1_lis, query1_lis_ref);
   fail_if(error != NULL, error);
@@ -173,7 +174,7 @@ select to_clob(rpad('0123456789', 8000, '0123456789')) as myclob from dual",
   (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
   (void) strncat(output_file, query2_lis, sizeof(output_file) - strlen(output_file));
 
-  fail_unless(EXIT_SUCCESS == oradumper(sizeof(options)/sizeof(options[0]), options, 1), NULL);
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg), error_msg);
 
   error = cmp_files(query2_lis, query2_lis_ref);
   fail_if(error != NULL, error);
@@ -206,7 +207,7 @@ select object_name, object_type from all_objects where owner = 'SYS' and object_
   (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
   (void) strncat(output_file, query3_lis, sizeof(output_file) - strlen(output_file));
 
-  fail_unless(EXIT_SUCCESS == oradumper(sizeof(options)/sizeof(options[0]), options, 1), NULL);
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg), error_msg);
 
   error = cmp_files(query3_lis, query3_lis_ref);
   fail_if(error != NULL, error);
@@ -218,12 +219,14 @@ options_suite(void)
 {
   Suite *s = suite_create("General");
 
-  /* Core test case */
+  TCase *tc_internal = tcase_create("Internal");
   TCase *tc_interface = tcase_create("Interface");
 
+  tcase_add_test(tc_internal, test_sizes);
+  tcase_add_test(tc_internal, test_usage);
+  suite_add_tcase(s, tc_internal);
+
   tcase_set_timeout(tc_interface, 10);
-  tcase_add_test(tc_interface, test_sizes);
-  tcase_add_test(tc_interface, test_usage);
   tcase_add_test(tc_interface, test_query1);
   tcase_add_test(tc_interface, test_query2);
   tcase_add_test(tc_interface, test_query3);

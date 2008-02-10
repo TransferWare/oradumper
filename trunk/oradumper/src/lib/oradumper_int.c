@@ -144,7 +144,7 @@ static const struct {
 /* "0a0" returns an error message (odd number of characters) */
 static
 /*@null@*/ /*@observer@*/ char *
-hex2ascii(char *str)
+hex2ascii(const size_t error_msg_size, char *error_msg, char *str)
 {
   size_t i;
   int ch;
@@ -177,7 +177,8 @@ hex2ascii(char *str)
 	case 'f':
 	case 'F': ch += 15; break;
 	default:
-	  error = "Found a non-hexadecimal character";
+	  (void) snprintf(error_msg, error_msg_size, "Found a non-hexadecimal character at position %d (%c)", (int)i+1, str[i]);
+	  error = error_msg;
 	  continue;
 	}
 
@@ -204,7 +205,8 @@ hex2ascii(char *str)
 	}
       else
 	{
-	  error = "A hexadecimal string must have an even number of characters";
+	  (void) snprintf(error_msg, error_msg_size, "A hexadecimal string must have an even number of characters (not %d)", (int) i);
+	  error = error_msg;
 	}
     }
 
@@ -213,7 +215,11 @@ hex2ascii(char *str)
 
 static
 /*@null@*/ /*@observer@*/ char *
-set_option(const option_t option, const char *value, /*@partial@*/ settings_t *settings)
+set_option(const option_t option,
+	   const char *value,
+	   const size_t error_msg_size,
+	   char *error_msg,
+	   /*@partial@*/ settings_t *settings)
 {
   char *error = NULL;
 
@@ -289,7 +295,7 @@ set_option(const option_t option, const char *value, /*@partial@*/ settings_t *s
 #endif
 	free(settings->record_delimiter);
       settings->record_delimiter = strdup(value);
-      error = hex2ascii(settings->record_delimiter);
+      error = hex2ascii(error_msg_size, error_msg, settings->record_delimiter);
       break;
 
     case OPTION_FEEDBACK:
@@ -310,7 +316,7 @@ set_option(const option_t option, const char *value, /*@partial@*/ settings_t *s
 #endif
 	free(settings->column_separator);
       settings->column_separator = strdup(value);
-      error = hex2ascii(settings->column_separator);
+      error = hex2ascii(error_msg_size, error_msg, settings->column_separator);
       break;
 
     case OPTION_ENCLOSURE_STRING:
@@ -319,7 +325,7 @@ set_option(const option_t option, const char *value, /*@partial@*/ settings_t *s
 #endif
 	free(settings->enclosure_string);
       settings->enclosure_string = strdup(value);
-      error = hex2ascii(settings->enclosure_string);
+      error = hex2ascii(error_msg_size, error_msg, settings->enclosure_string);
       break;
 
     case OPTION_OUTPUT_FILE:
@@ -364,9 +370,11 @@ oradumper_usage(FILE *fout)
 }
 
 static
-void
+/*@null@*/ /*@observer@*/ char *
 oradumper_process_arguments(const unsigned int nr_arguments,
 			    const char **arguments,
+			    const size_t error_msg_size,
+			    char *error_msg,
 			    /*@out@*/ unsigned int *nr_options,
 			    /*@out@*/ settings_t *settings)
 {
@@ -380,7 +388,7 @@ oradumper_process_arguments(const unsigned int nr_arguments,
     {
       if (opt[j].def != NULL)
 	{
-	  error = set_option((option_t) j, opt[j].def, settings);
+	  error = set_option((option_t) j, opt[j].def, error_msg_size, error_msg, settings);
 	}
     }
 
@@ -394,13 +402,19 @@ oradumper_process_arguments(const unsigned int nr_arguments,
 	  if (strncmp(arguments[i], opt[j].name, strlen(opt[j].name)) == 0 &&
 	      arguments[i][strlen(opt[j].name)] == '=')
 	    {
-	      if ((error = set_option((option_t) j, (char*)(arguments[i] + strlen(opt[j].name) + 1), settings)) != NULL)
+	      if ((error = set_option((option_t) j,
+				      (char*)(arguments[i] + strlen(opt[j].name) + 1),
+				      error_msg_size,
+				      error_msg,
+				      settings)) != NULL)
 		{
-		  (void) fprintf(stderr,
-				 "\nERROR: %s (%s=%s)\n",
-				 error,
-				 opt[j].name,
-				 (char*)(arguments[i] + strlen(opt[j].name) + 1));
+		  (void) snprintf(error_msg,
+				  error_msg_size,
+				  "%s (%s=%s)",
+				  error,
+				  opt[j].name,
+				  (char*)(arguments[i] + strlen(opt[j].name) + 1));
+		  error = error_msg;
 		}
 	      break;
 	    }
@@ -411,6 +425,8 @@ oradumper_process_arguments(const unsigned int nr_arguments,
 	  break;
 	}
     }
+
+  *nr_options = (unsigned int) i; /* number of options found */
 
   /* mandatory options should not be empty */
   for (j = 0; error == NULL && j < sizeof(opt)/sizeof(opt[0]); j++)
@@ -490,8 +506,10 @@ oradumper_process_arguments(const unsigned int nr_arguments,
 
 	  if (!result)
 	    {
-	      error = "Option mandatory";
-	      (void) fprintf(stderr, "\nERROR: %s (%s)\n", error, opt[j].name);
+	      (void) snprintf(error_msg,
+			      error_msg_size,
+			      "Option %s mandatory", opt[j].name);
+	      error = error_msg;
 	      break;
 	    }
 	}
@@ -500,10 +518,9 @@ oradumper_process_arguments(const unsigned int nr_arguments,
   if (error != NULL)
     {
       oradumper_usage(stderr);
-      i = 0;
     }
 
-  *nr_options = (unsigned int) i; /* number of options found */
+  return error;
 }
 
 static
@@ -882,8 +899,13 @@ print_data(/*@in@*/ const settings_t *settings,
     }
 }
 
-int
-oradumper(const unsigned int nr_arguments, const char **arguments, const int disconnect)
+/*@null@*/ /*@observer@*/
+char *
+oradumper(const unsigned int nr_arguments,
+	  const char **arguments,
+	  const int disconnect,
+	  const size_t error_msg_size,
+	  char *error_msg)
 {
   unsigned int nr_options;
   typedef enum {
@@ -905,7 +927,6 @@ oradumper(const unsigned int nr_arguments, const char **arguments, const int dis
 #define STEP_MAX ((int) STEP_FETCH_ROWS)
   } step_t;
   int step;
-  int status = EXIT_SUCCESS;
   int sqlcode = OK;
 #define NLS_MAX_SIZE 100
   char nls_language_stmt[NLS_MAX_SIZE+1];
@@ -920,6 +941,7 @@ oradumper(const unsigned int nr_arguments, const char **arguments, const int dis
   unsigned int row_count;
   FILE *fout = stdout;
   settings_t settings;
+  /*@observer@*/ /*@null@*/ char *error = NULL;
 
 #ifdef WITH_DMALLOC
   unsigned long mark = 0;
@@ -932,17 +954,16 @@ oradumper(const unsigned int nr_arguments, const char **arguments, const int dis
   memset(&column_value, 0, sizeof(column_value));
   (void) strcpy(column_value.descriptor_name, "output");
 
-  oradumper_process_arguments(nr_arguments, arguments, &nr_options, &settings);
-  if (nr_options == 0)
-    {
-      status = EXIT_FAILURE;
-    }
+  error = oradumper_process_arguments(nr_arguments, arguments, error_msg_size, error_msg, &nr_options, &settings);
 #ifndef DBUG_OFF
-  (void)dbug_init(settings.dbug_options, "oradumper");
-  (void)dbug_enter(__FILE__, "oradumper", __LINE__, NULL);
+  if (error == NULL)
+    {
+      (void)dbug_init(settings.dbug_options, "oradumper");
+      (void)dbug_enter(__FILE__, "oradumper", __LINE__, NULL);
+    }
 #endif
 
-  for (step = (step_t) 0; step <= STEP_MAX && status == EXIT_SUCCESS && sqlcode == OK; step++)
+  for (step = (step_t) 0; step <= STEP_MAX && error == NULL; step++)
     {
       switch((step_t) step)
 	{
@@ -950,8 +971,8 @@ oradumper(const unsigned int nr_arguments, const char **arguments, const int dis
 	  if (settings.output_file != NULL &&
 	      (fout = fopen(settings.output_file, (settings.output_append ? "a" : "w"))) == NULL)
 	    {
-	      fprintf(stderr, "\nERROR: Could not write to file %s: %s.\n", settings.output_file, strerror(errno));
-	      status = EXIT_FAILURE;
+	      (void) snprintf(error_msg, error_msg_size, "Could not write to file %s: %s", settings.output_file, strerror(errno));
+	      error = error_msg;
 	    }
 	  assert(fout != NULL);
 	  break;
@@ -1189,6 +1210,17 @@ oradumper(const unsigned int nr_arguments, const char **arguments, const int dis
 
 	  break;
 	}
+
+      if (sqlcode != OK)
+	{
+	  unsigned int msg_length;
+	  char *msg;
+
+	  orasql_error(&msg_length, &msg);
+	  
+	  (void) snprintf(error_msg, error_msg_size, "%*s", (int) msg_length, msg);
+	  error = error_msg;
+	}
     }
   
   /* Cleanup all resources but do not disconnect */
@@ -1255,19 +1287,9 @@ oradumper(const unsigned int nr_arguments, const char **arguments, const int dis
   if (column_value.ind != NULL)
     free(column_value.ind);
 
-  if (sqlcode != OK)
-    {
-      unsigned int msg_length;
-      char *msg;
-
-      orasql_error(&msg_length, &msg);
-
-      (void) fprintf(stderr, "\nERROR: %*s\n", (int) msg_length, msg);
-    }
-
   /* When everything is OK, step should be STEP_MAX + 1 and we should start cleanup at STEP_MAX (i.e. fetch rows) */
   /* when not everything is OK, step - 1 failed so we must start at step - 2  */
-  switch((step_t) (step - (status == EXIT_SUCCESS && sqlcode == OK ? 1 : 2)))
+  switch((step_t) (step - (error == NULL ? 1 : 2)))
     {
     case STEP_FETCH_ROWS:
       /*@fallthrough@*/
@@ -1367,5 +1389,5 @@ oradumper(const unsigned int nr_arguments, const char **arguments, const int dis
   (void)dbug_done();
 #endif
 
-  return status == EXIT_SUCCESS && sqlcode == OK ? EXIT_SUCCESS : EXIT_FAILURE;
+  return error;
 }
