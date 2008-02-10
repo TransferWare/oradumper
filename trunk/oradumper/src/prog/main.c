@@ -15,11 +15,13 @@
 
 int main( int argc, char **argv )
 {
+  const int disconnect = 1;
+
 #ifdef WITH_DMALLOC
   atexit(dmalloc_shutdown);
 #endif
 
-  int status = oradumper((unsigned int)(argc - 1), (const char **)(argv + 1));
+  int status = oradumper((unsigned int)(argc - 1), (const char **)(argv + 1), disconnect);
 
   return status;
 }

@@ -85,7 +85,7 @@ AC_C_CONST
 # Checks for library functions.
 AC_CONFIG_LIBOBJ_DIR([replace])
 AC_FUNC_MALLOC
-AC_LIBOBJ([malloc])
+AC_LIBOBJ([malloc strdup])
 
 # This is necessary so that .o files in LIBOBJS are also built via
 # the ANSI2KNR-filtering rules.
