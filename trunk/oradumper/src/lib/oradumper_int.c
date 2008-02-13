@@ -531,6 +531,7 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
       FREE(column_value->descr);
       FREE(column_value->size);
       FREE(column_value->display_size);
+      FREE(column_value->align);
       FREE(column_value->buf);
       FREE(column_value->data);
       FREE(column_value->ind);
@@ -546,6 +547,10 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
       column_value->display_size =
 	(orasql_size_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->display_size));
       assert(column_value->display_size != NULL);
+
+      column_value->align =
+	(char *) calloc((size_t) column_value->value_count, sizeof(*column_value->align));
+      assert(column_value->align != NULL);
 
       column_value->buf =
 	(byte_ptr_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->buf));
@@ -584,10 +589,7 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 
 	      column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
 	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
-	      column_value->display_size[column_nr] = 
-		max(column_value->descr[column_nr].length, (orasql_size_t) strlen(column_value->descr[column_nr].name));
-	      /* add 1 byte for a terminating zero */
-	      column_value->size[column_nr] = column_value->descr[column_nr].length + 1;
+	      column_value->align[column_nr] = 'R';
 	      break;
 
 	    case ANSI_DECIMAL:
@@ -607,18 +609,19 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 
 	      column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
 	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
-	      /* add 1 byte for a terminating zero */
-	      column_value->size[column_nr] = column_value->descr[column_nr].length + 1;
+	      column_value->align[column_nr] = 'R';
 	      break;
 
 	    case ORA_LONG:
 	      column_value->descr[column_nr].length = 2000;
 	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
+	      column_value->align[column_nr] = 'L';
 	      break;
 
 	    case ORA_ROWID:
 	      column_value->descr[column_nr].length = 18;
 	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
+	      column_value->align[column_nr] = 'L';
 	      break;
 
 	    case ANSI_DATE:
@@ -626,18 +629,22 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 	      column_value->descr[column_nr].length = 25;
 	      column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
 	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
-	      /* add 1 byte for a terminating zero */
-	      column_value->size[column_nr] = column_value->descr[column_nr].length + 1;
+	      column_value->align[column_nr] = 'L';
 	      break;
 
 	    case ORA_RAW:
-	      column_value->descr[column_nr].length = ( column_value->descr[column_nr].length == 0 ? 512U : column_value->descr[column_nr].length );
+	      column_value->descr[column_nr].length =
+		( column_value->descr[column_nr].length == 0
+		  ? 512U
+		  : column_value->descr[column_nr].length );
 	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
+	      column_value->align[column_nr] = 'L';
 	      break;
 
 	    case ORA_LONG_RAW:
 	      column_value->descr[column_nr].length = 2000;
 	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
+	      column_value->align[column_nr] = 'L';
 	      break;
 
 	    case ANSI_CHARACTER:
@@ -646,8 +653,7 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 	    case ORA_STRING:
 	    case ORA_VARCHAR:
 	      column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
-	      /* add 1 byte for a terminating zero */
-	      column_value->size[column_nr] = column_value->descr[column_nr].length + 1;
+	      column_value->align[column_nr] = 'L';
 	      break;
 
 	    case ORA_VARNUM:
@@ -657,27 +663,32 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 	    case ORA_LONG_VARRAW:
 	    case ORA_CHAR:
 	    case ORA_CHARZ:
+	      column_value->align[column_nr] = 'L';
 	      break;
 
 	    case ORA_UROWID:
 	    case ORA_CLOB:
 	    case ORA_INTERVAL:
 	      column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
-	      /* add 1 byte for a terminating zero */
-	      column_value->size[column_nr] = column_value->descr[column_nr].length + 1;
+	      column_value->align[column_nr] = 'L';
 	      break;
 
 	    case ORA_BLOB:
-	      column_value->size[column_nr] = column_value->descr[column_nr].length;
+	      column_value->align[column_nr] = 'L';
 	      break;
 
 #ifndef lint
 	    default:
 	      column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
-	      /* add 1 byte for a terminating zero */
-	      column_value->size[column_nr] = column_value->descr[column_nr].length + 1;
+	      column_value->align[column_nr] = 'L';
 #endif
 	    }
+
+	  /* add 1 byte for a terminating zero */
+	  column_value->size[column_nr] = column_value->descr[column_nr].octet_length + 1;
+	  column_value->display_size[column_nr] = 
+	    max(column_value->descr[column_nr].octet_length,
+		(orasql_size_t) strlen(column_value->descr[column_nr].name));
 
 	  /* column_value->data[column_nr][array_nr] points to memory in column_value->buf[column_nr] */
 	  column_value->buf[column_nr] = (byte_ptr_t) calloc((size_t) fetch_size, (size_t) column_value->size[column_nr]);
@@ -741,7 +752,7 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 static
 void
 print_heading(/*@in@*/ const settings_t *settings, /*@in@*/ value_info_t *column_value, FILE *fout)
-/*@requires notnull column_value->descr, column_value->display_size @*/
+/*@requires notnull column_value->descr, column_value->display_size, column_value->align @*/
 {
   unsigned int column_nr;
 
@@ -756,10 +767,14 @@ print_heading(/*@in@*/ const settings_t *settings, /*@in@*/ value_info_t *column
 	    (void) fputs(settings->column_separator, fout);
 	  if (settings->fixed_column_length)
 	    {
-	      (void) fprintf(fout,
-			     "%-*s",
-			     (int) column_value->display_size[column_nr],
-			     column_value->descr[column_nr].name);
+	      if (column_value->align[column_nr] == 'L')
+		(void) fprintf(fout, "%-*s",
+			       (int) column_value->display_size[column_nr],
+			       column_value->descr[column_nr].name);
+	      else
+		(void) fprintf(fout, "%*s",
+			       (int) column_value->display_size[column_nr],
+			       column_value->descr[column_nr].name);
 	    }
 	  else
 	    {
@@ -780,7 +795,7 @@ print_data(/*@in@*/ const settings_t *settings,
 	   const unsigned int total_fetch_size,
 	   /*@in@*/ value_info_t *column_value,
 	   FILE *fout)
-/*@requires notnull column_value->data, column_value->ind, column_value->size, column_value->display_size @*/
+/*@requires notnull column_value->data, column_value->ind, column_value->size, column_value->display_size, column_value->align @*/
 {
   unsigned int column_nr, array_nr;
 
@@ -818,10 +833,14 @@ print_data(/*@in@*/ const settings_t *settings,
 	    {
 	      if (settings->fixed_column_length)
 		{
-		  (void) fprintf(fout,
-				 "%-*s",
-				 (int) column_value->display_size[column_nr],
-				 (char *) column_value->data[column_nr][array_nr]);
+		  if (column_value->align[column_nr] == 'L')
+		    (void) fprintf(fout, "%-*s",
+				   (int) column_value->display_size[column_nr],
+				   (char *) column_value->data[column_nr][array_nr]);
+		  else
+		    (void) fprintf(fout, "%*s",
+				   (int) column_value->display_size[column_nr],
+				   (char *) column_value->data[column_nr][array_nr]);
 		}
 	      else
 		{
@@ -866,10 +885,14 @@ print_data(/*@in@*/ const settings_t *settings,
 	      /* print a NULL value */
 	      if (settings->fixed_column_length)
 		{
-		  (void) fprintf(fout,
-				 "%-*s",
-				 (int) column_value->display_size[column_nr],
-				 (settings->null != NULL ? settings->null : ""));
+		  if (column_value->align[column_nr] == 'L')
+		    (void) fprintf(fout, "%-*s",
+				   (int) column_value->display_size[column_nr],
+				   (settings->null != NULL ? settings->null : ""));
+		  else
+		    (void) fprintf(fout, "%*s",
+				   (int) column_value->display_size[column_nr],
+				   (settings->null != NULL ? settings->null : ""));
 		}
 	    }
 	}
@@ -935,9 +958,9 @@ oradumper(const unsigned int nr_arguments,
       char nls_timestamp_format_stmt[NLS_MAX_SIZE+1];
       char nls_numeric_characters_stmt[NLS_MAX_SIZE+1];
       unsigned int total_fetch_size = 0;
-      value_info_t bind_value = { 0, 0, "", NULL, NULL, NULL, NULL, NULL, NULL };
+      value_info_t bind_value = { 0, 0, "", NULL, NULL, NULL, NULL, NULL, NULL, NULL };
       unsigned int bind_variable_nr;
-      value_info_t column_value = { 0, 0, "", NULL, NULL, NULL, NULL, NULL, NULL };
+      value_info_t column_value = { 0, 0, "", NULL, NULL, NULL, NULL, NULL, NULL, NULL };
       unsigned int column_nr;
       unsigned int row_count;
       FILE *fout = stdout;
@@ -1085,6 +1108,7 @@ oradumper(const unsigned int nr_arguments,
 	      FREE(bind_value.descr);
 	      FREE(bind_value.size);
 	      FREE(bind_value.display_size);
+	      FREE(bind_value.align);
 	      FREE(bind_value.buf);
 	      FREE(bind_value.data);
 	      FREE(bind_value.ind);
@@ -1098,6 +1122,8 @@ oradumper(const unsigned int nr_arguments,
 	      assert(bind_value.size == NULL);
 	      bind_value.display_size = NULL;
 	      assert(bind_value.display_size == NULL);
+	      bind_value.align = NULL;
+	      assert(bind_value.align == NULL);
 	      bind_value.buf = NULL;
 	      assert(bind_value.buf == NULL);
 
@@ -1171,6 +1197,7 @@ oradumper(const unsigned int nr_arguments,
 	      assert(column_value.descr != NULL);
 	      assert(column_value.size != NULL);
 	      assert(column_value.display_size != NULL);
+	      assert(column_value.align != NULL);
 	      assert(column_value.buf != NULL);
 	      assert(column_value.data != NULL);
 	      assert(column_value.ind != NULL);
@@ -1321,6 +1348,7 @@ oradumper(const unsigned int nr_arguments,
       FREE(bind_value.descr);
       FREE(bind_value.size);
       FREE(bind_value.display_size);
+      FREE(bind_value.align);
 
       for (column_nr = 0;
 	   column_nr < column_value.value_count;
@@ -1339,6 +1367,7 @@ oradumper(const unsigned int nr_arguments,
       FREE(column_value.descr);
       FREE(column_value.size);
       FREE(column_value.display_size);
+      FREE(column_value.align);
       FREE(column_value.buf);
       FREE(column_value.data);
       FREE(column_value.ind);
