@@ -23,5 +23,5 @@ oradumper_check_SOURCES = oradumper_check.c $(top_srcdir)/src/oradumper.h $(top_
 oradumper_check_CFLAGS  = @CHECK_CFLAGS@
 oradumper_check_LDADD   = $(top_builddir)/src/lib/liboradumper.la @CHECK_LIBS@ @DBUG_LDADD@
 
-CLEANFILES              = *.lis *~ *.log $(TESTS)
+CLEANFILES              = *.lis *~ *.log usage.txt $(TESTS)
 
