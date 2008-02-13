@@ -84,6 +84,15 @@ typedef struct {
 
   /*@null@*/ /*@only@*/ orasql_size_t *display_size;
 
+  /*
+        NR STR        DAY
+---------- ---------- --------
+     78901 YOURSTRING 31-12-00
+1234567890 my,string  31-12-00
+  */
+
+  /*@null@*/ /*@only@*/ char *align; /* values 'R' and 'L': a numeric fixed column aligns at the right */
+
   /* buffer array: buf[value_count] is the buffer for data[value_count[array_count] */
   /*@null@*/ /*@only@*/ byte_ptr_t *buf;
 

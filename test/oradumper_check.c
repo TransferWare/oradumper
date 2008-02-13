@@ -44,12 +44,19 @@ static char *cmp_files(const char *file1, const char *file2)
 {
   static char result[1000+1] = "";
 
-  FILE *fin1 = NULL, *fin2 = NULL;
+  FILE *fin1 = fopen(file1, "r"), *fin2 = fopen(file2, "r");
   int ch1 = EOF, ch2 = EOF;
   int nr;
 
-  if ((fin1 = fopen(file1, "r")) != NULL &&
-      (fin2 = fopen(file2, "r")) != NULL)
+  if (fin1 == NULL)
+    {
+      (void) snprintf(result, sizeof(result), "File '%s' does not exist", file1);
+    }
+  else if (fin2 == NULL)
+    {
+      (void) snprintf(result, sizeof(result), "File '%s' does not exist", file2);
+    }
+  else
     {
       for (nr = 1; ; nr++)
 	{
@@ -79,12 +86,9 @@ static char *cmp_files(const char *file1, const char *file2)
   if (!(ch1 == EOF && ch2 == EOF))
     {
       (void) snprintf(result, sizeof(result), "Files '%s' and '%s' differ at position %d", file1, file2, nr);
-      return result;
     }
-  else
-    {
-      return NULL;
-    }
+
+  return result[0] == '\0' ? NULL : result;
 }
 
 START_TEST(test_sizes)
@@ -125,11 +129,13 @@ START_TEST(test_query1)
     "nls_numeric_characters=.,",
     dbug_options,
     "query=\
-select 1234567890 as NR, 'mystring' as STR, to_date('1900-12-31 23:23:59') as DAY from dual \
+select 1234567890 as NR, 'my,string' as STR, to_date('1900-12-31 23:23:59') as DAY from dual \
 union \
 select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') from dual",
     output_file,
     "fixed_column_length=0",
+    "column_separator=2c",
+    "enclosure_string=22",
     last_option
   };
   char *error;
@@ -218,6 +224,41 @@ select object_name, object_type from all_objects where owner = 'SYS' and object_
 }
 END_TEST
 
+START_TEST(test_query4)
+{
+  const char query4_lis_ref[] = "query4.lis.ref";
+  const char query4_lis[] = "query4.lis";
+  char userid[100+1] = "userid=";
+  char output_file[100+1] = "output_file=";
+  const char *options[] = {
+    userid,
+    "fetch_size=100",
+    "nls_date_format=yyyy-mm-dd hh24:mi:ss",
+    "nls_timestamp_format=yyyy-mm-dd hh24:mi:ss",
+    "nls_numeric_characters=.,",
+    dbug_options,
+    "query=\
+select cast(1234567890 as number(10, 0)) as NR, 'my,string' as STR, to_date('1900-12-31 23:23:59') as DAY from dual \
+union \
+select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') from dual",
+    output_file,
+    "fixed_column_length=1",
+    "column_separator=20" /* space */
+  };
+  char *error;
+
+  fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
+
+  (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
+  (void) strncat(output_file, query4_lis, sizeof(output_file) - strlen(output_file));
+
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg), error_msg);
+
+  error = cmp_files(query4_lis, query4_lis_ref);
+  fail_if(error != NULL, error);
+}
+END_TEST
+
 Suite *
 options_suite(void)
 {
@@ -234,6 +275,7 @@ options_suite(void)
   tcase_add_test(tc_interface, test_query1);
   tcase_add_test(tc_interface, test_query2);
   tcase_add_test(tc_interface, test_query3);
+  tcase_add_test(tc_interface, test_query4);
   suite_add_tcase(s, tc_interface);
 
   return s;
@@ -247,9 +289,7 @@ main(void)
   SRunner *sr = srunner_create(s);
 
   if (getenv("DBUG_OPTIONS") != NULL)
-    {
-      (void) strcat(dbug_options, getenv("DBUG_OPTIONS"));
-    }
+    (void) strcat(dbug_options, getenv("DBUG_OPTIONS"));
 
   srunner_run_all(sr, CK_ENV); /* Use environment variable CK_VERBOSITY, which can have the values "silent", "minimal", "normal", "verbose" */
   number_failed = srunner_ntests_failed(sr);
