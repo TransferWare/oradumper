@@ -1,22 +1,25 @@
 
-Usage: oradumper [OPTION=VALUE]... [VALUE]...
+Usage: oradumper [PARAMETER=VALUE]... [VALUE]...
 
-OPTION:
-  userid                          Oracle connect string
+Mandatory parameters:
   query                           Select statement
-  fetch_size                      Array size (10)
-  dbug_options                    DBUG options ()
+
+Optional parameters:
+  userid                          Oracle connect string
+  fetch_size                      Array size [default = 10]
+  dbug_options                    DBUG options [default = ]
   nls_language                    NLS language
   nls_date_format                 NLS date format
   nls_timestamp_format            NLS timestamp format
   nls_numeric_characters          NLS numeric characters
-  details                         Print details about input and output values: yes, only or no (no)
-  record_delimiter                Record delimiter (hexadecimal) (0a)
-  feedback                        Give feedback after every fetch (0 = no feedback) (0)
-  column_heading                  Include column names in first line (1 = yes) (1)
-  fixed_column_length             Fixed column length: 0 = yes (fixed), 1 = no (variable) (0)
-  column_separator                The column separator (hexadecimal) (2c)
-  enclosure_string                Characters around a character column in variable length data (hexadecimal)
+  details                         Print details about input and output values: yes, only or no [default = no]
+  record_delimiter                Record delimiter (hexadecimal) [default = 0a]
+  feedback                        Give feedback after every fetch (0 = no feedback) [default = 0]
+  column_heading                  Include column names in first line (1 = yes) [default = 1]
+  fixed_column_length             Fixed column length: 0 = yes (fixed), 1 = no (variable) [default = 0]
+  column_separator                The column separator (hexadecimal) [default = 2c]
+  enclosure_string                Put around a column when it is variable and it contains the column separator (hexadecimal) [default = 22]
   output_file                     The output file
-  output_append                   Append to the output file (1 = yes)?
-  null                            Value to print for NULL values (NULL)
+  output_append                   Append to the output file (1 = yes)? [default = 0]
+  null                            Value to print for NULL values [default = NULL]
+

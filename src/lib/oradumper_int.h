@@ -82,6 +82,8 @@ typedef struct {
   /* size[value_count] */
   /*@null@*/ /*@only@*/ orasql_size_t *size;
 
+  /*@null@*/ /*@only@*/ orasql_size_t *display_size;
+
   /* buffer array: buf[value_count] is the buffer for data[value_count[array_count] */
   /*@null@*/ /*@only@*/ byte_ptr_t *buf;
 
