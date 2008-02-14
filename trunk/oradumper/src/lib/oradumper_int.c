@@ -138,88 +138,132 @@ static const struct {
   { "nls_timestamp_format", false, "NLS timestamp format", NULL },
   { "nls_numeric_characters", false, "NLS numeric characters", NULL },
   { "details", false, "Print details about input and output values: yes, only or no", "no" },
-  { "record_delimiter", false, "Record delimiter (hexadecimal)", "0a" }, /* LF */
+  { "record_delimiter", false, "Record delimiter", "\\n" }, /* LF */
   { "feedback", false, "Give feedback after every fetch (0 = no feedback)", "0" },
   { "column_heading", false, "Include column names in first line (1 = yes)", "1" },
   { "fixed_column_length", false, "Fixed column length: 0 = yes (fixed), 1 = no (variable)", "0" },
-  { "column_separator", false, "The column separator (hexadecimal)", "2c" },
-  { "enclosure_string", false, "Put around a column when it is variable and it contains the column separator (hexadecimal)", "22" },
+  { "column_separator", false, "The column separator", "," },
+  { "enclosure_string", false, "Put around a column when it is variable and it contains the column separator", "\"" },
   { "output_file", false, "The output file", NULL },
   { "output_append", false, "Append to the output file (1 = yes)?", "0" },
   { "null", false, "Value to print for NULL values", "NULL" },
 };
 
+/* convert2ascii - convert a string which may contain escaped characters into a ascii string.
 
-/* hex2ascii - convert a hexadecimal string into a ascii string */
-/* "0a0d" becomes "\r\n" and returns value NULL */
-/* "0axx" returns an error message (non-hexadecimal) */
-/* "0a0" returns an error message (odd number of characters) */
+Escape Sequence	Name	Meaning
+\a	Alert           Produces an audible or visible alert.
+\b	Backspace	Moves the cursor back one position (non-destructive).
+\f	Form Feed	Moves the cursor to the first position of the next page.
+\n	New Line	Moves the cursor to the first position of the next line.
+\r	Carriage Return	Moves the cursor to the first position of the current line.
+\t	Horizontal Tab	Moves the cursor to the next horizontal tabular position.
+\v	Vertical Tab	Moves the cursor to the next vertical tabular position.
+\'	                Produces a single quote. (GJP: not used)
+\"		        Produces a double quote. (GJP: not used)
+\?		        Produces a question mark. (GJP: not used)
+\\		        Produces a single backslash.
+\0		        Produces a null character.
+\ddd		        Defines one character by the octal digits (base-8 number).
+                        Multiple characters may be defined in the same escape sequence,
+			but the value is implementation-specific (see examples).
+\xdd		        Defines one character by the hexadecimal digit (base-16 number).
+
+Examples:
+
+printf("\12");
+Produces the decimal character 10 (x0A Hex).
+
+printf("\xFF");
+Produces the decimal character -1 or 255 (depending on sign).
+
+printf("\x123");
+Produces a single character (value is undefined). May cause errors.
+
+printf("\0222");
+Produces two characters whose values are implementation-specific.
+
+*/
 static
 /*@null@*/ /*@observer@*/ char *
-hex2ascii(const size_t error_msg_size, char *error_msg, char *str)
+convert2ascii(const size_t error_msg_size, char *error_msg, char *str)
 {
-  size_t i;
-  int ch;
+  size_t src, dst;
   char *error = NULL;
+  int n, count;
+  unsigned int ch;
 
-  for (i = 0, ch = 0; error == NULL && str[i] != '\0'; )
+  for (src = dst = 0; error == NULL && str[src] != '\0'; src++, dst++)
     {
-      switch(str[i])
+      assert(dst <= src);
+      switch(str[src])
 	{
-	case '0': ch +=  0; break;
-	case '1': ch +=  1; break;
-	case '2': ch +=  2; break;
-	case '3': ch +=  3; break;
-	case '4': ch +=  4; break;
-	case '5': ch +=  5; break;
-	case '6': ch +=  6; break;
-	case '7': ch +=  7; break;
-	case '8': ch +=  8; break;
-	case '9': ch +=  9; break;
-	case 'a':
-	case 'A': ch += 10; break;
-	case 'b':
-	case 'B': ch += 11; break;
-	case 'c':
-	case 'C': ch += 12; break;
-	case 'd':
-	case 'D': ch += 13; break;
-	case 'e':
-	case 'E': ch += 14; break;
-	case 'f':
-	case 'F': ch += 15; break;
-	default:
-	  (void) snprintf(error_msg, error_msg_size, "Found a non-hexadecimal character at position %d (%c)", (int)i+1, str[i]);
-	  error = error_msg;
-	  continue;
-	}
+	case '\\':
+	  switch(str[++src])
+	    {
+	    case 'a': str[dst] = '\a'; break;
+	    case 'b': str[dst] = '\b'; break;
+	    case 'f': str[dst] = '\f'; break;
+	    case 'n': str[dst] = '\n'; break;
+	    case 'r': str[dst] = '\r'; break;
+	    case 't': str[dst] = '\t'; break;
+	    case 'v': str[dst] = '\v'; break;
+	    case '\\': str[dst] = '\\'; break;
+	      
+	    case '0':
+	    case '1':
+	    case '2':
+	    case '3':
+	    case '4':
+	    case '5':
+	    case '6':
+	    case '7': /* begin of an octal character */
+	      n = sscanf(&str[src], "%3o%n", &ch, &count);
+	      if (n != 1) /* %n is not counted */
+		{
+		  (void) snprintf(error_msg, error_msg_size, "Could not convert %s to an octal number. Scanned items: %d; input count: %d", &str[src], n, count);
+		  error = error_msg;
+		}
+	      else
+		{
+		  str[dst] = (char) ch;
+		  src += count - 1; /* src is incremented each loop */
+		}
+	      break;
+	      
+	    case 'x':
+	    case 'X': /* begin of a hexadecimal character */
+	      n = sscanf(&str[++src], "%2x%n", &ch, &count); /* skip the x/X */
+	      if (n != 1) /* %n is not counted */
+		{
+		  (void) snprintf(error_msg, error_msg_size, "Could not convert %s to a hexadecimal number. Scanned items: %d; input count: %d", &str[src], n, count);
+		  error = error_msg;
+		}
+	      else
+		{
+		  str[dst] = (char) ch;
+		  src += count - 1; /* src is incremented each loop */
+		}
+	      break;
+	      
+	    default:
+	      (void) snprintf(error_msg, error_msg_size, "Illegal escaped string %s", &str[src-1]);
+	      error = error_msg;
+	      break;
+	    }
+	  break;
 
-      if ((++i) % 2 == 0)
-	{
-	  /* two hexadecimal characters occupy one ascii character */
-	  /* i == 2: characters at position 0 and 1 become character at position 0 */
-	  /* i == 4: characters at position 2 and 3 become character at position 1 */
-	  str[(i-2)/2] = (char) ch;
-	}
-      else
-	{
-	  ch *= 16;
+	default:
+	  str[dst] = str[src];
+	  break;
 	}
     }
 
-  assert(error != NULL || i == strlen(str));
+  assert(error != NULL || src == strlen(str));
 
   if (error == NULL)
     {
-      if (i % 2 == 0)
-	{
-	  str[i / 2] = '\0';
-	}
-      else
-	{
-	  (void) snprintf(error_msg, error_msg_size, "A hexadecimal string must have an even number of characters (not %d)", (int) i);
-	  error = error_msg;
-	}
+      str[dst] = '\0';
     }
 
   return error;
@@ -283,7 +327,7 @@ set_option(const option_t option,
     case OPTION_RECORD_DELIMITER:
       FREE(settings->record_delimiter);
       settings->record_delimiter = strdup(value);
-      error = hex2ascii(error_msg_size, error_msg, settings->record_delimiter);
+      error = convert2ascii(error_msg_size, error_msg, settings->record_delimiter);
       break;
 
     case OPTION_FEEDBACK:
@@ -301,13 +345,13 @@ set_option(const option_t option,
     case OPTION_COLUMN_SEPARATOR:
       FREE(settings->column_separator);
       settings->column_separator = strdup(value);
-      error = hex2ascii(error_msg_size, error_msg, settings->column_separator);
+      error = convert2ascii(error_msg_size, error_msg, settings->column_separator);
       break;
 
     case OPTION_ENCLOSURE_STRING:
       FREE(settings->enclosure_string);
       settings->enclosure_string = strdup(value);
-      error = hex2ascii(error_msg_size, error_msg, settings->enclosure_string);
+      error = convert2ascii(error_msg_size, error_msg, settings->enclosure_string);
       break;
 
     case OPTION_OUTPUT_FILE:
@@ -334,7 +378,7 @@ oradumper_usage(FILE *fout)
   size_t i;
   bool mandatory = true;
 
-  (void) fputs("\nUsage: oradumper [PARAMETER=VALUE]... [VALUE]...\n\n", fout);
+  (void) fputs("\nUsage: oradumper [PARAMETER=VALUE]... [BIND VALUE]...\n\n", fout);
   do
     {
       (void) fputs((mandatory ? "Mandatory parameters:\n" : "Optional parameters:\n"), fout);
@@ -356,6 +400,9 @@ oradumper_usage(FILE *fout)
       mandatory = !mandatory;
     }
   while (!mandatory);
+  (void) fputs("The values for record_delimiter, column_separator and enclosure_string may contain escaped characters like \\n, \\012 or \\x0a (linefeed).\n\n", fout);
+  (void) fputs("The first argument which is not recognized as a PARAMETER=VALUE pair, is a bind value.\n", fout);
+  (void) fputs("So abc is a bind value, but abc=xyz is a bind value as well since abc is not a known parameter.\n\n", fout);
 }
 
 static
@@ -583,8 +630,10 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 		(orasql_size_t) (column_value->descr[column_nr].precision <= 0
 				 ? 38
 				 : column_value->descr[column_nr].precision);
+	      /* Add one character for the negative sign */
+	      column_value->descr[column_nr].length++;
 	      /* Add one character for the decimal dot (or comma) */
-	      if (column_value->descr[column_nr].precision > 0)
+	      if (column_value->descr[column_nr].scale > 0)
 		column_value->descr[column_nr].length++;
 
 	      column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
@@ -602,7 +651,9 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 		(orasql_size_t) (column_value->descr[column_nr].precision <= 0
 				 ? 38
 				 : column_value->descr[column_nr].precision);
-	      /* Add one character for the decimal dot (or comma) */
+	      /* Add one character for the negative sign */
+	      column_value->descr[column_nr].length++;
+	      /* Add one character for the decimal dot (or comma). These are floats */
 	      column_value->descr[column_nr].length++;
 	      /* Add the mantisse and so on */
 	      column_value->descr[column_nr].length += 5;
@@ -711,7 +762,7 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 	      /*@=observertrans@*/
 	      /*@=dependenttrans@*/
 
-#define DBUG_MEMORY 1
+/*#define DBUG_MEMORY 1*/
 #ifdef DBUG_MEMORY
 	      DBUG_PRINT("info", ("Dumping column_value->data[%u][%u] (%p)", column_nr, array_nr, column_value->data[column_nr][array_nr]));
 	      DBUG_DUMP("info", column_value->data[column_nr][array_nr], (unsigned int) column_value->size[column_nr]);
@@ -799,12 +850,16 @@ print_data(/*@in@*/ const settings_t *settings,
 {
   unsigned int column_nr, array_nr;
 
+  DBUG_ENTER("print_data");
+
   for (array_nr = 0; array_nr < row_count; array_nr++)
     {
       DBUG_PRINT("info", ("array_nr: %u", array_nr));
 
       for (column_nr = 0; column_nr < column_value->value_count; column_nr++)
 	{
+	  int n = 0; /* characters printed */
+
 	  assert(column_value->data[column_nr] != NULL);
 	  assert(column_value->ind[column_nr] != NULL);
 
@@ -834,13 +889,17 @@ print_data(/*@in@*/ const settings_t *settings,
 	      if (settings->fixed_column_length)
 		{
 		  if (column_value->align[column_nr] == 'L')
-		    (void) fprintf(fout, "%-*s",
+		    {
+		      n += fprintf(fout, "%-*s",
 				   (int) column_value->display_size[column_nr],
 				   (char *) column_value->data[column_nr][array_nr]);
+		    }
 		  else
-		    (void) fprintf(fout, "%*s",
+		    {
+		      n += fprintf(fout, "%*s",
 				   (int) column_value->display_size[column_nr],
 				   (char *) column_value->data[column_nr][array_nr]);
+		    }
 		}
 	      else
 		{
@@ -859,6 +918,9 @@ print_data(/*@in@*/ const settings_t *settings,
 
 		      (void) fputs(settings->enclosure_string, fout);
 
+		      /* assume fputs returns 0 */
+		      n += strlen(settings->enclosure_string);
+
 		      /* Add each enclosure string twice.
 			 That is what Excel does and SQL*Loader expects. */
 
@@ -866,17 +928,26 @@ print_data(/*@in@*/ const settings_t *settings,
 			   (ptr2 = strstr(ptr1, settings->enclosure_string)) != NULL;
 			   ptr1 = ptr2 + strlen(settings->enclosure_string))
 			{
-			  (void) fprintf(fout, "%*.*s", ptr2 - ptr1, ptr2 - ptr1, ptr1);
+			  /* assume fprintf returns >= 0 */
+			  n += fprintf(fout, "%*.*s", ptr2 - ptr1, ptr2 - ptr1, ptr1);
 			  (void) fputs(settings->enclosure_string, fout);
 			  (void) fputs(settings->enclosure_string, fout);
+			  /* assume fputs returns 0 */
+			  n += 2 * strlen(settings->enclosure_string);
 			}
 
 		      (void) fputs(ptr1, fout); /* the remainder */
 		      (void) fputs(settings->enclosure_string, fout);
+
+		      /* assume fputs returns 0 */
+		      n += strlen(ptr1) + strlen(settings->enclosure_string);
 		    }
 		  else
 		    {
 		      (void) fputs(data, fout);
+
+		      /* assume fputs returns 0 */
+		      n += strlen(data);
 		    }
 		}
 	    }
@@ -886,16 +957,27 @@ print_data(/*@in@*/ const settings_t *settings,
 	      if (settings->fixed_column_length)
 		{
 		  if (column_value->align[column_nr] == 'L')
-		    (void) fprintf(fout, "%-*s",
+		    {
+		      n += fprintf(fout, "%-*s",
 				   (int) column_value->display_size[column_nr],
 				   (settings->null != NULL ? settings->null : ""));
+		    }
 		  else
-		    (void) fprintf(fout, "%*s",
+		    {
+		      n += fprintf(fout, "%*s",
 				   (int) column_value->display_size[column_nr],
 				   (settings->null != NULL ? settings->null : ""));
+		    }
+		}
+	      else if (settings->null != NULL)
+		{
+		  (void) fputs(settings->null, fout);
+		  n += strlen(settings->null);
 		}
 	    }
+	  DBUG_PRINT("info", ("characters printed for this column: %d", n));
 	}
+      /* newline */
       if (settings->record_delimiter != NULL)
 	{
 	  (void) fputs(settings->record_delimiter, fout); /* column heading end */
@@ -913,6 +995,8 @@ print_data(/*@in@*/ const settings_t *settings,
 	  (void) fputs(".", stderr);
 	}
     }
+
+  DBUG_LEAVE();
 }
 
 /*@null@*/ /*@observer@*/
