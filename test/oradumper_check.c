@@ -134,8 +134,8 @@ union \
 select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') from dual",
     output_file,
     "fixed_column_length=0",
-    "column_separator=2c",
-    "enclosure_string=22",
+    "column_separator=,",
+    "enclosure_string=\\x22", /* " */
     last_option
   };
   char *error;
@@ -243,7 +243,7 @@ union \
 select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') from dual",
     output_file,
     "fixed_column_length=1",
-    "column_separator=20" /* space */
+    "column_separator=\\040" /* space */
   };
   char *error;
 
@@ -258,6 +258,8 @@ select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') f
   fail_if(error != NULL, error);
 }
 END_TEST
+
+/*'ING | Securities Sp'||unistr('\00F3')||unistr('\0142')||'ka Akcyjna'*/
 
 Suite *
 options_suite(void)

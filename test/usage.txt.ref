@@ -1,5 +1,5 @@
 
-Usage: oradumper [PARAMETER=VALUE]... [VALUE]...
+Usage: oradumper [PARAMETER=VALUE]... [BIND VALUE]...
 
 Mandatory parameters:
   query                           Select statement
@@ -13,13 +13,18 @@ Optional parameters:
   nls_timestamp_format            NLS timestamp format
   nls_numeric_characters          NLS numeric characters
   details                         Print details about input and output values: yes, only or no [default = no]
-  record_delimiter                Record delimiter (hexadecimal) [default = 0a]
+  record_delimiter                Record delimiter [default = \n]
   feedback                        Give feedback after every fetch (0 = no feedback) [default = 0]
   column_heading                  Include column names in first line (1 = yes) [default = 1]
   fixed_column_length             Fixed column length: 0 = yes (fixed), 1 = no (variable) [default = 0]
-  column_separator                The column separator (hexadecimal) [default = 2c]
-  enclosure_string                Put around a column when it is variable and it contains the column separator (hexadecimal) [default = 22]
+  column_separator                The column separator [default = ,]
+  enclosure_string                Put around a column when it is variable and it contains the column separator [default = "]
   output_file                     The output file
   output_append                   Append to the output file (1 = yes)? [default = 0]
   null                            Value to print for NULL values [default = NULL]
+
+The values for record_delimiter, column_separator and enclosure_string may contain escaped characters like \n, \012 or \x0a (linefeed).
+
+The first argument which is not recognized as a PARAMETER=VALUE pair, is a bind value.
+So abc is a bind value, but abc=xyz is a bind value as well since abc is not a known parameter.
 
