@@ -30,7 +30,12 @@ test -L config/acoracle.m4 || ln -s ${EPC_HOME:=`pwd`/../epc}/config/acoracle.m4
 test -L config/epc.m4 || ln -s ${EPC_HOME:=`pwd`/../epc}/config/epc.m4 config
 
 set -e
-aclocal -I /usr/local/share/aclocal -I config
+for d in /usr/share/aclocal /usr/local/share/aclocal /cygdrive/c/usr/local/share/aclocal
+do
+  test ! -d $d || inc_dir=$d
+done
+
+aclocal -I $inc_dir -I config
 libtoolize --force --copy
 autoheader
 automake --add-missing --copy
