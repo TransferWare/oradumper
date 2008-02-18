@@ -59,6 +59,7 @@ AM_PATH_CHECK
 # PKG_CHECK_MODULES([CHECK], [check >= 0.9.4)])
 
 # Checks for programs.
+# AM_PROG_CC_C_O
 AC_PROG_CC
 AM_PROG_CC_STDC
 AC_LIBTOOL_WIN32_DLL
@@ -85,7 +86,8 @@ AC_C_CONST
 # Checks for library functions.
 AC_CONFIG_LIBOBJ_DIR([replace])
 AC_FUNC_MALLOC
-AC_LIBOBJ([malloc strdup])
+AC_LIBOBJ([malloc])
+AC_LIBOBJ([strdup])
 
 # This is necessary so that .o files in LIBOBJS are also built via
 # the ANSI2KNR-filtering rules.
