@@ -146,7 +146,7 @@ static const struct {
   { "enclosure_string", false, "Put around a column when it is variable and it contains the column separator", "\"" },
   { "output_file", false, "The output file", NULL },
   { "output_append", false, "Append to the output file (1 = yes)?", "0" },
-  { "null", false, "Value to print for NULL values", "NULL" },
+  { "null", false, "Value to print for NULL values", NULL },
 };
 
 /* convert2ascii - convert a string which may contain escaped characters into a ascii string.

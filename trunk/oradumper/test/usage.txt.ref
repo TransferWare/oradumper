@@ -21,7 +21,7 @@ Optional parameters:
   enclosure_string                Put around a column when it is variable and it contains the column separator [default = "]
   output_file                     The output file
   output_append                   Append to the output file (1 = yes)? [default = 0]
-  null                            Value to print for NULL values [default = NULL]
+  null                            Value to print for NULL values
 
 The values for record_delimiter, column_separator and enclosure_string may contain escaped characters like \n, \012 or \x0a (linefeed).
 

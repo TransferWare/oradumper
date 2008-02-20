@@ -32,7 +32,7 @@ test -L config/epc.m4 || ln -s ${EPC_HOME:=`pwd`/../epc}/config/epc.m4 config
 set -e
 for d in /usr/share/aclocal /usr/local/share/aclocal /cygdrive/c/usr/local/share/aclocal
 do
-  test ! -d $d || inc_dir=$d
+  test ! -f $d/check.m4 || { inc_dir=$d; break; }
 done
 
 aclocal -I $inc_dir -I config
