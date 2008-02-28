@@ -29,7 +29,7 @@ AM_CPPFLAGS             = @DBUG_CPPFLAGS@
 noinst_HEADERS          = oradumper.h oradumper_int.h
 
 lib_LTLIBRARIES	        = liboradumper.la
-liboradumper_la_SOURCES = oradumper.c oradumper_int.c
+liboradumper_la_SOURCES = oradumper.c oradumper_int.c oradumper_extproc.c
 
 
 ##
