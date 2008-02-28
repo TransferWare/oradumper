@@ -21,6 +21,7 @@
 # include "dmalloc.h"
 #endif
 
+#ifndef HAVE_STRDUP
 char *
 strdup(const char *s)
 {
@@ -30,3 +31,4 @@ strdup(const char *s)
     return NULL;
   return (char *) memcpy(new, s, len);
 }
+#endif

@@ -71,6 +71,9 @@ ACX_ENABLE_DBUG
 # Enable PRO*C
 ACX_PROG_PROC
 
+# Enable OCI
+ACX_PROG_OCI
+
 # Enable epc
 ACX_EPC
 
@@ -82,6 +85,9 @@ AC_CHECK_HEADERS([assert.h check.h ctype.h dbug.h locale.h malloc.h sqlcpr.h std
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
+
+# Check for functions
+AC_CHECK_FUNCS([strdup])
 
 # Checks for library functions.
 AC_CONFIG_LIBOBJ_DIR([replace])

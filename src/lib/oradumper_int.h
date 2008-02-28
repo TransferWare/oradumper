@@ -1,6 +1,8 @@
 #ifndef ORADUMPER_INT_H
 #define ORADUMPER_INT_H
 
+#include <oci.h>
+
 typedef enum {
   ANSI_CHARACTER = 1,
   ANSI_CHARACTER_VARYING = 12, /* VARCHAR2, NVARCHAR */
@@ -60,7 +62,6 @@ typedef struct {
 typedef char charz_1_t[1];
 /* character array with a length indicator */
 typedef struct { unsigned short len; unsigned char arr[1]; } varchar_1_t;
-typedef unsigned short utext; /* unicode */
 
 typedef /*@null@*/ /*@only@*/ unsigned char *byte_ptr_t;
 
@@ -118,6 +119,10 @@ oradumper_usage(FILE *fout);
 extern
 error_t
 orasql_connect(const char *userid);
+
+extern
+error_t
+orasql_register_connect(OCIExtProcContext *ctx);
 
 extern
 error_t
