@@ -1,6 +1,14 @@
 #ifndef ORADUMPER_INT_H
 #define ORADUMPER_INT_H
 
+#if HAVE_STDBOOL_H
+#include <stdbool.h>
+#else
+typedef int bool;
+#define false 0
+#define true 1
+#endif
+
 #include <oci.h>
 
 typedef enum {
@@ -56,6 +64,7 @@ typedef struct {
   int precision;
   int scale;
   character_set_name_t character_set_name;
+  bool unicode;
 } value_description_t;
 
 /* zero terminated character array */
@@ -98,7 +107,7 @@ typedef struct {
   /*@null@*/ /*@only@*/ byte_ptr_t *buf;
 
   /* data array: data[value_count][array_count] */
-  /* data[value_count][array_count] may point to somewhere in buffer[data[value_count] */
+  /* data[value_count][array_count] may point to somewhere in buffer buf[value_count] */
   /*@null@*/ /*@only@*/ value_data_ptr_t *data;
 
   /* indicator array: ind[value_count][array_count] */

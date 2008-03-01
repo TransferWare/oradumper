@@ -8,14 +8,6 @@
 #include <assert.h>
 #endif
 
-#if HAVE_STDBOOL_H
-#include <stdbool.h>
-#else
-typedef int bool;
-#define false 0
-#define true 1
-#endif
-
 #if HAVE_STDLIB_H
 #include <stdlib.h>
 #endif

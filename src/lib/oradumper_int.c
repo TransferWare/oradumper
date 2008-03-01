@@ -22,14 +22,6 @@
 #include <malloc.h>
 #endif
 
-#if HAVE_STDBOOL_H
-#include <stdbool.h>
-#else
-typedef int bool;
-#define false 0
-#define true 1
-#endif
-
 #if HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -40,10 +32,6 @@ typedef int bool;
 
 #if HAVE_SYS_ERRNO_H
 #include <sys/errno.h>
-#endif
-
-#if HAVE_WCHAR_H
-#include <wchar.h>
 #endif
 
 #if HAVE_DBUG_H
@@ -60,11 +48,11 @@ typedef int bool;
 extern
 void FREE(/*@only@*//*@sef@*/ void *ptr);
 
-#ifdef lint
+/*#ifdef lint
 #define FREE(x) free(x)
-#else
+#else*/
 #define FREE(x) do { if ((x) != NULL) free(x); } while (0)
-#endif
+/*#endif*/
 
 #define min(x, y) ((x) < (y) ? (x) : (y))
 #define max(x, y) ((x) > (y) ? (x) : (y))
@@ -324,6 +312,7 @@ set_option(const option_t option,
     case OPTION_RECORD_DELIMITER:
       FREE(settings->record_delimiter);
       settings->record_delimiter = strdup(value);
+      assert(settings->record_delimiter != NULL);
       error = convert2ascii(error_msg_size, error_msg, settings->record_delimiter);
       break;
 
@@ -342,12 +331,14 @@ set_option(const option_t option,
     case OPTION_COLUMN_SEPARATOR:
       FREE(settings->column_separator);
       settings->column_separator = strdup(value);
+      assert(settings->column_separator != NULL);
       error = convert2ascii(error_msg_size, error_msg, settings->column_separator);
       break;
 
     case OPTION_ENCLOSURE_STRING:
       FREE(settings->enclosure_string);
       settings->enclosure_string = strdup(value);
+      assert(settings->enclosure_string != NULL);
       error = convert2ascii(error_msg_size, error_msg, settings->enclosure_string);
       break;
 
@@ -732,6 +723,13 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 #endif
 	    }
 
+	  /* Do not receive columns in Unicode but in UTF8 */
+	  if (column_value->descr[column_nr].unicode)
+	    {
+	      column_value->descr[column_nr].length = column_value->descr[column_nr].octet_length;
+	    }
+	  (void) strcpy(column_value->descr[column_nr].character_set_name, "UTF8");
+
 	  /* add 1 byte for a terminating zero */
 	  column_value->size[column_nr] = column_value->descr[column_nr].octet_length + 1;
 	  column_value->display_size[column_nr] = 
@@ -759,7 +757,7 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 	      /*@=observertrans@*/
 	      /*@=dependenttrans@*/
 
-/*#define DBUG_MEMORY 1*/
+#define DBUG_MEMORY 1
 #ifdef DBUG_MEMORY
 	      DBUG_PRINT("info", ("Dumping column_value->data[%u][%u] (%p)", column_nr, array_nr, column_value->data[column_nr][array_nr]));
 	      DBUG_DUMP("info", column_value->data[column_nr][array_nr], (unsigned int) column_value->size[column_nr]);
@@ -791,6 +789,9 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 					 column_nr + 1,
 					 &column_value->descr[column_nr])) != OK)
 	    break;
+
+	  /* UTF8 should have been used */
+	  assert(!column_value->descr[column_nr].unicode);
 	}
     } while (0);
 
@@ -812,17 +813,24 @@ print_heading(/*@in@*/ const settings_t *settings, /*@in@*/ value_info_t *column
 	   column_nr++)
 	{
 	  if (column_nr > 0 && settings->column_separator != NULL)
-	    (void) fputs(settings->column_separator, fout);
+	    {
+	      (void) fputs(settings->column_separator, fout);
+	    }
+
 	  if (settings->fixed_column_length)
 	    {
 	      if (column_value->align[column_nr] == 'L')
-		(void) fprintf(fout, "%-*s",
-			       (int) column_value->display_size[column_nr],
-			       column_value->descr[column_nr].name);
+		{
+		  (void) fprintf(fout, "%-*s",
+				 (int) column_value->display_size[column_nr],
+				 column_value->descr[column_nr].name);
+		}
 	      else
-		(void) fprintf(fout, "%*s",
-			       (int) column_value->display_size[column_nr],
-			       column_value->descr[column_nr].name);
+		{
+		  (void) fprintf(fout, "%*s",
+				 (int) column_value->display_size[column_nr],
+				 column_value->descr[column_nr].name);
+		}
 	    }
 	  else
 	    {
@@ -843,7 +851,7 @@ print_data(/*@in@*/ const settings_t *settings,
 	   const unsigned int total_fetch_size,
 	   /*@in@*/ value_info_t *column_value,
 	   FILE *fout)
-/*@requires notnull column_value->data, column_value->ind, column_value->size, column_value->display_size, column_value->align @*/
+/*@requires notnull column_value->descr, column_value->data, column_value->ind, column_value->size, column_value->display_size, column_value->align @*/
 {
   unsigned int column_nr, array_nr;
 
@@ -880,7 +888,10 @@ print_data(/*@in@*/ const settings_t *settings,
 		      (char *) column_value->data[column_nr][array_nr]));
 
 	  if (column_nr > 0 && settings->column_separator != NULL)
-	    (void) fputs(settings->column_separator, fout);
+	    {
+	      (void) fputs(settings->column_separator, fout);
+	    }
+
 	  if (column_value->ind[column_nr][array_nr] != -1) /* not a NULL value? */
 	    {
 	      if (settings->fixed_column_length)
@@ -968,8 +979,7 @@ print_data(/*@in@*/ const settings_t *settings,
 		}
 	      else if (settings->null != NULL)
 		{
-		  (void) fputs(settings->null, fout);
-		  n += strlen(settings->null);
+		  n += fprintf(fout, "%s", settings->null);
 		}
 	    }
 	  DBUG_PRINT("info", ("characters printed for this column: %d", n));
@@ -1408,12 +1418,14 @@ oradumper(const unsigned int nr_arguments,
 	}
       if (bind_value.data != NULL)
 	{
+	  /*
 	  for (bind_variable_nr = 0;
 	       bind_variable_nr < bind_value.value_count;
 	       bind_variable_nr++)
 	    {
 	      FREE(bind_value.data[bind_variable_nr]);
 	    }
+	  */
 	  FREE(bind_value.data);
 	}
       if (bind_value.ind != NULL)
@@ -1437,9 +1449,10 @@ oradumper(const unsigned int nr_arguments,
 	{
 	  if (column_value.buf != NULL)
 	    FREE(column_value.buf[column_nr]);
-
+	  /*
 	  if (column_value.data != NULL)
 	    FREE(column_value.data[column_nr]);
+	  */
 
 	  if (column_value.ind != NULL)
 	    FREE(column_value.ind[column_nr]);

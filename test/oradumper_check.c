@@ -124,14 +124,17 @@ START_TEST(test_query1)
   char output_file[100+1] = "output_file=";
   const char *options[] = {
     fetch_size,
+    "null=NULL",
     "nls_date_format=yyyy-mm-dd hh24:mi:ss",
     "nls_timestamp_format=yyyy-mm-dd hh24:mi:ss",
     "nls_numeric_characters=.,",
     dbug_options,
     "query=\
-select 1234567890 as NR, 'my,string' as STR, to_date('1900-12-31 23:23:59') as DAY from dual \
-union \
-select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') from dual",
+select 1234567890 as NR, unistr('my,string') as STR, to_date('1900-12-31 23:23:59') as DAY from dual \
+union all \
+select 2345678901, unistr('YOURSTRING'), to_date('20001231232359', 'yyyymmddhh24miss') from dual \
+union all \
+select 12, unistr('abc\\00e5\\00f1\\00f6'), null from dual",
     output_file,
     "fixed_column_length=0",
     "column_separator=,",
