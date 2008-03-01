@@ -25,20 +25,20 @@ REMARK  $Author$
 REMARK
 REMARK  $Revision$
 REMARK
-REMARK  Description:    Create the procedure oradumper.
+REMARK  Description:    Test the procedure oradumper.
 REMARK
-REMARK  Notes:		See the admin.sql for creating the library oradumper_library.
+REMARK  Notes:		See the oradumper.sql for creating the procedure.
 REMARK
 
-create or replace 
-procedure oradumper(coll in sys.odcivarchar2list)
-as
-language C name "oradumper_extproc" library oradumper_library
-with context parameters
-( CONTEXT,
-  coll OCIColl,
-  coll INDICATOR short
-);
-/
+PROMPT Dump all user objects to file &&path/user_objects1.lis
+execute oradumper(sys.odcivarchar2list('query=select * from user_objects', 'output_file=&&path/user_objects1.lis'))
 
-show errors
+PROMPT A query is mandatory
+execute oradumper(sys.odcivarchar2list('dbug_options="d,g,t,o=&&path/dbug.log"'))
+
+PROMPT An invalid query raises an exception
+execute oradumper(sys.odcivarchar2list('query=xxx', 'dbug_options="d,g,t,o=&&path/dbug.log"'))
+
+PROMPT Empty arguments are skipped
+PROMPT Dump all user objects to file &&path/user_objects2.lis
+execute oradumper(sys.odcivarchar2list(NULL, 'query=select * from user_objects', 'output_file=&&path/user_objects2.lis'))

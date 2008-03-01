@@ -1,0 +1,62 @@
+This README describes how to setup the oradumper as an Oracle external procedure.
+
+INSTALLATION
+============
+1) Modify your listener or create a separate listener for external procedures.
+See http://rjh.keybit.net/oracle/Chapter%2018.htm for details.
+
+2) Run admin.sql to create an Oracle library based on the shared library.
+Please note that shared library names depend on the platform.
+
+Some examples: 
+- oradumper.dll (Windows)
+- liboradumper.dylib (MAC OS X)
+- liboradumper.so (Linux/ some Unixes)
+- liboradumper.sl (some Unixes)
+
+SECURITY
+========
+There are several security issues related to external procedures.
+
+The main security problem is that the Oracle listener will start the
+extproc executable as the Oracle O/S account by default.  So it may be
+possible to destroy database files when an Oracle account can create a
+library based on the C library (libc.so on Unix).
+
+Solutions
+---------
+
+1) Create Oracle libraries by a privileged Oracle account only, for instance a DBA.
+
+It is not necessary to grant the CREATE LIBRARY / CREATE ANY LIBRARY to other users.
+The DBA can create a library in another schema (see admin.sql).
+
+This will make it impossible for a non-privileged Oracle account to
+create libraries on his own and therefore gain access to the functions
+in shared libraries.
+
+2) Restrict the number of shared libraries which can be used for external procedures.
+
+Put a line with ENVS like this in your listener.ora:
+
+    (SID_DESC =
+      (SID_NAME = PLSExtProc)
+      (ORACLE_HOME = /Volumes/u01/app/oracle/product/10.1.0/db_1)
+      (PROGRAM = extproc)
+      (ENVS = "EXTPROC_DLLS=ONLY:/usr/local/lib/liboradumper.so")
+    )
+
+3) Create a separate listener for external procedures and run that listener under a restricted O/S account.
+
+The extproc executable should NOT have the sticky bit set (on Unix).
+
+See the Oracle listener documentation for more information about how to setup another listener.
+
+
+RESOURCES
+=========
+A good description of how to setup Oracle external procedures can be found at:
+
+  http://rjh.keybit.net/oracle/Chapter%2018.htm
+
+See also the Metalink website for more information about the security issues.
