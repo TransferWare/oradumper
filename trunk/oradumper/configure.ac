@@ -37,6 +37,11 @@ fi
 
 # Use same configuration file as EPC
 AC_CONFIG_AUX_DIR([config])
+AH_BOTTOM(
+[#ifndef HAVE_STRDUP
+extern /*@null@*/ /*@only@*/ char *strdup (char *s) /*@*/;
+#endif]
+)
 AC_CONFIG_SRCDIR([src/prog/main.c])
 AM_CONFIG_HEADER([config.h])
 

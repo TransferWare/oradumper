@@ -58,9 +58,6 @@ typedef int bool;
 #include "oradumper_int.h"
 
 extern
-char *strdup(const char *str);
-
-extern
 void FREE(/*@only@*//*@sef@*/ void *ptr);
 
 #ifdef lint
