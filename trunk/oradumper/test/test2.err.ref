@@ -1,4 +1,0 @@
-Connecting.
-Parsing "select to_clob(rpad('0123456789', 8000, '0123456789')) as myclob from dual".
-
-1 row(s) processed.
