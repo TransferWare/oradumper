@@ -1057,10 +1057,6 @@ oradumper(const unsigned int nr_arguments,
       FILE *fout = stdout;
       settings_t settings;
 
-#ifdef WITH_DMALLOC
-      unsigned long mark = 0;
-#endif
-
       (void) setlocale(LC_ALL, "");
 
       memset(&bind_value, 0, sizeof(bind_value));
@@ -1120,9 +1116,6 @@ oradumper(const unsigned int nr_arguments,
 	      break;
 
 	    case STEP_NLS_LANGUAGE:
-#ifdef WITH_DMALLOC
-	      mark = dmalloc_mark();
-#endif
 	      if (settings.nls_language == NULL)
 		break;
 
@@ -1374,6 +1367,7 @@ oradumper(const unsigned int nr_arguments,
 	case STEP_NLS_LANGUAGE:
 	  /*@fallthrough@*/
 	case STEP_CONNECT:
+	  (void) orasql_cach_free_all();
 	  if (disconnect != 0)
 	    {
 	      (void) orasql_disconnect();
@@ -1418,14 +1412,14 @@ oradumper(const unsigned int nr_arguments,
 	}
       if (bind_value.data != NULL)
 	{
-	  /*
 	  for (bind_variable_nr = 0;
 	       bind_variable_nr < bind_value.value_count;
 	       bind_variable_nr++)
 	    {
+	      /*@-modobserver@*/
 	      FREE(bind_value.data[bind_variable_nr]);
+	      /*@=modobserver@*/
 	    }
-	  */
 	  FREE(bind_value.data);
 	}
       if (bind_value.ind != NULL)
@@ -1449,10 +1443,12 @@ oradumper(const unsigned int nr_arguments,
 	{
 	  if (column_value.buf != NULL)
 	    FREE(column_value.buf[column_nr]);
-	  /*
 	  if (column_value.data != NULL)
-	    FREE(column_value.data[column_nr]);
-	  */
+	    {
+	      /*@-modobserver@*/
+	      FREE(column_value.data[column_nr]);
+	      /*@=modobserver@*/
+	    }
 
 	  if (column_value.ind != NULL)
 	    FREE(column_value.ind[column_nr]);
@@ -1465,11 +1461,6 @@ oradumper(const unsigned int nr_arguments,
       FREE(column_value.buf);
       FREE(column_value.data);
       FREE(column_value.ind);
-
-#ifdef WITH_DMALLOC
-      dmalloc_log_changed(mark, 1, 0, 0);
-      /*  assert(dmalloc_count_changed(mark, 1, 0) == 0);*/
-#endif
     }
 
   return error;

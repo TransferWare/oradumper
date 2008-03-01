@@ -1,4 +1,0 @@
-Connecting.
-Parsing "select object_name, object_type from all_objects where owner = 'SYS' and object_type <> 'JAVA CLASS' and rownum <= 1000 order by object_name".
-
-1000 row(s) processed.
