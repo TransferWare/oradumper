@@ -2,10 +2,12 @@ This README describes how to setup the oradumper as an Oracle external procedure
 
 INSTALLATION
 ============
-1) Modify your listener or create a separate listener for external procedures.
+1) Create and install the oradumper shared library as described in the INSTALL document (../..).
+
+2) Modify your listener or create a separate listener for external procedures.
 See http://rjh.keybit.net/oracle/Chapter%2018.htm for details.
 
-2) Run admin.sql to create an Oracle library based on the shared library.
+3) Run admin.sql to create an Oracle library based on the shared library.
 Please note that shared library names depend on the platform.
 
 Some examples: 
@@ -13,6 +15,10 @@ Some examples:
 - liboradumper.dylib (MAC OS X)
 - liboradumper.so (Linux/ some Unixes)
 - liboradumper.sl (some Unixes)
+
+4) Run oradumper.sql to create the Oracle oradumper procedure.
+
+5) Test it using 
 
 SECURITY
 ========
