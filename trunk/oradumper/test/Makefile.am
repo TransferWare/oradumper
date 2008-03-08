@@ -17,11 +17,18 @@
 
 MAINTAINERCLEANFILES    = Makefile.in
 
-TESTS                   = oradumper_check
-check_PROGRAMS          = $(TESTS)
+check_PROGRAMS          = oradumper_check
 oradumper_check_SOURCES = oradumper_check.c $(top_srcdir)/src/oradumper.h $(top_srcdir)/src/oradumper_int.h
 AM_CPPFLAGS             = @CHECK_CFLAGS@
 oradumper_check_LDADD   = $(top_builddir)/src/lib/liboradumper.la @CHECK_LIBS@ @DBUG_LDADD@
 
-CLEANFILES              = *.lis *~ *.log usage.txt $(TESTS)
+CLEANFILES              = *.lis *~ *.log usage.txt $(check_PROGRAMS) `find ${top_builddir}/src \( -name '*.gcda' -o -name '*.gcov' \) -delete`
+
+if GCOV
+GCOV_TESTS              = check_coverage
+else
+GCOV_TESTS              =
+endif
+
+TESTS                   = $(check_PROGRAMS) $(GCOV_TESTS)
 

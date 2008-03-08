@@ -74,8 +74,7 @@ LINT_FLAGS_PROC_END;
 #undef SQLCA_STORAGE_CLASS
 #endif
 
-/* a static sqlca only */
-#define SQLCA_STORAGE_CLASS static
+#define SQLCA_STORAGE_CLASS 
 
 /* force initialisation of the static sqlca struct */
 #ifndef SQLCA_INIT
@@ -105,26 +104,6 @@ EXEC SQL END DECLARE SECTION;
   EXEC SQL WHENEVER SQLERROR CONTINUE;
 
   EXEC SQL CONNECT :userid;
-  LINT_FLAGS_PROC_END;
-
-  DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
-  DBUG_LEAVE();
-
-  return sqlca.sqlcode;
-}
-
-error_t
-orasql_register_connect(ctx)
-EXEC SQL BEGIN DECLARE SECTION;
-OCIExtProcContext *ctx;
-EXEC SQL END DECLARE SECTION;
-{
-  DBUG_ENTER("orasql_register_connect");
-
-  LINT_FLAGS_PROC_BEGIN;
-  EXEC SQL WHENEVER SQLERROR CONTINUE;
-
-  EXEC SQL REGISTER CONNECT USING :ctx;
   LINT_FLAGS_PROC_END;
 
   DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));

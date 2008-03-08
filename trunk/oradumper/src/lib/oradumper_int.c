@@ -1300,7 +1300,8 @@ oradumper(const unsigned int nr_arguments,
 
 	      do
 		{
-		  if ((sqlcode = orasql_fetch_rows(column_value.descriptor_name, column_value.array_count, &row_count)) != OK)
+		  if ((sqlcode = orasql_fetch_rows(column_value.descriptor_name, column_value.array_count, &row_count)) != OK ||
+		      row_count == 0)
 		    {
 		      break;
 		    }
@@ -1313,7 +1314,12 @@ oradumper(const unsigned int nr_arguments,
 		  /*@=nullstate@*/
 		}
 	      /* row_count < settings.fetch_size means nothing more to fetch */
-	      while (sqlcode == OK && row_count == settings.fetch_size); 
+	      while (sqlcode == OK 
+		     /* orasql_fetch_rows() must be called when no data is found to get full code coverage in oradumper.pc */
+#ifndef HAVE_GCOV
+		     && row_count == settings.fetch_size
+#endif
+		     );
 
 	      if ((sqlcode = orasql_rows_processed(&row_count)) != OK)
 		break;

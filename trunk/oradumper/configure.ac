@@ -82,6 +82,26 @@ ACX_PROG_OCI
 # Enable epc
 ACX_EPC
 
+# Checks for programs
+AC_ARG_ENABLE([gcov],
+[  --enable-gcov           turn on profiling with gcov],
+[case "${enableval}" in
+  yes) AC_CHECK_PROG([GCOV], [gcov], [true], [false]) ;;
+   no) GCOV=false ;;
+    *) AC_MSG_ERROR(bad value ${enableval} for --enable-gcov) ;;
+esac],
+[GCOV=false])
+
+AM_CONDITIONAL([GCOV], [test x$GCOV = xtrue])
+
+if test "x$GCOV" = 'xtrue'
+then
+  AH_BOTTOM([#define HAVE_GCOV 1])
+  AC_CHECK_LIB([gcov],
+  [__gcov_init],
+  [CFLAGS="-ftest-coverage -fprofile-arcs $CFLAGS"; LIBS="-lgcov $LIBS"])
+fi
+
 # Checks for libraries.
 
 # Checks for header files.
