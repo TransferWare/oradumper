@@ -1,0 +1,17 @@
+#!/bin/sh
+
+set -e
+for f in `find ${srcdir}/../src -name '*.gcda' -print`
+do
+	d=`dirname $f`
+	s="`basename $f .gcda`.c"
+	cd $d
+	test -f $s || ln -s ../$s .
+	gcov $s
+	cd -
+done
+echo "Source files with untriggered lines (i.e. .gcov file contains #####):"
+for f in `find ${srcdir}/../src -name '*.gcov'`
+do
+	! grep -l '#####' $f
+done

@@ -132,9 +132,7 @@ START_TEST(test_query1)
     "query=\
 select 1234567890 as NR, unistr('my,string') as STR, to_date('1900-12-31 23:23:59') as DAY from dual \
 union all \
-select 2345678901, unistr('YOURSTRING'), to_date('20001231232359', 'yyyymmddhh24miss') from dual \
-union all \
-select 12, unistr('abc\\00e5\\00f1\\00f6'), null from dual",
+select 2345678901, unistr('YOURSTRING'), to_date('20001231232359', 'yyyymmddhh24miss') from dual",
     output_file,
     "fixed_column_length=0",
     "column_separator=,",
@@ -241,9 +239,11 @@ START_TEST(test_query4)
     "nls_numeric_characters=.,",
     dbug_options,
     "query=\
-select cast(1234567890 as number(10, 0)) as NR, 'my,string' as STR, to_date('1900-12-31 23:23:59') as DAY from dual \
+select cast(1234567890 as number(10, 0)) as NR, unistr('my,string') as STR, to_date('1900-12-31 23:23:59') as DAY from dual \
 union \
-select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') from dual",
+select 2345678901, unistr('YOURSTRING'), to_date('20001231232359', 'yyyymmddhh24miss') from dual \
+union all \
+select 12, unistr('abc\\00e5\\00f1\\00f6'), null from dual",
     output_file,
     "fixed_column_length=1",
     "column_separator=\\040" /* space */
@@ -262,7 +262,23 @@ select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') f
 }
 END_TEST
 
-/*'ING | Securities Sp'||unistr('\00F3')||unistr('\0142')||'ka Akcyjna'*/
+START_TEST(test_query5)
+{
+  char userid[100+1] = "userid=";
+  const char *options[] = {
+    userid,
+    dbug_options,
+    "query=select "
+  };
+  char *error;
+
+  fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
+
+  (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
+
+  fail_unless(NULL != oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg), error_msg);
+}
+END_TEST
 
 Suite *
 options_suite(void)
@@ -281,6 +297,7 @@ options_suite(void)
   tcase_add_test(tc_interface, test_query2);
   tcase_add_test(tc_interface, test_query3);
   tcase_add_test(tc_interface, test_query4);
+  tcase_add_test(tc_interface, test_query5);
   suite_add_tcase(s, tc_interface);
 
   return s;

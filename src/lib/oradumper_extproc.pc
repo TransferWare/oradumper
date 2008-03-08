@@ -1,3 +1,33 @@
+/* -*-mode: c-*- */
+
+#define LINT_FLAGS_PROC_BEGIN \
+/*@-shadow@*/ \
+/*@-fullinitblock@*/ \
+/*@-immediatetrans@*/ \
+/*@-statictrans@*/ \
+/*@-unqualifiedtrans@*/ \
+/*@-nullpass@*/ \
+/*@-nullstate@*/ \
+/*@-compdef@*/ \
+/*@-compdestroy@*/ \
+/*@-globstate@*/ \
+/*@-observertrans@*/ \
+/*@-varuse@*/
+
+#define LINT_FLAGS_PROC_END \
+/*@=shadow@*/ \
+/*@=fullinitblock@*/ \
+/*@=immediatetrans@*/ \
+/*@=statictrans@*/ \
+/*@=unqualifiedtrans@*/ \
+/*@=nullpass@*/ \
+/*@=nullstate@*/ \
+/*@=compdef@*/ \
+/*@=compdestroy@*/ \
+/*@=globstate@*/ \
+/*@=observertrans@*/ \
+/*@=varuse@*/
+
 #if HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -19,11 +49,16 @@
 #ifdef SQLCA_NONE 
 #undef SQLCA_NONE 
 #endif
-#define SQLCA_NONE 
 
 #ifdef SQLCA_STORAGE_CLASS
 #undef SQLCA_STORAGE_CLASS
 #endif
+
+#define SQLCA_STORAGE_CLASS extern
+
+LINT_FLAGS_PROC_BEGIN;
+EXEC SQL INCLUDE sqlca;
+LINT_FLAGS_PROC_END;
 
 #if HAVE_SQLCPR_H
 #define ORACA 1
@@ -45,6 +80,26 @@
 #include "oradumper_int.h"
 
 typedef /*@null@*/ /*@only@*/ char *char_ptr_t;
+
+error_t
+orasql_register_connect(ctx)
+EXEC SQL BEGIN DECLARE SECTION;
+OCIExtProcContext *ctx;
+EXEC SQL END DECLARE SECTION;
+{
+  DBUG_ENTER("orasql_register_connect");
+
+  LINT_FLAGS_PROC_BEGIN;
+  EXEC SQL WHENEVER SQLERROR CONTINUE;
+
+  EXEC SQL REGISTER CONNECT USING :ctx;
+  LINT_FLAGS_PROC_END;
+
+  DBUG_PRINT("output", ("return: %d", sqlca.sqlcode));
+  DBUG_LEAVE();
+
+  return sqlca.sqlcode;
+}
 
 void oradumper_extproc(OCIExtProcContext *ctx, OCIColl *coll, short coll_ind)
 {

@@ -23,7 +23,6 @@ AUTOMAKE_OPTIONS        = $(top_builddir)/src/prog/ansi2knr
 
 MOSTLYCLEANFILES        = oradumper.c
 
-#AM_CPPFLAGS             = @DBUG_CPPFLAGS@ @EPC_CPPFLAGS@
 AM_CPPFLAGS             = @DBUG_CPPFLAGS@
 
 noinst_HEADERS          = oradumper.h oradumper_int.h
@@ -45,6 +44,8 @@ EXTRA_DIST              =
 .pc.c:
 	$(PROC) $(PROCINCLUDES) $(PROCFLAGS) DYNAMIC=ANSI MODE=ANSI INAME=$< ONAME=$@
 
-# to difficult to lint oradumper.pc yet
 oradumper.ln: oradumper.c
+	$(LINT_c) -f oradumper.splintrc $<;
+
+oradumper_extproc.ln: oradumper_extproc.c
 	$(LINT_c) -f oradumper.splintrc $<;
