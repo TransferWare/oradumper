@@ -127,7 +127,7 @@ static const struct {
   { "feedback", false, "Give feedback after every fetch (0 = no feedback)", "0" },
   { "column_heading", false, "Include column names in first line (1 = yes)", "1" },
   { "fixed_column_length", false, "Fixed column length: 0 = yes (fixed), 1 = no (variable)", "0" },
-  { "column_separator", false, "The column separator", "," },
+  { "column_separator", true, "The column separator", NULL },
   { "enclosure_string", false, "Put around a column when it is variable and it contains the column separator", "\"" },
   { "output_file", false, "The output file", NULL },
   { "output_append", false, "Append to the output file (1 = yes)?", "0" },
@@ -509,6 +509,10 @@ oradumper_process_arguments(const unsigned int nr_arguments,
 	      break;
 
 	    case OPTION_COLUMN_SEPARATOR:
+	      if (settings->column_separator == NULL)
+		{
+		  settings->column_separator = strdup(settings->fixed_column_length ? " " : ",");
+		}
 	      result = settings->column_separator != NULL;
 	      break;
 
@@ -551,7 +555,7 @@ oradumper_process_arguments(const unsigned int nr_arguments,
 
 static
 int
-prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
+prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
 {
   int status;
   unsigned int column_nr;
@@ -733,22 +737,25 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 	  /* add 1 byte for a terminating zero */
 	  column_value->size[column_nr] = column_value->descr[column_nr].octet_length + 1;
 	  column_value->display_size[column_nr] = 
-	    max(column_value->descr[column_nr].octet_length,
-		(orasql_size_t) strlen(column_value->descr[column_nr].name));
+	    max(
+		max(column_value->descr[column_nr].octet_length,
+		    (orasql_size_t) strlen(column_value->descr[column_nr].name)),
+		(settings->null != NULL ? (orasql_size_t) strlen(settings->null) : (orasql_size_t) 0)
+		);
 
 	  /* column_value->data[column_nr][array_nr] points to memory in column_value->buf[column_nr] */
-	  column_value->buf[column_nr] = (byte_ptr_t) calloc((size_t) fetch_size, (size_t) column_value->size[column_nr]);
+	  column_value->buf[column_nr] = (byte_ptr_t) calloc((size_t) settings->fetch_size, (size_t) column_value->size[column_nr]);
 	  assert(column_value->buf[column_nr] != NULL);
 
 	  column_value->data[column_nr] =
-	    (value_data_ptr_t) calloc((size_t) fetch_size,
+	    (value_data_ptr_t) calloc((size_t) settings->fetch_size,
 				      sizeof(column_value->data[column_nr][0]));
 	  assert(column_value->data[column_nr] != NULL);
 
 	  DBUG_PRINT("info", ("column_value->buf[%u]= %p", column_nr, column_value->buf[column_nr]));
 
 	  for (array_nr = 0, data_ptr = (char *) column_value->buf[column_nr];
-	       array_nr < fetch_size;
+	       array_nr < settings->fetch_size;
 	       array_nr++, data_ptr += column_value->size[column_nr])
 	    {
 	      /*@-observertrans@*/
@@ -766,14 +773,14 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 		     (column_value->data[column_nr][array_nr] - column_value->data[column_nr][array_nr-1]) == (int)column_value->size[column_nr]);
 	    }
 
-	  column_value->ind[column_nr] = (short *) calloc((size_t) fetch_size, sizeof(**column_value->ind));
+	  column_value->ind[column_nr] = (short *) calloc((size_t) settings->fetch_size, sizeof(**column_value->ind));
 	  assert(column_value->ind[column_nr] != NULL);
 
 #ifdef DBUG_MEMORY
 	  DBUG_PRINT("info", ("Dumping column_value->data[%u] (%p)", column_nr, column_value->data[column_nr]));
-	  DBUG_DUMP("info", column_value->data[column_nr], (unsigned int)(fetch_size * sizeof(**column_value->data)));
+	  DBUG_DUMP("info", column_value->data[column_nr], (unsigned int)(settings->fetch_size * sizeof(**column_value->data)));
 	  DBUG_PRINT("info", ("Dumping column_value->ind[%u] (%p)", column_nr, column_value->ind[column_nr]));
-	  DBUG_DUMP("info", column_value->ind[column_nr], (unsigned int)(fetch_size * sizeof(**column_value->ind)));
+	  DBUG_DUMP("info", column_value->ind[column_nr], (unsigned int)(settings->fetch_size * sizeof(**column_value->ind)));
 #endif
 
 	  if ((status = orasql_value_set(column_value->descriptor_name,
@@ -854,6 +861,11 @@ print_data(/*@in@*/ const settings_t *settings,
 /*@requires notnull column_value->descr, column_value->data, column_value->ind, column_value->size, column_value->display_size, column_value->align @*/
 {
   unsigned int column_nr, array_nr;
+  int n;
+  char *data;
+  size_t len;
+  char *ptr1;
+  char *ptr2;
 
   DBUG_ENTER("print_data");
 
@@ -863,10 +875,16 @@ print_data(/*@in@*/ const settings_t *settings,
 
       for (column_nr = 0; column_nr < column_value->value_count; column_nr++)
 	{
-	  int n = 0; /* characters printed */
-
 	  assert(column_value->data[column_nr] != NULL);
 	  assert(column_value->ind[column_nr] != NULL);
+
+	  n = 0; /* characters printed */
+	  data = 
+	    (column_value->ind[column_nr][array_nr] != -1 /* not a NULL value? */ ?
+	     (char *) column_value->data[column_nr][array_nr] :
+	     (settings->null != NULL ? settings->null : "")
+	     );
+
 
 #ifdef DBUG_MEMORY
 	  assert(column_value->data[column_nr][array_nr] != NULL);
@@ -879,11 +897,6 @@ print_data(/*@in@*/ const settings_t *settings,
 	  DBUG_DUMP("info",
 		    column_value->data[column_nr][array_nr],
 		    (unsigned int) column_value->size[column_nr]);
-	  DBUG_PRINT("info",
-		     ("column_value->data[%u][%u]: %s",
-		      column_nr,
-		      array_nr,
-		      (char *) column_value->data[column_nr][array_nr]));
 #endif
 
 	  if (column_nr > 0 && settings->column_separator != NULL)
@@ -891,98 +904,69 @@ print_data(/*@in@*/ const settings_t *settings,
 	      (void) fputs(settings->column_separator, fout);
 	    }
 
-	  if (column_value->ind[column_nr][array_nr] != -1) /* not a NULL value? */
+	  if (settings->fixed_column_length)
 	    {
-	      if (settings->fixed_column_length)
+	      /* fixed length column */
+	      if (column_value->align[column_nr] == 'R') /* numeric fields do not need to be enclosed */
 		{
-		  if (column_value->align[column_nr] == 'R') /* numeric fields do not need to be enclosed */
-		    {
-		      n += fprintf(fout, "%*s",
-				   (int) column_value->display_size[column_nr],
-				   (char *) column_value->data[column_nr][array_nr]);
-		    }
-		  else
-		    {
-		      n += fprintf(fout, "%-*s",
-				   (int) column_value->display_size[column_nr],
-				   (char *) column_value->data[column_nr][array_nr]);
-		    }
+		  n += fprintf(fout, "%*s", (int) column_value->display_size[column_nr], data);
 		}
-	      else if (column_value->align[column_nr] == 'R') /* numeric fields do not need to be enclosed */
+	      else
 		{
-		  n += fprintf(fout, "%s",
-			       (char *) column_value->data[column_nr][array_nr]);
-		}
-	      else /* variable length strings */
-		{
-		  const char *data = (char *) column_value->data[column_nr][array_nr];
-
-		  /* only enclose character data of variable length
-		     containing the column separator */
-		  if (settings->column_separator != NULL &&
-		      settings->column_separator[0] != '\0' &&
-		      settings->enclosure_string != NULL &&
-		      settings->enclosure_string[0] != '\0' &&
-		      strstr(data, settings->column_separator) != NULL)
-		    {
-		      /* assume fprintf does not return an error */
-		      const size_t len = (size_t) fprintf(fout, "%s", settings->enclosure_string);
-		      char *ptr1;
-		      char *ptr2;
-
-		      n += len;
-
-		      /* Add each enclosure string twice.
-			 That is what Excel does and SQL*Loader expects. */
-
-		      for (ptr1 = (char *) data;
-			   (ptr2 = strstr(ptr1, settings->enclosure_string)) != NULL;
-			   ptr1 = ptr2 + len)
-			{
-			  /* assume fprintf returns >= 0 */
-			  n += fprintf(fout, "%*.*s%s%s",
-				       ptr2 - ptr1,
-				       ptr2 - ptr1,
-				       ptr1,
-				       settings->enclosure_string,
-				       settings->enclosure_string);
-			}
-
-		      /* print the remainder */
-		      /* assume fprintf returns 0 */
-		      n += fprintf(fout, "%s%s", ptr1, settings->enclosure_string);
-		    }
-		  else
-		    {
-		      n += fprintf(fout, "%s", data);
-		    }
+		  n += fprintf(fout, "%-*s", (int) column_value->display_size[column_nr], data);
 		}
 	    }
-	  else
+	  else if (data[0] == '\0')
 	    {
-	      /* print a NULL value */
-	      if (settings->fixed_column_length)
+	      ; /* do not print an empty string when the column has variable length */
+	    }
+	  else if (column_value->align[column_nr] == 'R') /* numeric fields do not need to be enclosed */
+	    {
+	      n += fprintf(fout, "%s", data);
+	    }
+	  else /* variable length strings */
+	    {
+	      /* only enclose character data of variable length
+		 containing the column separator */
+	      if (settings->column_separator != NULL &&
+		  settings->column_separator[0] != '\0' &&
+		  settings->enclosure_string != NULL &&
+		  settings->enclosure_string[0] != '\0' &&
+		  strstr(data, settings->column_separator) != NULL)
 		{
-		  if (column_value->align[column_nr] == 'L')
+		  /* assume fprintf does not return an error */
+		  len = (size_t) fprintf(fout, "%s", settings->enclosure_string);
+
+		  n += len;
+
+		  /* Add each enclosure string twice.
+		     That is what Excel does and SQL*Loader expects. */
+
+		  for (ptr1 = (char *) data;
+		       (ptr2 = strstr(ptr1, settings->enclosure_string)) != NULL;
+		       ptr1 = ptr2 + len)
 		    {
-		      n += fprintf(fout, "%-*s",
-				   (int) column_value->display_size[column_nr],
-				   (settings->null != NULL ? settings->null : ""));
+		      /* assume fprintf returns >= 0 */
+		      n += fprintf(fout, "%*.*s%s%s",
+				   ptr2 - ptr1,
+				   ptr2 - ptr1,
+				   ptr1,
+				   settings->enclosure_string,
+				   settings->enclosure_string);
 		    }
-		  else
-		    {
-		      n += fprintf(fout, "%*s",
-				   (int) column_value->display_size[column_nr],
-				   (settings->null != NULL ? settings->null : ""));
-		    }
+
+		  /* print the remainder */
+		  /* assume fprintf returns 0 */
+		  n += fprintf(fout, "%s%s", ptr1, settings->enclosure_string);
 		}
-	      else if (settings->null != NULL)
+	      else
 		{
-		  n += fprintf(fout, "%s", settings->null);
+		  n += fprintf(fout, "%s", data);
 		}
 	    }
 	  DBUG_PRINT("info", ("characters printed for this column: %d", n));
 	}
+
       /* newline */
       if (settings->record_delimiter != NULL)
 	{
@@ -1274,7 +1258,7 @@ oradumper(const unsigned int nr_arguments,
 	      break;
 
 	    case STEP_FETCH_ROWS:
-	      if ((sqlcode = prepare_fetch(settings.fetch_size, &column_value)) != OK)
+	      if ((sqlcode = prepare_fetch(&settings, &column_value)) != OK)
 		break;
 
 	      assert(column_value.descr != NULL);
