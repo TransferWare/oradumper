@@ -59,6 +59,7 @@ typedef struct {
   /* the following fields are returned by exec sql get descriptor */
   value_name_t name;
   orasql_datatype_t type;
+  orasql_datatype_t type_orig; /* type is converted to a string type */
   orasql_size_t octet_length; /* length in bytes */
   orasql_size_t length; /* length in characters */
   int precision;

@@ -606,7 +606,7 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 					 &column_value->descr[column_nr])) != OK)
 	    break;
 
-	  switch (column_value->descr[column_nr].type)
+	  switch (column_value->descr[column_nr].type_orig = column_value->descr[column_nr].type)
 	    {
 	    case ANSI_NUMERIC:
 	    case ORA_NUMBER:
@@ -757,7 +757,7 @@ prepare_fetch(const unsigned int fetch_size, value_info_t *column_value)
 	      /*@=observertrans@*/
 	      /*@=dependenttrans@*/
 
-#define DBUG_MEMORY 1
+/*#define DBUG_MEMORY 1*/
 #ifdef DBUG_MEMORY
 	      DBUG_PRINT("info", ("Dumping column_value->data[%u][%u] (%p)", column_nr, array_nr, column_value->data[column_nr][array_nr]));
 	      DBUG_DUMP("info", column_value->data[column_nr][array_nr], (unsigned int) column_value->size[column_nr]);
@@ -879,13 +879,12 @@ print_data(/*@in@*/ const settings_t *settings,
 	  DBUG_DUMP("info",
 		    column_value->data[column_nr][array_nr],
 		    (unsigned int) column_value->size[column_nr]);
-#endif
-
 	  DBUG_PRINT("info",
 		     ("column_value->data[%u][%u]: %s",
 		      column_nr,
 		      array_nr,
 		      (char *) column_value->data[column_nr][array_nr]));
+#endif
 
 	  if (column_nr > 0 && settings->column_separator != NULL)
 	    {
@@ -896,20 +895,25 @@ print_data(/*@in@*/ const settings_t *settings,
 	    {
 	      if (settings->fixed_column_length)
 		{
-		  if (column_value->align[column_nr] == 'L')
-		    {
-		      n += fprintf(fout, "%-*s",
-				   (int) column_value->display_size[column_nr],
-				   (char *) column_value->data[column_nr][array_nr]);
-		    }
-		  else
+		  if (column_value->align[column_nr] == 'R') /* numeric fields do not need to be enclosed */
 		    {
 		      n += fprintf(fout, "%*s",
 				   (int) column_value->display_size[column_nr],
 				   (char *) column_value->data[column_nr][array_nr]);
 		    }
+		  else
+		    {
+		      n += fprintf(fout, "%-*s",
+				   (int) column_value->display_size[column_nr],
+				   (char *) column_value->data[column_nr][array_nr]);
+		    }
 		}
-	      else
+	      else if (column_value->align[column_nr] == 'R') /* numeric fields do not need to be enclosed */
+		{
+		  n += fprintf(fout, "%s",
+			       (char *) column_value->data[column_nr][array_nr]);
+		}
+	      else /* variable length strings */
 		{
 		  const char *data = (char *) column_value->data[column_nr][array_nr];
 
@@ -921,41 +925,36 @@ print_data(/*@in@*/ const settings_t *settings,
 		      settings->enclosure_string[0] != '\0' &&
 		      strstr(data, settings->column_separator) != NULL)
 		    {
+		      /* assume fprintf does not return an error */
+		      const size_t len = (size_t) fprintf(fout, "%s", settings->enclosure_string);
 		      char *ptr1;
 		      char *ptr2;
 
-		      (void) fputs(settings->enclosure_string, fout);
-
-		      /* assume fputs returns 0 */
-		      n += strlen(settings->enclosure_string);
+		      n += len;
 
 		      /* Add each enclosure string twice.
 			 That is what Excel does and SQL*Loader expects. */
 
 		      for (ptr1 = (char *) data;
 			   (ptr2 = strstr(ptr1, settings->enclosure_string)) != NULL;
-			   ptr1 = ptr2 + strlen(settings->enclosure_string))
+			   ptr1 = ptr2 + len)
 			{
 			  /* assume fprintf returns >= 0 */
-			  n += fprintf(fout, "%*.*s", ptr2 - ptr1, ptr2 - ptr1, ptr1);
-			  (void) fputs(settings->enclosure_string, fout);
-			  (void) fputs(settings->enclosure_string, fout);
-			  /* assume fputs returns 0 */
-			  n += 2 * strlen(settings->enclosure_string);
+			  n += fprintf(fout, "%*.*s%s%s",
+				       ptr2 - ptr1,
+				       ptr2 - ptr1,
+				       ptr1,
+				       settings->enclosure_string,
+				       settings->enclosure_string);
 			}
 
-		      (void) fputs(ptr1, fout); /* the remainder */
-		      (void) fputs(settings->enclosure_string, fout);
-
-		      /* assume fputs returns 0 */
-		      n += strlen(ptr1) + strlen(settings->enclosure_string);
+		      /* print the remainder */
+		      /* assume fprintf returns 0 */
+		      n += fprintf(fout, "%s%s", ptr1, settings->enclosure_string);
 		    }
 		  else
 		    {
-		      (void) fputs(data, fout);
-
-		      /* assume fputs returns 0 */
-		      n += strlen(data);
+		      n += fprintf(fout, "%s", data);
 		    }
 		}
 	    }
@@ -1300,13 +1299,17 @@ oradumper(const unsigned int nr_arguments,
 
 	      do
 		{
-		  if ((sqlcode = orasql_fetch_rows(column_value.descriptor_name, column_value.array_count, &row_count)) != OK ||
-		      row_count == 0)
-		    {
-		      break;
-		    }
+		  sqlcode = orasql_fetch_rows(column_value.descriptor_name, column_value.array_count, &row_count);
 
-		  DBUG_PRINT("info", ("rows fetched: %u", row_count));
+		  DBUG_PRINT("info", ("sqlcode: %d; rows fetched: %u", sqlcode, row_count));
+
+		  if (sqlcode != OK
+#ifdef HAVE_GCOV
+		      || row_count == 0
+#endif
+		      )
+		    break;
+
 
 		  total_fetch_size += min(row_count, settings.fetch_size);
 		  /*@-nullstate@*/
