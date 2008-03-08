@@ -99,7 +99,7 @@ then
   AH_BOTTOM([#define HAVE_GCOV 1])
   AC_CHECK_LIB([gcov],
   [__gcov_init],
-  [CFLAGS="-ftest-coverage -fprofile-arcs $CFLAGS"; LIBS="-lgcov $LIBS"])
+  [CFLAGS="-ftest-coverage -fprofile-arcs $CFLAGS -O0 -pg"; LIBS="-lgcov $LIBS"])
 fi
 
 # Checks for libraries.
