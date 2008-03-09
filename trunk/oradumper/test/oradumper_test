@@ -1,0 +1,9 @@
+#!/bin/sh
+
+# set -ue: treat unset variables as an error; exit on error
+set -ue
+
+# use absolute paths instead of relative
+top_srcdir=`cd $top_srcdir; pwd`
+
+echo exit sql.sqlcode | sqlplus -s $USERID @$top_srcdir/test/oradumper_test.sql
