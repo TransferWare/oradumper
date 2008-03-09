@@ -31,5 +31,5 @@ else
 GCOV_TESTS              =
 endif
 
-TESTS                   = $(check_PROGRAMS) check_userid $(GCOV_TESTS)
+TESTS                   = oradumper_test $(check_PROGRAMS) check_userid $(GCOV_TESTS)
 

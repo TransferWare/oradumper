@@ -6,14 +6,6 @@
 #include <check.h>
 #endif
 
-#if HAVE_STDBOOL_H
-#include <stdbool.h>
-#else
-typedef int bool;
-#define false 0
-#define true 1
-#endif
-
 /* should always be there */
 #include <stdio.h>
 
@@ -326,6 +318,24 @@ START_TEST(test_enclosure_string)
 }
 END_TEST
 
+START_TEST(test_query_sql_error)
+{
+  char userid[100+1] = "userid=";
+  const char *options[] = {
+    userid,
+    dbug_options,
+    "query=select "
+  };
+  char *error;
+
+  fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
+
+  (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
+
+  fail_unless(NULL != oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg), error_msg);
+}
+END_TEST
+
 START_TEST(test_query1)
 {
   const char output[] = "query1.lis";
@@ -481,25 +491,7 @@ END_TEST
 
 START_TEST(test_query5)
 {
-  char userid[100+1] = "userid=";
-  const char *options[] = {
-    userid,
-    dbug_options,
-    "query=select "
-  };
-  char *error;
-
-  fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
-
-  (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
-
-  fail_unless(NULL != oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg), error_msg);
-}
-END_TEST
-
-START_TEST(test_query6)
-{
-  const char output[] = "query6.lis";
+  const char output[] = "query5.lis";
   char userid[100+1] = "userid=";
   char output_file[100+1] = "output_file=";
   const char *options[] = {
@@ -536,7 +528,7 @@ options_suite(void)
 
   TCase *tc_internal = tcase_create("Internal");
   TCase *tc_options = tcase_create("Options");
-  TCase *tc_interface = tcase_create("Interface");
+  TCase *tc_query = tcase_create("query");
 
   tcase_add_test(tc_internal, test_sizes);
   tcase_add_test(tc_internal, test_usage);
@@ -547,14 +539,14 @@ options_suite(void)
   tcase_add_test(tc_options, test_enclosure_string);
   suite_add_tcase(s, tc_options);
 
-  tcase_set_timeout(tc_interface, 10);
-  tcase_add_test(tc_interface, test_query1);
-  tcase_add_test(tc_interface, test_query2);
-  tcase_add_test(tc_interface, test_query3);
-  tcase_add_test(tc_interface, test_query4);
-  tcase_add_test(tc_interface, test_query5);
-  tcase_add_test(tc_interface, test_query6);
-  suite_add_tcase(s, tc_interface);
+  tcase_set_timeout(tc_query, 10);
+  tcase_add_test(tc_query, test_query_sql_error);
+  tcase_add_test(tc_query, test_query1);
+  tcase_add_test(tc_query, test_query2);
+  tcase_add_test(tc_query, test_query3);
+  tcase_add_test(tc_query, test_query4);
+  tcase_add_test(tc_query, test_query5);
+  suite_add_tcase(s, tc_query);
 
   return s;
 }
