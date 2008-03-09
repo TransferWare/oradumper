@@ -26,9 +26,10 @@ CLEANFILES              = *.lis *~ *.log usage.txt $(check_PROGRAMS) `find ${top
 
 if GCOV
 GCOV_TESTS              = check_coverage
+TESTS_ENVIRONMENT       = top_builddir=${top_builddir} top_srcdir=${top_srcdir}
 else
 GCOV_TESTS              =
 endif
 
-TESTS                   = $(check_PROGRAMS) $(GCOV_TESTS)
+TESTS                   = $(check_PROGRAMS) check_userid $(GCOV_TESTS)
 

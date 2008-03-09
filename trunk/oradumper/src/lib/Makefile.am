@@ -23,7 +23,7 @@ AUTOMAKE_OPTIONS        = $(top_builddir)/src/prog/ansi2knr
 
 MOSTLYCLEANFILES        = oradumper.c oradumper_extproc.c
 
-AM_CPPFLAGS             = @DBUG_CPPFLAGS@
+AM_CPPFLAGS             = @DBUG_CPPFLAGS@ -I$(srcdir)
 
 noinst_HEADERS          = oradumper_int.h
 

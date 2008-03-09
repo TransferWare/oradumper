@@ -114,24 +114,44 @@ static const struct {
   char *desc; /* description */
   /*@null@*/ char *def; /* default */
 } opt[] = { 
-  { "userid", false, "Oracle connect string", NULL }, /* userid may be NULL when oradumper is used as a library */
-  { "query", true, "Select statement", NULL },
-  { "fetch_size", false, "Array size", "10" },
-  { "dbug_options", false, "DBUG options", "" },
-  { "nls_language", false, "NLS language", NULL },
-  { "nls_date_format", false, "NLS date format", NULL },
-  { "nls_timestamp_format", false, "NLS timestamp format", NULL },
-  { "nls_numeric_characters", false, "NLS numeric characters", NULL },
-  { "details", false, "Print details about input and output values: yes, only or no", "no" },
-  { "record_delimiter", false, "Record delimiter", "\\n" }, /* LF */
-  { "feedback", false, "Give feedback after every fetch (0 = no feedback)", "0" },
-  { "column_heading", false, "Include column names in first line (1 = yes)", "1" },
-  { "fixed_column_length", false, "Fixed column length: 0 = yes (fixed), 1 = no (variable)", "0" },
-  { "column_separator", true, "The column separator", NULL },
-  { "enclosure_string", false, "Put around a column when it is variable and it contains the column separator", "\"" },
-  { "output_file", false, "The output file", NULL },
-  { "output_append", false, "Append to the output file (1 = yes)?", "0" },
-  { "null", false, "Value to print for NULL values", NULL },
+
+#define OPTION_USERID_MANDATORY false
+#define OPTION_QUERY_MANDATORY true
+#define OPTION_FETCH_SIZE_MANDATORY false
+#define OPTION_DBUG_OPTIONS_MANDATORY false
+#define OPTION_NLS_LANGUAGE_MANDATORY false
+#define OPTION_NLS_DATE_FORMAT_MANDATORY false
+#define OPTION_NLS_TIMESTAMP_FORMAT_MANDATORY false
+#define OPTION_NLS_NUMERIC_CHARACTERS_MANDATORY false
+#define OPTION_DETAILS_MANDATORY false
+#define OPTION_RECORD_DELIMITER_MANDATORY false
+#define OPTION_FEEDBACK_MANDATORY false
+#define OPTION_COLUMN_HEADING_MANDATORY false
+#define OPTION_FIXED_COLUMN_LENGTH_MANDATORY false
+#define OPTION_COLUMN_SEPARATOR_MANDATORY true
+#define OPTION_ENCLOSURE_STRING_MANDATORY false
+#define OPTION_OUTPUT_FILE_MANDATORY false
+#define OPTION_OUTPUT_APPEND_MANDATORY false
+#define OPTION_NULL_MANDATORY false
+
+  { "userid", OPTION_USERID_MANDATORY, "Oracle connect string", NULL }, /* userid may be NULL when oradumper is used as a library */
+  { "query", OPTION_QUERY_MANDATORY, "Select statement", NULL },
+  { "fetch_size", OPTION_FETCH_SIZE_MANDATORY, "Array size", "10" },
+  { "dbug_options", OPTION_DBUG_OPTIONS_MANDATORY, "DBUG options", "" },
+  { "nls_language", OPTION_NLS_LANGUAGE_MANDATORY, "NLS language", NULL },
+  { "nls_date_format", OPTION_NLS_DATE_FORMAT_MANDATORY, "NLS date format", NULL },
+  { "nls_timestamp_format", OPTION_NLS_TIMESTAMP_FORMAT_MANDATORY, "NLS timestamp format", NULL },
+  { "nls_numeric_characters", OPTION_NLS_NUMERIC_CHARACTERS_MANDATORY, "NLS numeric characters", NULL },
+  { "details", OPTION_DETAILS_MANDATORY, "Print details about input and output values: yes, only or no", "no" },
+  { "record_delimiter", OPTION_RECORD_DELIMITER_MANDATORY, "Record delimiter", "\\n" }, /* LF */
+  { "feedback", OPTION_FEEDBACK_MANDATORY, "Give feedback after every fetch (0 = no feedback)", "0" },
+  { "column_heading", OPTION_COLUMN_HEADING_MANDATORY, "Include column names in first line (1 = yes)", "1" },
+  { "fixed_column_length", OPTION_FIXED_COLUMN_LENGTH_MANDATORY, "Fixed column length: 0 = yes (fixed), 1 = no (variable)", "0" },
+  { "column_separator", OPTION_COLUMN_SEPARATOR_MANDATORY, "The column separator", NULL },
+  { "enclosure_string", OPTION_ENCLOSURE_STRING_MANDATORY, "Put around a column when it is variable and it contains the column separator", "\"" },
+  { "output_file", OPTION_OUTPUT_FILE_MANDATORY, "The output file", NULL },
+  { "output_append", OPTION_OUTPUT_APPEND_MANDATORY, "Append to the output file (1 = yes)?", "0" },
+  { "null", OPTION_NULL_MANDATORY, "Value to print for NULL values", NULL },
 };
 
 /* convert2ascii - convert a string which may contain escaped characters into a ascii string.
@@ -177,10 +197,23 @@ convert2ascii(const size_t error_msg_size, char *error_msg, char *str)
   char *error = NULL;
   int n, count;
   unsigned int ch;
+  const size_t len = strlen(str);
+
+  /* DBUG is only activated here after options have been parsed */
+
+  /*
+  DBUG_ENTER("convert2ascii");
+  DBUG_PRINT("input", ("str: '%s'", str));
+  */
 
   for (src = dst = 0; error == NULL && str[src] != '\0'; src++, dst++)
     {
       assert(dst <= src);
+
+      /*
+      DBUG_PRINT("input", ("str[src=%d]: '%c'", (int)src, str[src]));
+      */
+
       switch(str[src])
 	{
 	case '\\':
@@ -204,16 +237,9 @@ convert2ascii(const size_t error_msg_size, char *error_msg, char *str)
 	    case '6':
 	    case '7': /* begin of an octal character */
 	      n = sscanf(&str[src], "%3o%n", &ch, &count);
-	      if (n != 1) /* %n is not counted */
-		{
-		  (void) snprintf(error_msg, error_msg_size, "Could not convert %s to an octal number. Scanned items: %d; input count: %d", &str[src], n, count);
-		  error = error_msg;
-		}
-	      else
-		{
-		  str[dst] = (char) ch;
-		  src += count - 1; /* src is incremented each loop */
-		}
+	      assert(n == 1);
+	      str[dst] = (char) ch;
+	      src += count - 1; /* src is incremented each loop */
 	      break;
 	      
 	    case 'x':
@@ -242,14 +268,38 @@ convert2ascii(const size_t error_msg_size, char *error_msg, char *str)
 	  str[dst] = str[src];
 	  break;
 	}
+
+      /*
+      DBUG_PRINT("input", ("str[src=%d]: '%c'", (int)src, str[src]));
+      DBUG_PRINT("input", ("str[dst=%d]: '%c'", (int)dst, str[dst]));
+      */
     }
 
-  assert(error != NULL || src == strlen(str));
+  /*@-nullpass@*/
+  /*
+  DBUG_PRINT("info",
+	     ("error: %p; src=%d; original length of str: %d%s",
+	      error,
+	      (int) src,
+	      (int) len,
+	      (error != NULL || src == len ? "" : " (convert2ascii error)")));
+  */
+  /*@=nullpass@*/
+
+  /*
+  DBUG_PRINT("output", ("str: '%s'", str));
+  */
+
+  assert(error != NULL || src == len);
 
   if (error == NULL)
     {
       str[dst] = '\0';
     }
+
+  /*
+  DBUG_LEAVE();
+  */
 
   return error;
 }
@@ -461,53 +511,80 @@ oradumper_process_arguments(const unsigned int nr_arguments,
 
 	  switch((option_t) j)
 	    {
+#if OPTION_USERID_MANDATORY
 	    case OPTION_USERID: 
 	      result = settings->userid != NULL;
 	      break;
+#endif
 		  
+#if OPTION_QUERY_MANDATORY
 	    case OPTION_QUERY:
 	      result = settings->query != NULL;
 	      break;
+#endif
 
+#if OPTION_FETCH_SIZE_MANDATORY
 	    case OPTION_FETCH_SIZE:
 	      break;
+#endif
 
+#if OPTION_DBUG_OPTIONS_MANDATORY
 	    case OPTION_DBUG_OPTIONS:
 	      result = settings->dbug_options != NULL;
 	      break;
+#endif
 
+#if OPTION_NLS_LANGUAGE_MANDATORY
 	    case OPTION_NLS_LANGUAGE:
 	      result = settings->nls_language != NULL;
 	      break;
+#endif
 		  
+#if OPTION_NLS_DATE_FORMAT_MANDATORY
 	    case OPTION_NLS_DATE_FORMAT:
 	      result = settings->nls_date_format != NULL;
 	      break;
+#endif
 		  
+#if OPTION_NLS_TIMESTAMP_FORMAT_MANDATORY
 	    case OPTION_NLS_TIMESTAMP_FORMAT:
 	      result = settings->nls_timestamp_format != NULL;
 	      break;
+#endif
 		  
+#if OPTION_NLS_NUMERIC_CHARACTERS_MANDATORY
 	    case OPTION_NLS_NUMERIC_CHARACTERS:
 	      result = settings->nls_numeric_characters != NULL;
 	      break;
+#endif
 
+#if OPTION_DETAILS_MANDATORY
 	    case OPTION_DETAILS:
 	      break;
+#endif
 
+#if OPTION_RECORD_DELIMITER_MANDATORY
 	    case OPTION_RECORD_DELIMITER:
 	      result = settings->record_delimiter != NULL;
 	      break;
+#endif
 
+#if OPTION_FEEDBACK_MANDATORY
 	    case OPTION_FEEDBACK:
 	      break;
+#endif
 
+#if OPTION_COLUMN_HEADING_MANDATORY
 	    case OPTION_COLUMN_HEADING:
 	      break;
+#endif
 
+#if OPTION_FIXED_COLUMN_LENGTH_MANDATORY
 	    case OPTION_FIXED_COLUMN_LENGTH:
 	      break;
+#endif
 
+#if OPTION_COLUMN_SEPARATOR_MANDATORY
 	    case OPTION_COLUMN_SEPARATOR:
 	      if (settings->column_separator == NULL)
 		{
@@ -515,20 +592,31 @@ oradumper_process_arguments(const unsigned int nr_arguments,
 		}
 	      result = settings->column_separator != NULL;
 	      break;
+#endif
 
+#if OPTION_ENCLOSURE_STRING_MANDATORY
 	    case OPTION_ENCLOSURE_STRING:
 	      result = settings->enclosure_string != NULL;
 	      break;
+#endif
 
+#if OPTION_OUTPUT_FILE_MANDATORY
 	    case OPTION_OUTPUT_FILE:
 	      result = settings->output_file != NULL;
 	      break;
+#endif
 
+#if OPTION_OUTPUT_APPEND_MANDATORY
 	    case OPTION_OUTPUT_APPEND:
 	      break;
+#endif
 
+#if OPTION_NULL_MANDATORY
 	    case OPTION_NULL:
 	      result = settings->null != NULL;
+	      break;
+#endif
+	    default:
 	      break;
 	    }
 
@@ -1040,7 +1128,9 @@ oradumper(const unsigned int nr_arguments,
       FILE *fout = stdout;
       settings_t settings;
 
-      (void) setlocale(LC_ALL, "");
+      /*
+      (void) setlocale(LC_ALL, ""); TBD: document in README because this is a library
+      */
 
       memset(&bind_value, 0, sizeof(bind_value));
       (void) strcpy(bind_value.descriptor_name, "input");
@@ -1068,7 +1158,6 @@ oradumper(const unsigned int nr_arguments,
 		  (void) snprintf(error_msg, error_msg_size, "Could not write to file %s: %s", settings.output_file, strerror(errno));
 		  error = error_msg;
 		}
-	      assert(fout != NULL);
 	      break;
 
 	    case STEP_CONNECT:
@@ -1360,7 +1449,7 @@ oradumper(const unsigned int nr_arguments,
 	case STEP_NLS_LANGUAGE:
 	  /*@fallthrough@*/
 	case STEP_CONNECT:
-	  (void) orasql_cach_free_all();
+	  (void) orasql_cache_free_all();
 	  if (disconnect != 0)
 	    {
 	      (void) orasql_disconnect();
@@ -1393,6 +1482,8 @@ oradumper(const unsigned int nr_arguments,
       FREE(settings.output_file);
       FREE(settings.null);
 
+      assert(bind_value.buf == NULL);
+      /*
       if (bind_value.buf != NULL)
 	{
 	  for (bind_variable_nr = 0;
@@ -1403,6 +1494,7 @@ oradumper(const unsigned int nr_arguments,
 	    }
 	  FREE(bind_value.buf);
 	}
+      */
       if (bind_value.data != NULL)
 	{
 	  for (bind_variable_nr = 0;
