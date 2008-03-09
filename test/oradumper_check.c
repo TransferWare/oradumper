@@ -497,6 +497,38 @@ START_TEST(test_query5)
 }
 END_TEST
 
+START_TEST(test_query6)
+{
+  const char output[] = "query6.lis";
+  char userid[100+1] = "userid=";
+  char output_file[100+1] = "output_file=";
+  const char *options[] = {
+    userid,
+    "fetch_size=1",
+    "nls_date_format=yyyy-mm-dd hh24:mi:ss",
+    "nls_timestamp_format=yyyy-mm-dd hh24:mi:ss.ff",
+    "nls_numeric_characters=.,",
+    dbug_options,
+    "query=select rowid, t.* from oradumper_test t",
+    output_file,
+    "fixed_column_length=0"
+  };
+  char *error;
+
+  (void) sprintf(output_ref, "%s/%s.ref", srcdir, output);
+
+  fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
+
+  (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
+  (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
+
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg), error_msg);
+
+  error = cmp_files(output, output_ref);
+  fail_if(error != NULL, error);
+}
+END_TEST
+
 Suite *
 options_suite(void)
 {
@@ -521,6 +553,7 @@ options_suite(void)
   tcase_add_test(tc_interface, test_query3);
   tcase_add_test(tc_interface, test_query4);
   tcase_add_test(tc_interface, test_query5);
+  tcase_add_test(tc_interface, test_query6);
   suite_add_tcase(s, tc_interface);
 
   return s;
