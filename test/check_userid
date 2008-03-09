@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# check_userid: test asking via stdin for USERID
+
+# set -ue: treat unset variables as an error; exit on error
+set -ue
+
+# use absolute paths instead of relative
+top_builddir=`cd $top_builddir; pwd`
+
+echo ${USERID} | ${top_builddir}/src/prog/oradumper query='select * from dual'

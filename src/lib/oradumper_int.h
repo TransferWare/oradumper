@@ -140,7 +140,7 @@ orasql_connected(void);
 
 extern
 error_t
-orasql_cach_free_all(void);
+orasql_cache_free_all(void);
 
 extern
 error_t
