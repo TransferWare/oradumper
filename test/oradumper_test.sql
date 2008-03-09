@@ -1,9 +1,13 @@
-whenever sqlerror exit success
+whenever sqlerror exit failure
 
 alter session set nls_date_format = 'yyyy-mm-dd hh24:mi:ss';
 alter session set nls_timestamp_format = 'yyyy-mm-dd hh24:mi:ss.FF';
 
+-- table may already exist (with data)
+whenever sqlerror exit success
+
 create table oradumper_test (
+"rowid" ROWID,
 "blob" BLOB,
 "char" CHAR(2000),
 "clob" CLOB,
@@ -15,7 +19,7 @@ create table oradumper_test (
 "interval day(9) to second(6)" INTERVAL DAY(9) TO SECOND(6),
 "nchar" NCHAR(1000),
 "nclob" NCLOB,
-"number" NUMBER,
+"number" NUMBER(10, 3),
 "nvarchar2" NVARCHAR2(2000),
 "raw" RAW(2000),
 "timestamp(3)" TIMESTAMP(3),
@@ -23,6 +27,8 @@ create table oradumper_test (
 "timestamp(6) with time zone" TIMESTAMP(6) WITH TIME ZONE,
 "varchar2" VARCHAR2(4000)
 );
+
+whenever sqlerror exit failure
 
 declare
   l_clob constant clob := to_clob(rpad('0123456789', 8000, '0123456789'));
@@ -62,7 +68,8 @@ begin
   clob2blob(l_clob, l_blob);
   insert into oradumper_test 
   values
-  ( l_blob
+  ( cast('AAAMX3AAEAAAAYfAAA' as rowid) 
+  , l_blob
   , 'abcde'
   , l_clob
   , to_date('2000','yyyy')

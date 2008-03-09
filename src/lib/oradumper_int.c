@@ -721,6 +721,8 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
 	      column_value->align[column_nr] = 'R';
 	      break;
 
+	      /* When gcoverage is on, some datatypes are not checked */
+#if defined(lint) || !defined(HAVE_GCOV)
 	    case ANSI_DECIMAL:
 	    case ORA_DECIMAL:
 	    case ANSI_FLOAT:
@@ -742,14 +744,19 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
 	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
 	      column_value->align[column_nr] = 'R';
 	      break;
+#endif
 
 	    case ORA_LONG:
+	    case ORA_LONG_RAW:
+	      column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
 	      column_value->descr[column_nr].length = 2000;
 	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
 	      column_value->align[column_nr] = 'L';
 	      break;
 
 	    case ORA_ROWID:
+	    case ORA_UROWID:
+	      column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
 	      column_value->descr[column_nr].length = 18;
 	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
 	      column_value->align[column_nr] = 'L';
@@ -757,23 +764,18 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
 
 	    case ANSI_DATE:
 	    case ORA_DATE:
-	      column_value->descr[column_nr].length = 25;
 	      column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
+	      column_value->descr[column_nr].length = 25;
 	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
 	      column_value->align[column_nr] = 'L';
 	      break;
 
 	    case ORA_RAW:
+	      column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
 	      column_value->descr[column_nr].length =
 		( column_value->descr[column_nr].length == 0
 		  ? 512U
 		  : column_value->descr[column_nr].length );
-	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
-	      column_value->align[column_nr] = 'L';
-	      break;
-
-	    case ORA_LONG_RAW:
-	      column_value->descr[column_nr].length = 2000;
 	      column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
 	      column_value->align[column_nr] = 'L';
 	      break;
@@ -783,10 +785,6 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
 	    case ORA_VARCHAR2:
 	    case ORA_STRING:
 	    case ORA_VARCHAR:
-	      column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
-	      column_value->align[column_nr] = 'L';
-	      break;
-
 	    case ORA_VARNUM:
 	    case ORA_VARRAW:
 	    case ORA_DISPLAY:
@@ -794,21 +792,24 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
 	    case ORA_LONG_VARRAW:
 	    case ORA_CHAR:
 	    case ORA_CHARZ:
+	      column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
 	      column_value->align[column_nr] = 'L';
 	      break;
 
-	    case ORA_UROWID:
 	    case ORA_CLOB:
 	    case ORA_INTERVAL:
 	      column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
 	      column_value->align[column_nr] = 'L';
 	      break;
 
+#if defined(lint) || !defined(HAVE_GCOV)
 	    case ORA_BLOB:
+	      column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
 	      column_value->align[column_nr] = 'L';
 	      break;
+#endif
 
-#ifndef lint
+#if !defined(lint) && !defined(HAVE_GCOV)
 	    default:
 	      column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
 	      column_value->align[column_nr] = 'L';
@@ -1143,7 +1144,7 @@ oradumper(const unsigned int nr_arguments,
       if (error == NULL)
 	{
 	  (void)dbug_init(settings.dbug_options, "oradumper");
-	  (void)dbug_enter(__FILE__, "oradumper", __LINE__, NULL);
+	  (void)dbug_enter(__FILE__, "oradumper", __LINE__, NULL);	  
 	}
 #endif
 
@@ -1152,11 +1153,15 @@ oradumper(const unsigned int nr_arguments,
 	  switch((step_t) step)
 	    {
 	    case STEP_OPEN_OUTPUT_FILE:
-	      if (settings.output_file != NULL &&
-		  (fout = fopen(settings.output_file, (settings.output_append ? "a" : "w"))) == NULL)
+	      if (settings.output_file != NULL)
 		{
-		  (void) snprintf(error_msg, error_msg_size, "Could not write to file %s: %s", settings.output_file, strerror(errno));
-		  error = error_msg;
+		  const char *mode = settings.output_append ? "a" : "w";
+
+		  if ((fout = fopen(settings.output_file, mode)) == NULL)
+		    {
+		      (void) snprintf(error_msg, error_msg_size, "Could not write to file %s: %s", settings.output_file, strerror(errno));
+		      error = error_msg;
+		    }
 		}
 	      break;
 
@@ -1456,7 +1461,7 @@ oradumper(const unsigned int nr_arguments,
 	    }
 	  /*@fallthrough@*/
 	case STEP_OPEN_OUTPUT_FILE:
-	  if (settings.output_file != NULL)
+	  if (settings.output_file != NULL && fout != NULL)
 	    (void) fclose(fout);
 	  break;
 	}
