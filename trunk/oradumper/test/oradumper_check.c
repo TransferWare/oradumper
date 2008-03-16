@@ -137,7 +137,7 @@ END_TEST
 
 START_TEST(test_output_file)
 {
-  const char *options[] = { "query=select * from dual", "output_file=/" };
+  const char *options[] = { "query=select * from dual", "output_file=/", "feedback=0" };
 
   DBUG_ENTER("test_output_file");
 
@@ -154,11 +154,12 @@ START_TEST(test_enclosure_string)
   char enclosure_string[100+1];
   int d1, d2, d3;
   const char *options[] = {
-    dbug_options,
+    /*    dbug_options,*/
     "query=select * from dual where 0=1",
     enclosure_string,
     "column_heading=0",
     "output_file=test_enclosure_string",
+    "feedback=0",
     userid
   };
   char *error;
@@ -326,6 +327,7 @@ START_TEST(test_query_sql_error)
   const char *options[] = {
     userid,
     dbug_options,
+    "feedback=0",
     "query=select "
   };
   char *error;
@@ -353,6 +355,7 @@ START_TEST(test_query_data_types)
     dbug_options,
     query,
     output_file,
+    "feedback=0",
     "fixed_column_length=0",
     output_append,
     userid /* userid last so the number of arguments can be decremented forcing no new connect */
@@ -434,7 +437,7 @@ select 2345678901, unistr('YOURSTRING'), to_date('20001231232359', 'yyyymmddhh24
     output_file,
     "fixed_column_length=0",
     "column_separator=,",
-    "feedback=1",
+    "feedback=0",
     "enclosure_string=\\x22", /* " */
     last_option
   };
@@ -472,6 +475,7 @@ START_TEST(test_query2)
     "nls_date_format=yyyy-mm-dd hh24:mi:ss",
     "nls_timestamp_format=yyyy-mm-dd hh24:mi:ss",
     "nls_numeric_characters=.,",
+    "feedback=0",
     dbug_options,
     "query=\
 select to_clob(rpad('0123456789', 8000, '0123456789')) as myclob from dual",
@@ -505,12 +509,13 @@ START_TEST(test_query3)
     "nls_date_format=yyyy-mm-dd hh24:mi:ss",
     "nls_timestamp_format=yyyy-mm-dd hh24:mi:ss",
     "nls_numeric_characters=.,",
+    "feedback=0",
     dbug_options,
     "query=\
 select object_name, object_type from all_objects where owner = 'SYS' and object_type <> 'JAVA CLASS' and rownum <= :b1 order by object_name",
     output_file,
     "fixed_column_length=0",
-    "1000" /* bind variable */
+    "1000" /* bind value */
   };
   char *error;
 
@@ -536,6 +541,7 @@ START_TEST(test_query4)
   const char *options[] = {
     userid,
     "fetch_size=100",
+    "feedback=0",
     "nls_date_format=yyyy-mm-dd hh24:mi:ss",
     "nls_timestamp_format=yyyy-mm-dd hh24:mi:ss",
     "nls_numeric_characters=.,",

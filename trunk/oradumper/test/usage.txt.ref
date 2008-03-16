@@ -13,9 +13,9 @@ Optional parameters:
   nls_date_format                 NLS date format
   nls_timestamp_format            NLS timestamp format
   nls_numeric_characters          NLS numeric characters
-  details                         Print details about input and output values: yes, only or no [default = no]
+  details                         Print details about input and output values (1 = yes) [default = 0]
   record_delimiter                Record delimiter [default = \n]
-  feedback                        Give feedback after every fetch (0 = no feedback) [default = 0]
+  feedback                        Give feedback (0 = no feedback) [default = 1]
   column_heading                  Include column names in first line (1 = yes) [default = 1]
   fixed_column_length             Fixed column length: 0 = yes (fixed), 1 = no (variable) [default = 0]
   enclosure_string                Put around a column when it is variable and it contains the column separator [default = "]

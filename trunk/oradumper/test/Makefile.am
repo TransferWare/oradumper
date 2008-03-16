@@ -26,10 +26,15 @@ CLEANFILES              = *.lis *~ *.log usage.txt $(check_PROGRAMS) `find ${top
 
 if GCOV
 GCOV_TESTS              = check_coverage
-TESTS_ENVIRONMENT       = top_builddir=${top_builddir} top_srcdir=${top_srcdir}
+GCOV_ENVIRONMENT        = top_builddir=${top_builddir} top_srcdir=${top_srcdir}
 else
 GCOV_TESTS              =
+GCOV_ENVIRONMENT        = 
 endif
+
+## Set DBUG_OPTIONS for code coverage
+DBUG_OPTIONS            = d,g,t,o=dbug.log
+TESTS_ENVIRONMENT       = $(GCOV_ENVIRONMENT) DBUG_OPTIONS=$(DBUG_OPTIONS)
 
 TESTS                   = oradumper_test $(check_PROGRAMS) check_userid $(GCOV_TESTS)
 

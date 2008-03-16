@@ -8,4 +8,6 @@ set -ue
 # use absolute paths instead of relative
 top_builddir=`cd $top_builddir; pwd`
 
-echo ${USERID} | ${top_builddir}/src/prog/oradumper query='select * from dual'
+# set feedback and details to 1 for code coverage
+
+echo ${USERID} | ${top_builddir}/src/prog/oradumper query='select * from dual where :b1 = 1' feedback=1 details=1 1
