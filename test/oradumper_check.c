@@ -95,6 +95,67 @@ static char *cmp_files(const char *file1, const char *file2)
   return result[0] == '\0' ? NULL : result;
 }
 
+#ifdef WITH_DMALLOC
+
+static char *min_addr = NULL;
+static size_t max_used = 0;
+static int *used = NULL; /* used[i] == 0 means ptr (i+min_addr) is allocated or not (i>=0 and i<max_used) */
+
+static void dmalloc_track_func(const char *file,
+			       const unsigned int line,
+			       const int func_id,
+			       const DMALLOC_SIZE byte_size,
+			       const DMALLOC_SIZE alignment,
+			       const DMALLOC_PNT old_addr,
+			       const DMALLOC_PNT new_addr)
+{
+  char *this_file = __FILE__;
+
+  if (file != NULL && strcmp(file, &this_file[strlen(this_file) - strlen(file)]) != 0)
+    {
+      dmalloc_message("checking file %s", file);
+
+      switch(func_id)
+	{
+	case DMALLOC_FUNC_MALLOC:
+	case DMALLOC_FUNC_CALLOC:
+	case DMALLOC_FUNC_REALLOC:
+	case DMALLOC_FUNC_RECALLOC:
+	case DMALLOC_FUNC_MEMALIGN:
+	case DMALLOC_FUNC_VALLOC:
+	case DMALLOC_FUNC_STRDUP:
+	  if (min_addr == NULL)
+	    {
+	      min_addr = new_addr;
+	      used = (int*) calloc(max_used = 1000, sizeof(*used));
+	    }
+	  else if ((char*) new_addr - min_addr >= max_used)
+	    {
+	      max_used = ((char*) new_addr - min_addr) + 1;
+	      used = (int*) realloc(used, max_used * sizeof(*used));
+	    }
+	  if (old_addr != NULL && old_addr != new_addr) /* realloc */
+	    {
+	      used[(char *) old_addr - min_addr] = 0;
+	    }
+	  if (new_addr != NULL)
+	    {
+	      used[(char *) new_addr - min_addr] = 1;
+	    }
+	  break;
+
+	case DMALLOC_FUNC_FREE:
+	case DMALLOC_FUNC_CFREE:
+	  if (old_addr != NULL)
+	    {
+	      used[(char *) old_addr - min_addr] = 0;
+	    }
+	  break;
+	}
+    }
+}
+#endif
+
 START_TEST(test_sizes)
 {
   fail_unless(sizeof(value_name_t) > 30, NULL);
@@ -383,6 +444,10 @@ START_TEST(test_query_data_types)
   };
   int nr;
 
+#ifdef WITH_DMALLOC
+  dmalloc_track(dmalloc_track_func);
+#endif
+
   (void) sprintf(output_ref, "%s/%s.ref", srcdir, output);
 
   fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
@@ -405,11 +470,21 @@ START_TEST(test_query_data_types)
 
   (void) strcpy(query, "query=select owner,view_name, text from ALL_VIEWS where view_name='ALL_VIEWS'");
 
+  /* final call */
   fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]) - 1, /* do not supply userid */
 				options,
 				1, /* disconnect */
 				sizeof(error_msg),
 				error_msg), error_msg);
+
+#ifdef WITH_DMALLOC
+  for (nr = 0; nr < max_used; nr++)
+    {
+      fail_if(used != NULL && used[nr] != 0);
+    }
+  free(used);
+  dmalloc_track(NULL);
+#endif
 
   error = cmp_files(output, output_ref);
   fail_if(error != NULL, error);
@@ -509,7 +584,7 @@ START_TEST(test_query3)
     "nls_date_format=yyyy-mm-dd hh24:mi:ss",
     "nls_timestamp_format=yyyy-mm-dd hh24:mi:ss",
     "nls_numeric_characters=.,",
-    "feedback=0",
+    "feedback=1", /* to print the dot after each fetch */
     dbug_options,
     "query=\
 select object_name, object_type from all_objects where owner = 'SYS' and object_type <> 'JAVA CLASS' and rownum <= :b1 order by object_name",

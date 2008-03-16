@@ -34,7 +34,8 @@ endif
 
 ## Set DBUG_OPTIONS for code coverage
 DBUG_OPTIONS            = d,g,t,o=dbug.log
-TESTS_ENVIRONMENT       = $(GCOV_ENVIRONMENT) DBUG_OPTIONS=$(DBUG_OPTIONS)
+DMALLOC_OPTIONS         = debug=0x4000503,log=dmalloc%p.log
+TESTS_ENVIRONMENT       = $(GCOV_ENVIRONMENT) DBUG_OPTIONS=$(DBUG_OPTIONS) DMALLOC_OPTIONS=$(DMALLOC_OPTIONS)
 
 TESTS                   = oradumper_test $(check_PROGRAMS) check_userid $(GCOV_TESTS)
 
