@@ -16,6 +16,7 @@
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 MAINTAINERCLEANFILES    = Makefile.in
+DISTCLEANFILES          = test_enclosure_string
 
 check_PROGRAMS          = oradumper_check
 oradumper_check_SOURCES = oradumper_check.c $(top_srcdir)/src/lib/oradumper.h $(top_srcdir)/src/lib/oradumper_int.h
