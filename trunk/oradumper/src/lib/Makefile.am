@@ -18,6 +18,7 @@
 include $(top_srcdir)/lint.am
 
 MAINTAINERCLEANFILES    = Makefile.in
+DISTCLEANFILES          = oradumper.h oradumper_int.h
 
 AUTOMAKE_OPTIONS        = $(top_builddir)/src/prog/ansi2knr
 
@@ -30,12 +31,12 @@ lib_LTLIBRARIES	        = liboradumper.la
 
 if EXTPROC
 
-liboradumper_la_SOURCES = oradumper.c oradumper_int.c oradumper_extproc.c
+liboradumper_la_SOURCES = oradumper.c oradumper.h oradumper_int.c oradumper_int.h oradumper_extproc.c
 MOSTLYCLEANFILES        = oradumper.c oradumper_extproc.c
 
 else
 
-liboradumper_la_SOURCES = oradumper.c oradumper_int.c
+liboradumper_la_SOURCES = oradumper.c oradumper.h oradumper_int.c oradumper_int.h
 MOSTLYCLEANFILES        = oradumper.c
 
 endif
