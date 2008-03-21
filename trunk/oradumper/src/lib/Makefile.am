@@ -31,15 +31,19 @@ lib_LTLIBRARIES	        = liboradumper.la
 
 if EXTPROC
 
-liboradumper_la_SOURCES = oradumper.c oradumper.h oradumper_int.c oradumper_int.h oradumper_extproc.c
+liboradumper_la_SOURCES = oradumper.pc oradumper.h oradumper_int.c oradumper_int.h oradumper_extproc.pc
 MOSTLYCLEANFILES        = oradumper.c oradumper_extproc.c
 
 else
 
-liboradumper_la_SOURCES = oradumper.c oradumper.h oradumper_int.c oradumper_int.h
+liboradumper_la_SOURCES = oradumper.pc oradumper.h oradumper_int.c oradumper_int.h
 MOSTLYCLEANFILES        = oradumper.c
 
 endif
+
+# Do not forget the PRO*C files
+
+EXTRA_DIST              = oradumper.pc oradumper_extproc.pc
 
 ##
 ## History of interface versions:
@@ -48,8 +52,6 @@ endif
 liboradumper_la_LDFLAGS = -no-undefined -version-info 0:0:0
 #liboradumper_la_LIBADD  = $(top_builddir)/replace/libreplace.la @DBUG_LIBADD@ @EPC_LIBADD@
 liboradumper_la_LIBADD  = $(top_builddir)/replace/libreplace.la @DBUG_LIBADD@
-
-EXTRA_DIST              = 
 
 .pc.c:
 	$(PROC) $(PROCINCLUDES) $(PROCFLAGS) DYNAMIC=ANSI MODE=ANSI INAME=$< ONAME=$@
