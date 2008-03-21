@@ -1,4 +1,4 @@
-#                                               -*- Autoconf -*-
+f#                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
 # Copyright (C) 2008 G.J. Paulissen
@@ -76,8 +76,18 @@ ACX_ENABLE_DBUG
 # Enable PRO*C
 ACX_PROG_PROC
 
-# Enable OCI
-ACX_PROG_OCI
+# Enable building an extproc routine
+
+AC_ARG_ENABLE([extproc],
+[  --enable-extproc        turn on creating an Oracle extproc routine for the oradumper],
+[case "${enableval}" in
+  yes) EXTPROC=true; ACX_PROG_OCI ;;
+   no) EXTPROC=false ;;
+    *) AC_MSG_ERROR(bad value ${enableval} for --enable-extproc) ;;
+esac],
+[EXTPROC=false])
+
+AM_CONDITIONAL([EXTPROC], [test x$EXTPROC = xtrue])
 
 # Enable epc
 ACX_EPC
@@ -106,7 +116,7 @@ fi
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([assert.h check.h ctype.h dbug.h locale.h malloc.h sqlcpr.h stdbool.h stdlib.h string.h strings.h sys/errno.h wchar.h])
+AC_CHECK_HEADERS([assert.h check.h ctype.h dbug.h locale.h malloc.h search.h sqlcpr.h stdbool.h stdlib.h string.h strings.h sys/errno.h wchar.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST

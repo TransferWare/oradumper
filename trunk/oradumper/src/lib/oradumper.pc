@@ -46,7 +46,7 @@
 #include <sqlcpr.h>
 #endif
 
-EXEC SQL INCLUDE "oci.h";
+/*EXEC SQL INCLUDE "oci.h";*/
 
 #if HAVE_DBUG_H
 #include <dbug.h>

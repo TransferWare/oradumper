@@ -9,7 +9,9 @@ typedef int bool;
 #define true 1
 #endif
 
+#ifdef HAVE_OCI_H
 #include <oci.h>
+#endif
 
 typedef enum {
   ANSI_CHARACTER = 1,
@@ -130,9 +132,11 @@ extern
 error_t
 orasql_connect(const char *userid);
 
+#ifdef HAVE_OCI_H
 extern
 error_t
 orasql_register_connect(OCIExtProcContext *ctx);
+#endif
 
 extern
 error_t

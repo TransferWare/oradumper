@@ -54,7 +54,13 @@ void FREE(/*@only@*//*@sef@*/ void *ptr);
 #define FREE(x) do { if ((x) != NULL) free(x); } while (0)
 /*#endif*/
 
+#ifdef  min
+#undef  min
+#endif
 #define min(x, y) ((x) < (y) ? (x) : (y))
+#ifdef  max
+#undef  max
+#endif
 #define max(x, y) ((x) > (y) ? (x) : (y))
 
 typedef /*observer*/ char *data_ptr_t;

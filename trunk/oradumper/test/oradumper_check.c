@@ -9,6 +9,10 @@
 /* should always be there */
 #include <stdio.h>
 
+#if HAVE_SEARCH_H
+#include <search.h>
+#endif
+
 #if HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -95,11 +99,14 @@ static char *cmp_files(const char *file1, const char *file2)
   return result[0] == '\0' ? NULL : result;
 }
 
-#ifdef WITH_DMALLOC
+#if defined(WITH_DMALLOC) && defined(HAVE_SEARCH_H)
 
-static char *min_addr = NULL;
-static size_t max_used = 0;
-static int *used = NULL; /* used[i] == 0 means ptr (i+min_addr) is allocated or not (i>=0 and i<max_used) */
+static void *addr_list = NULL; /* a list of all addresses allocated currently */
+
+static int addr_cmp(const void *addr1, const void *addr2)
+{
+  return (char *) addr1 - (char *) addr2;
+}
 
 static void dmalloc_track_func(const char *file,
 			       const unsigned int line,
@@ -124,23 +131,15 @@ static void dmalloc_track_func(const char *file,
 	case DMALLOC_FUNC_MEMALIGN:
 	case DMALLOC_FUNC_VALLOC:
 	case DMALLOC_FUNC_STRDUP:
-	  if (min_addr == NULL)
-	    {
-	      min_addr = new_addr;
-	      used = (int*) calloc(max_used = 1000, sizeof(*used));
-	    }
-	  else if ((char*) new_addr - min_addr >= max_used)
-	    {
-	      max_used = ((char*) new_addr - min_addr) + 1;
-	      used = (int*) realloc(used, max_used * sizeof(*used));
-	    }
 	  if (old_addr != NULL && old_addr != new_addr) /* realloc */
 	    {
-	      used[(char *) old_addr - min_addr] = 0;
+	      dmalloc_message("deleting pointer %p", old_addr);
+	      (void) tdelete(old_addr, &addr_list, addr_cmp);
 	    }
 	  if (new_addr != NULL)
 	    {
-	      used[(char *) new_addr - min_addr] = 1;
+	      dmalloc_message("adding pointer %p", new_addr);
+	      (void) tsearch(new_addr, &addr_list, addr_cmp);
 	    }
 	  break;
 
@@ -148,7 +147,8 @@ static void dmalloc_track_func(const char *file,
 	case DMALLOC_FUNC_CFREE:
 	  if (old_addr != NULL)
 	    {
-	      used[(char *) old_addr - min_addr] = 0;
+	      dmalloc_message("deleting pointer %p", old_addr);
+	      (void) tdelete(old_addr, &addr_list, addr_cmp);
 	    }
 	  break;
 	}
@@ -444,7 +444,7 @@ START_TEST(test_query_data_types)
   };
   int nr;
 
-#ifdef WITH_DMALLOC
+#if defined(WITH_DMALLOC) && defined(HAVE_SEARCH_H)
   dmalloc_track(dmalloc_track_func);
 #endif
 
@@ -477,12 +477,8 @@ START_TEST(test_query_data_types)
 				sizeof(error_msg),
 				error_msg), error_msg);
 
-#ifdef WITH_DMALLOC
-  for (nr = 0; nr < max_used; nr++)
-    {
-      fail_if(used != NULL && used[nr] != 0);
-    }
-  free(used);
+#if defined(WITH_DMALLOC) && defined(HAVE_SEARCH_H)
+  fail_if(addr_list != NULL);
   dmalloc_track(NULL);
 #endif
 
