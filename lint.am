@@ -4,7 +4,7 @@ LINTFLAGS = -badflag -Dlint -unix-lib
 LINT_c = $(LINT) $(LINTFLAGS) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
         $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 
-lint: $(SOURCES:.c=.ln) $(SOURCES:.l=.ln) $(SOURCES:.y=.ln)
+lint: $(SOURCES:.c=.ln) $(SOURCES:.pc=.ln) $(SOURCES:.l=.ln) $(SOURCES:.y=.ln)
 
 .c.ln:
 	$(LINT_c) $<

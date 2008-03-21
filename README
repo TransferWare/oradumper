@@ -5,24 +5,43 @@ statements to a flat file.  For more information see
 www.sourceforge.net/projects/transferware.
 
 ORADUMPER itself consists of the library, liboradumper.la, an oradumper
-program and the headers installed.
+program and the headers installed. 
+
+Besides this an Oracle external procedure can be built upon the library
+when the configure option --enable-extproc has been specified. See
+src/sql/README for details.
 
 This package depends on the package DBUG (see
 www.sourceforge.net/projects/transferware). This should be installed
 into the same lib and bin directories as ORADUMPER (e.g. use the same
 prefix when installing).
 
+QUALITY CHECKS
+==============
+ORADUMPER can be checked using the check library
+(http://check.sourceforge.net). Currently this does not work for Windows
+(Cygwin). 
+
+The following may be tested depending on configure options:
+- full code coverage using the GNU code coverage program gcov
+- memory leaks or corruption using dmalloc (only for the oradumper library, but not the Oracle libraries)
+- lint checking in src/lib using splint (http://www.splint.org)
+
+The following configure command enables code coverage and checking memory:
+
+$ configure --enable-gcov --with-dmalloc
+
 VERSIONS
 ========
-
-The following combinations will work:
+The following combinations are known to work:
 
 ORADUMPER     DBUG
 ---------     ----
-1.0.0	      4.0.0
+>= 1.0.0      >= 4.0.0
 
 DOCUMENTATION
 =============
+Run the oradumper program without arguments to get help.
 
 INSTALLATION
 ============
@@ -30,10 +49,18 @@ Installation using the GNU build tools is described in INSTALL.
 
 Windows specific
 ================
-For Windows platforms the Cygwin suite can be used. There is one caveat:
-the libraries should not depend on the Cygwin DLL, but on the Microsoft
-run-time DLLs instead. See the file BUGS in the DBUG distribution for
-more information.
+For Windows platforms the Cygwin suite with GCC and the MinGW extension
+can be used. There is one caveat: the libraries should not depend on the
+Cygwin DLL, but on the Microsoft run-time DLLs instead. See the file
+BUGS in the DBUG distribution for more information.
+
+The configure script will try to set the environment correctly. In case
+that fails the following configure command may be tried (provided dbug
+is installed into /cygdrive/c/usr/local):
+
+./configure CPPFLAGS="-I/cygdrive/c/usr/local/include" \
+LDFLAGS="-L/cygdrive/c/usr/local/lib" \
+CC="gcc -mno-cygwin" --prefix=/cygdrive/c/usr/local
 
 Local Variables:
 fill-column: 72
