@@ -18,24 +18,29 @@
 MAINTAINERCLEANFILES    = Makefile.in
 
 check_PROGRAMS          = oradumper_check
-oradumper_check_SOURCES = oradumper_check.c $(top_srcdir)/src/oradumper.h $(top_srcdir)/src/oradumper_int.h
+oradumper_check_SOURCES = oradumper_check.c $(top_srcdir)/src/lib/oradumper.h $(top_srcdir)/src/lib/oradumper_int.h
 AM_CPPFLAGS             = @CHECK_CFLAGS@
 oradumper_check_LDADD   = $(top_builddir)/src/lib/liboradumper.la @CHECK_LIBS@ @DBUG_LDADD@
 
 CLEANFILES              = *.lis *~ *.log usage.txt $(check_PROGRAMS) `find ${top_builddir}/src \( -name '*.gcda' -o -name '*.gcov' \) -delete`
 
 if GCOV
+
 GCOV_TESTS              = check_coverage
-GCOV_ENVIRONMENT        = top_builddir=${top_builddir} top_srcdir=${top_srcdir}
+
 else
+
 GCOV_TESTS              =
-GCOV_ENVIRONMENT        = 
+
 endif
 
 ## Set DBUG_OPTIONS for code coverage
 DBUG_OPTIONS            = d,g,t,o=dbug.log
 DMALLOC_OPTIONS         = debug=0x4000503,log=dmalloc%p.log
-TESTS_ENVIRONMENT       = $(GCOV_ENVIRONMENT) DBUG_OPTIONS=$(DBUG_OPTIONS) DMALLOC_OPTIONS=$(DMALLOC_OPTIONS)
+TESTS_ENVIRONMENT       = top_builddir=${top_builddir} top_srcdir=${top_srcdir} DBUG_OPTIONS=$(DBUG_OPTIONS) DMALLOC_OPTIONS=$(DMALLOC_OPTIONS)
 
 TESTS                   = oradumper_test $(check_PROGRAMS) check_userid $(GCOV_TESTS)
 
+EXTRA_DIST              = check_coverage check_userid oradumper_test oradumper_test.sql \
+                          query1.lis.ref query2.lis.ref query3.lis.ref query4.lis.ref \
+                          query_data_types.lis.ref usage.txt.ref

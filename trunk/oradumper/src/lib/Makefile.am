@@ -24,6 +24,7 @@ AUTOMAKE_OPTIONS        = $(top_builddir)/src/prog/ansi2knr
 AM_CPPFLAGS             = @DBUG_CPPFLAGS@ -I$(srcdir)
 
 noinst_HEADERS          = oradumper_int.h
+include_HEADERS         = oradumper.h
 
 lib_LTLIBRARIES	        = liboradumper.la
 
