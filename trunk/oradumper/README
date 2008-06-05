@@ -7,7 +7,7 @@ www.sourceforge.net/projects/transferware.
 ORADUMPER itself consists of the library, liboradumper.la, an oradumper
 program and the headers installed. 
 
-Besides this an Oracle external procedure can be built upon the library
+Besides this, an Oracle external procedure can be built upon the library
 when the configure option --enable-extproc has been specified. See
 src/sql/README for details.
 
@@ -23,9 +23,10 @@ ORADUMPER can be checked using the check library
 (Cygwin). 
 
 The following may be tested depending on configure options:
-- full code coverage using the GNU code coverage program gcov
-- memory leaks or corruption using dmalloc (only for the oradumper library, but not the Oracle libraries)
-- lint checking in src/lib using splint (http://www.splint.org)
+- full code coverage using the GNU code coverage program gcov.
+- memory leaks or corruption using dmalloc (only for the oradumper
+  library, but not the Oracle libraries).
+- lint checking in src/lib using splint (http://www.splint.org).
 
 The following configure command enables code coverage and checking memory:
 

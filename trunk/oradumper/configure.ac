@@ -116,7 +116,7 @@ fi
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([assert.h check.h ctype.h dbug.h locale.h malloc.h search.h sqlcpr.h stdbool.h stdlib.h string.h strings.h sys/errno.h wchar.h])
+AC_CHECK_HEADERS([assert.h check.h ctype.h dbug.h iconv.h locale.h malloc.h search.h sqlcpr.h stdbool.h stdlib.h string.h strings.h sys/errno.h wchar.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
