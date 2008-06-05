@@ -2,4 +2,4 @@
 
 Wishlist
 
-* test suite
+* internally use wide characters instead of bytes
