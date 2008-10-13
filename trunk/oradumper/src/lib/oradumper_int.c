@@ -134,7 +134,7 @@ static const struct {
 #define OPTION_FEEDBACK_MANDATORY false
 #define OPTION_COLUMN_HEADING_MANDATORY false
 #define OPTION_FIXED_COLUMN_LENGTH_MANDATORY false
-#define OPTION_COLUMN_SEPARATOR_MANDATORY true
+#define OPTION_COLUMN_SEPARATOR_MANDATORY false
 #define OPTION_ENCLOSURE_STRING_MANDATORY false
 #define OPTION_OUTPUT_FILE_MANDATORY false
 #define OPTION_OUTPUT_APPEND_MANDATORY false
@@ -153,8 +153,8 @@ static const struct {
   { "feedback", OPTION_FEEDBACK_MANDATORY, "Give feedback (0 = no feedback)", "1" },
   { "column_heading", OPTION_COLUMN_HEADING_MANDATORY, "Include column names in first line (1 = yes)", "1" },
   { "fixed_column_length", OPTION_FIXED_COLUMN_LENGTH_MANDATORY, "Fixed column length: 1 = yes (fixed), 0 = no (variable)", "0" },
-  { "column_separator", OPTION_COLUMN_SEPARATOR_MANDATORY, "The column separator", NULL },
-  { "enclosure_string", OPTION_ENCLOSURE_STRING_MANDATORY, "Put around a column when it is variable and it contains the column separator", "\"" },
+  { "column_separator", OPTION_COLUMN_SEPARATOR_MANDATORY, "The column separator", "," },
+  { "enclosure_string", OPTION_ENCLOSURE_STRING_MANDATORY, "Put around a column when it has a variable length and contains the column separator", "\"" },
   { "output_file", OPTION_OUTPUT_FILE_MANDATORY, "The output file", NULL },
   { "output_append", OPTION_OUTPUT_APPEND_MANDATORY, "Append to the output file (1 = yes)?", "0" },
   { "null", OPTION_NULL_MANDATORY, "Value to print for NULL values", NULL },
