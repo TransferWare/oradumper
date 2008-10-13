@@ -152,7 +152,7 @@ static const struct {
   { "record_delimiter", OPTION_RECORD_DELIMITER_MANDATORY, "Record delimiter", "\\n" }, /* LF */
   { "feedback", OPTION_FEEDBACK_MANDATORY, "Give feedback (0 = no feedback)", "1" },
   { "column_heading", OPTION_COLUMN_HEADING_MANDATORY, "Include column names in first line (1 = yes)", "1" },
-  { "fixed_column_length", OPTION_FIXED_COLUMN_LENGTH_MANDATORY, "Fixed column length: 0 = yes (fixed), 1 = no (variable)", "0" },
+  { "fixed_column_length", OPTION_FIXED_COLUMN_LENGTH_MANDATORY, "Fixed column length: 1 = yes (fixed), 0 = no (variable)", "0" },
   { "column_separator", OPTION_COLUMN_SEPARATOR_MANDATORY, "The column separator", NULL },
   { "enclosure_string", OPTION_ENCLOSURE_STRING_MANDATORY, "Put around a column when it is variable and it contains the column separator", "\"" },
   { "output_file", OPTION_OUTPUT_FILE_MANDATORY, "The output file", NULL },

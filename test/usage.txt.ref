@@ -17,7 +17,7 @@ Optional parameters:
   record_delimiter                Record delimiter [default = \n]
   feedback                        Give feedback (0 = no feedback) [default = 1]
   column_heading                  Include column names in first line (1 = yes) [default = 1]
-  fixed_column_length             Fixed column length: 0 = yes (fixed), 1 = no (variable) [default = 0]
+  fixed_column_length             Fixed column length: 1 = yes (fixed), 0 = no (variable) [default = 0]
   enclosure_string                Put around a column when it is variable and it contains the column separator [default = "]
   output_file                     The output file
   output_append                   Append to the output file (1 = yes)? [default = 0]
