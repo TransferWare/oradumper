@@ -3,7 +3,6 @@ Usage: oradumper [PARAMETER=VALUE]... [BIND VALUE]...
 
 Mandatory parameters:
   query                           Select statement
-  column_separator                The column separator
 
 Optional parameters:
   userid                          Oracle connect string
@@ -18,7 +17,8 @@ Optional parameters:
   feedback                        Give feedback (0 = no feedback) [default = 1]
   column_heading                  Include column names in first line (1 = yes) [default = 1]
   fixed_column_length             Fixed column length: 1 = yes (fixed), 0 = no (variable) [default = 0]
-  enclosure_string                Put around a column when it is variable and it contains the column separator [default = "]
+  column_separator                The column separator [default = ,]
+  enclosure_string                Put around a column when it has a variable length and contains the column separator [default = "]
   output_file                     The output file
   output_append                   Append to the output file (1 = yes)? [default = 0]
   null                            Value to print for NULL values
