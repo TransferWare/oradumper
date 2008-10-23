@@ -18,7 +18,7 @@ Some examples:
 
 4) Run oradumper.sql to create the Oracle oradumper procedure.
 
-5) Test it using 
+5) Test it using test.sql.
 
 SECURITY
 ========
