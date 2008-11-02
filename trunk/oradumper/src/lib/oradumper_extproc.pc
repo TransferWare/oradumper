@@ -101,7 +101,7 @@ EXEC SQL END DECLARE SECTION;
   return sqlca.sqlcode;
 }
 
-void oradumper_extproc(OCIExtProcContext *ctx, OCIColl *coll, short coll_ind)
+void oradumper_extproc(OCIExtProcContext *ctx, OCIColl *coll, short coll_ind, unsigned int *row_count)
 {
   const int disconnect = 0;
   char error_msg[1000+1];
@@ -185,7 +185,8 @@ void oradumper_extproc(OCIExtProcContext *ctx, OCIColl *coll, short coll_ind)
 			  (const char **) arguments,
 			  disconnect,
 			  sizeof(error_msg),
-			  error_msg);
+			  error_msg,
+			  row_count);
 	}
       else
 	{

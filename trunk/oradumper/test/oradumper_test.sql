@@ -72,7 +72,7 @@ begin
   , l_blob
   , 'abcde'
   , l_clob
-  , to_date('2000','yyyy')
+  , to_date('2000-12-31 23:59:59','yyyy-mm-dd hh24:mi:ss')
   , 100.12345
   , (l_end_date - l_start_date) day(3) to second(0)
   , (l_end_date - l_start_date) day(3) to second(2)
