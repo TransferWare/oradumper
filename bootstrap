@@ -30,10 +30,17 @@ test -L config/acoracle.m4 || ln -s ${EPC_HOME:=`pwd`/../epc}/config/acoracle.m4
 test -L config/epc.m4 || ln -s ${EPC_HOME:=`pwd`/../epc}/config/epc.m4 config
 
 set -e
+inc_dir=""
 for d in /usr/share/aclocal /usr/local/share/aclocal /cygdrive/c/usr/local/share/aclocal
 do
   test ! -f $d/check.m4 || { inc_dir=$d; break; }
 done
+
+if [ -z "$inc_dir" ]
+then
+  echo "Please install autoconf check (http://check.sourceforge.net)" 1>&2 
+  exit 1
+fi 
 
 aclocal -I $inc_dir -I config
 libtoolize --force --copy

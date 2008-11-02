@@ -78,6 +78,7 @@ typedef enum {
   OPTION_NLS_LANGUAGE,
   OPTION_NLS_DATE_FORMAT,
   OPTION_NLS_TIMESTAMP_FORMAT,
+  OPTION_NLS_TIMESTAMP_TZ_FORMAT,
   OPTION_NLS_NUMERIC_CHARACTERS,
   OPTION_DETAILS,
   OPTION_RECORD_DELIMITER,
@@ -99,6 +100,7 @@ typedef struct {
   /*@null@*/ /*@only@*/ char *nls_language;
   /*@null@*/ /*@only@*/ char *nls_date_format;
   /*@null@*/ /*@only@*/ char *nls_timestamp_format;
+  /*@null@*/ /*@only@*/ char *nls_timestamp_tz_format;
   /*@null@*/ /*@only@*/ char *nls_numeric_characters;
   bool details;
   /*@only@*/ char *record_delimiter;
@@ -128,6 +130,7 @@ static const struct {
 #define OPTION_NLS_LANGUAGE_MANDATORY false
 #define OPTION_NLS_DATE_FORMAT_MANDATORY false
 #define OPTION_NLS_TIMESTAMP_FORMAT_MANDATORY false
+#define OPTION_NLS_TIMESTAMP_TZ_FORMAT_MANDATORY false
 #define OPTION_NLS_NUMERIC_CHARACTERS_MANDATORY false
 #define OPTION_DETAILS_MANDATORY false
 #define OPTION_RECORD_DELIMITER_MANDATORY false
@@ -147,6 +150,7 @@ static const struct {
   { "nls_language", OPTION_NLS_LANGUAGE_MANDATORY, "NLS language", NULL },
   { "nls_date_format", OPTION_NLS_DATE_FORMAT_MANDATORY, "NLS date format", NULL },
   { "nls_timestamp_format", OPTION_NLS_TIMESTAMP_FORMAT_MANDATORY, "NLS timestamp format", NULL },
+  { "nls_timestamp_tz_format", OPTION_NLS_TIMESTAMP_TZ_FORMAT_MANDATORY, "NLS timestamp timezone format", NULL },
   { "nls_numeric_characters", OPTION_NLS_NUMERIC_CHARACTERS_MANDATORY, "NLS numeric characters", NULL },
   { "details", OPTION_DETAILS_MANDATORY, "Print details about input and output values (1 = yes)", "0" },
   { "record_delimiter", OPTION_RECORD_DELIMITER_MANDATORY, "Record delimiter", "\\n" }, /* LF */
@@ -202,7 +206,8 @@ convert2ascii(const size_t error_msg_size, char *error_msg, char *str)
   size_t src, dst;
   char *error = NULL;
   int n, count;
-  unsigned int ch;
+  unsigned int ch1;
+  int ch2;
   const size_t len = strlen(str);
 
   /* DBUG is only activated here after options have been parsed */
@@ -242,15 +247,15 @@ convert2ascii(const size_t error_msg_size, char *error_msg, char *str)
 	    case '5':
 	    case '6':
 	    case '7': /* begin of an octal character */
-	      n = sscanf(&str[src], "%3o%n", &ch, &count);
+	      n = sscanf(&str[src], "%3o%n", &ch1, &count);
 	      assert(n == 1);
-	      str[dst] = (char) ch;
+	      str[dst] = (char) ch1;
 	      src += count - 1; /* src is incremented each loop */
 	      break;
 	      
 	    case 'x':
 	    case 'X': /* begin of a hexadecimal character */
-	      n = sscanf(&str[++src], "%2x%n", &ch, &count); /* skip the x/X */
+	      n = sscanf(&str[++src], "%2x%n", &ch2, &count); /* skip the x/X */
 	      if (n != 1) /* %n is not counted */
 		{
 		  (void) snprintf(error_msg, error_msg_size, "Could not convert %s to a hexadecimal number. Scanned items: %d; input count: %d", &str[src], n, count);
@@ -258,7 +263,7 @@ convert2ascii(const size_t error_msg_size, char *error_msg, char *str)
 		}
 	      else
 		{
-		  str[dst] = (char) ch;
+		  str[dst] = (char) ch2;
 		  src += count - 1; /* src is incremented each loop */
 		}
 	      break;
@@ -354,6 +359,11 @@ set_option(const option_t option,
     case OPTION_NLS_TIMESTAMP_FORMAT:
       FREE(settings->nls_timestamp_format);
       settings->nls_timestamp_format = strdup(value);
+      break;
+
+    case OPTION_NLS_TIMESTAMP_TZ_FORMAT:
+      FREE(settings->nls_timestamp_tz_format);
+      settings->nls_timestamp_tz_format = strdup(value);
       break;
 
     case OPTION_NLS_NUMERIC_CHARACTERS:
@@ -558,6 +568,12 @@ oradumper_process_arguments(const unsigned int nr_arguments,
 	      break;
 #endif
 		  
+#if OPTION_NLS_TIMESTAMP_TZ_FORMAT_MANDATORY
+	    case OPTION_NLS_TIMESTAMP_TZ_FORMAT:
+	      result = settings->nls_timestamp_tz_format != NULL;
+	      break;
+#endif
+		  
 #if OPTION_NLS_NUMERIC_CHARACTERS_MANDATORY
 	    case OPTION_NLS_NUMERIC_CHARACTERS:
 	      result = settings->nls_numeric_characters != NULL;
@@ -671,29 +687,29 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
 
       column_value->descr =
 	(value_description_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->descr));
-      assert(column_value->descr != NULL);
+      assert(column_value->value_count == 0 || column_value->descr != NULL);
 
       column_value->size =
 	(orasql_size_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->size));
-      assert(column_value->size != NULL);
+      assert(column_value->value_count == 0 || column_value->size != NULL);
 
       column_value->display_size =
 	(orasql_size_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->display_size));
-      assert(column_value->display_size != NULL);
+      assert(column_value->value_count == 0 || column_value->display_size != NULL);
 
       column_value->align =
 	(char *) calloc((size_t) column_value->value_count, sizeof(*column_value->align));
-      assert(column_value->align != NULL);
+      assert(column_value->value_count == 0 || column_value->align != NULL);
 
       column_value->buf =
 	(byte_ptr_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->buf));
-      assert(column_value->buf != NULL);
+      assert(column_value->value_count == 0 || column_value->buf != NULL);
 
       column_value->data = (value_data_ptr_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->data));
-      assert(column_value->data != NULL);
+      assert(column_value->value_count == 0 || column_value->data != NULL);
 
       column_value->ind = (short_ptr_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->ind));
-      assert(column_value->ind != NULL);
+      assert(column_value->value_count == 0 || column_value->ind != NULL);
 
       for (column_nr = 0;
 	   column_nr < column_value->value_count;
@@ -1103,7 +1119,8 @@ oradumper(const unsigned int nr_arguments,
 	  const char **arguments,
 	  const int disconnect,
 	  const size_t error_msg_size,
-	  char *error_msg)
+	  char *error_msg,
+	  unsigned int *row_count)
 {
   /*@observer@*/ /*@null@*/ char *error = NULL;
 
@@ -1120,6 +1137,7 @@ oradumper(const unsigned int nr_arguments,
 	STEP_NLS_LANGUAGE,
 	STEP_NLS_DATE_FORMAT,
 	STEP_NLS_TIMESTAMP_FORMAT,
+	STEP_NLS_TIMESTAMP_TZ_FORMAT,
 	STEP_NLS_NUMERIC_CHARACTERS,
 	STEP_ALLOCATE_DESCRIPTOR_IN,
 	STEP_ALLOCATE_DESCRIPTOR_OUT,
@@ -1138,13 +1156,13 @@ oradumper(const unsigned int nr_arguments,
       char nls_language_stmt[NLS_MAX_SIZE+1];
       char nls_date_format_stmt[NLS_MAX_SIZE+1];
       char nls_timestamp_format_stmt[NLS_MAX_SIZE+1];
+      char nls_timestamp_tz_format_stmt[NLS_MAX_SIZE+1];
       char nls_numeric_characters_stmt[NLS_MAX_SIZE+1];
       unsigned int total_fetch_size = 0;
       value_info_t bind_value = { 0, 0, "", NULL, NULL, NULL, NULL, NULL, NULL, NULL };
       unsigned int bind_value_nr;
       value_info_t column_value = { 0, 0, "", NULL, NULL, NULL, NULL, NULL, NULL, NULL };
       unsigned int column_nr;
-      unsigned int row_count;
       FILE *fout = stdout;
       settings_t settings;
 
@@ -1252,6 +1270,18 @@ oradumper(const unsigned int nr_arguments,
 	      sqlcode = orasql_execute_immediate(nls_timestamp_format_stmt);
 	      break;
 
+	    case STEP_NLS_TIMESTAMP_TZ_FORMAT:
+	      if (settings.nls_timestamp_tz_format == NULL)
+		break;
+
+	      (void) snprintf(nls_timestamp_tz_format_stmt,
+			      sizeof(nls_timestamp_tz_format_stmt),
+			      "ALTER SESSION SET NLS_TIMESTAMP_TZ_FORMAT = '%s'",
+			      settings.nls_timestamp_tz_format);
+
+	      sqlcode = orasql_execute_immediate(nls_timestamp_tz_format_stmt);
+	      break;
+
 	    case STEP_NLS_NUMERIC_CHARACTERS:
 	      if (settings.nls_numeric_characters == NULL)
 		break;
@@ -1303,7 +1333,7 @@ oradumper(const unsigned int nr_arguments,
 
 	      bind_value.descr =
 		(value_description_t *) calloc((size_t) bind_value.value_count, sizeof(bind_value.descr[0]));
-	      assert(bind_value.descr != NULL);
+	      assert(bind_value.value_count == 0 || bind_value.descr != NULL);
 
 	      /* bind_value.data[x][y] will point to an argument, hence no allocation is necessary */
 	      bind_value.size = NULL;
@@ -1317,10 +1347,10 @@ oradumper(const unsigned int nr_arguments,
 
 	      bind_value.data =
 		(value_data_t **) calloc((size_t) bind_value.value_count, sizeof(bind_value.data[0]));
-	      assert(bind_value.data != NULL);
+	      assert(bind_value.value_count == 0 || bind_value.data != NULL);
 	      bind_value.ind =
 		(short_ptr_t *) calloc((size_t) bind_value.value_count, sizeof(bind_value.ind[0]));
-	      assert(bind_value.ind != NULL);
+	      assert(bind_value.value_count == 0 || bind_value.ind != NULL);
 
 	      for (bind_value_nr = 0;
 		   bind_value_nr < bind_value.value_count;
@@ -1413,41 +1443,41 @@ oradumper(const unsigned int nr_arguments,
 	      DBUG_PRINT("info", ("Dumping column_value.ind (%p)", column_value.ind));
 	      DBUG_DUMP("info", column_value.ind, (unsigned int)(column_value.value_count * sizeof(*column_value.ind)));
 #endif
-	      row_count = 0;
+	      *row_count = 0;
 
 	      do
 		{
-		  sqlcode = orasql_fetch_rows(column_value.descriptor_name, column_value.array_count, &row_count);
+		  sqlcode = orasql_fetch_rows(column_value.descriptor_name, column_value.array_count, row_count);
 
-		  DBUG_PRINT("info", ("sqlcode: %d; rows fetched: %u", sqlcode, row_count));
+		  DBUG_PRINT("info", ("sqlcode: %d; rows fetched: %u", sqlcode, *row_count));
 
 		  if (sqlcode != OK
 #ifdef HAVE_GCOV
-		      || row_count == 0
+		      || *row_count == 0
 #endif
 		      )
 		    break;
 
 
-		  total_fetch_size += min(row_count, settings.fetch_size);
+		  total_fetch_size += min(*row_count, settings.fetch_size);
 		  /*@-nullstate@*/
-		  print_data(&settings, min(row_count, settings.fetch_size), total_fetch_size, &column_value, fout);
+		  print_data(&settings, min(*row_count, settings.fetch_size), total_fetch_size, &column_value, fout);
 		  /*@=nullstate@*/
 		}
-	      /* row_count < settings.fetch_size means nothing more to fetch */
+	      /* *row_count < settings.fetch_size means nothing more to fetch */
 	      while (sqlcode == OK 
 		     /* orasql_fetch_rows() must be called when no data is found to get full code coverage in oradumper.pc */
 #ifndef HAVE_GCOV
-		     && row_count == settings.fetch_size
+		     && *row_count == settings.fetch_size
 #endif
 		     );
 
-	      if ((sqlcode = orasql_rows_processed(&row_count)) != OK)
+	      if ((sqlcode = orasql_rows_processed(row_count)) != OK)
 		break;
 	  
 	      if (settings.feedback)
 		{
-		  (void) fprintf(stderr, "\n%u row(s) processed.\n", row_count);
+		  (void) fprintf(stderr, "\n%u row(s) processed.\n", *row_count);
 		}
 
 	      break;
@@ -1490,6 +1520,8 @@ oradumper(const unsigned int nr_arguments,
 	  /*@fallthrough@*/
 	case STEP_NLS_NUMERIC_CHARACTERS:
 	  /*@fallthrough@*/
+	case STEP_NLS_TIMESTAMP_TZ_FORMAT:
+	  /*@fallthrough@*/
 	case STEP_NLS_TIMESTAMP_FORMAT:
 	  /*@fallthrough@*/
 	case STEP_NLS_DATE_FORMAT:
@@ -1523,6 +1555,7 @@ oradumper(const unsigned int nr_arguments,
       FREE(settings.nls_language);
       FREE(settings.nls_date_format);
       FREE(settings.nls_timestamp_format);
+      FREE(settings.nls_timestamp_tz_format);
       FREE(settings.nls_numeric_characters);
       FREE(settings.record_delimiter);
       FREE(settings.column_separator);

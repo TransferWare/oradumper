@@ -28,7 +28,11 @@
 #include "../src/lib/oradumper.h"
 #include "../src/lib/oradumper_int.h"
 
+#if defined(DBUG_OFF) && DBUG_OFF == 0
+#undef  DBUG_OFF
+#else
 #define DBUG_OFF 1
+#endif
 
 #if HAVE_DBUG_H
 #include <dbug.h>
@@ -45,6 +49,7 @@
 
 static char dbug_options[1000+1] = "dbug_options=";
 static char error_msg[1000+1] = "";
+static unsigned int row_count;
 static char *srcdir; /* environment variable set by automake */
 static char output_ref[FILENAME_MAX];
 
@@ -158,8 +163,10 @@ static void dmalloc_track_func(const char *file,
 
 START_TEST(test_sizes)
 {
+  DBUG_ENTER("test_sizes");
   fail_unless(sizeof(value_name_t) > 30, NULL);
   fail_unless(sizeof(character_set_name_t) > 20, NULL);
+  DBUG_LEAVE();
 }
 END_TEST
 
@@ -183,12 +190,12 @@ START_TEST(test_usage)
   fail_if(error != NULL, error);
 
   /* should display usage but no error */
-  error = oradumper(0, options, 0, sizeof(error_msg), error_msg);
+  error = oradumper(0, options, 0, sizeof(error_msg), error_msg, &row_count);
 
   fail_if(NULL != error, NULL);
 
   /* should display error */
-  error = oradumper(1, options, 0, sizeof(error_msg), error_msg);
+  error = oradumper(1, options, 0, sizeof(error_msg), error_msg, &row_count);
 
   fail_if(NULL == error, NULL);
 
@@ -203,7 +210,7 @@ START_TEST(test_output_file)
   DBUG_ENTER("test_output_file");
 
   /* should display usage but no error */
-  fail_if(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg), NULL);
+  fail_if(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count), NULL);
 
   DBUG_LEAVE();
 }
@@ -247,7 +254,7 @@ START_TEST(test_enclosure_string)
 	case '\\': /* OK */
 	case 'c': /* FAIL */
 	  sprintf(enclosure_string, "enclosure_string=\\%ca", d1);
-	  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg);
+	  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count);
 	  strcpy(userid, ""); /* no reconnect */
 	  cond = ((error != NULL) == (d1 == 'c'));
 	  DBUG_PRINT("info", ("error: %p; d1: %c; cond: %d", error, d1, cond));
@@ -266,7 +273,7 @@ START_TEST(test_enclosure_string)
 	{
 	case '\0':
 	  sprintf(enclosure_string, "enclosure_string=\\x10\\x");
-	  fail_if(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg), "invalid hexadecimal string");
+	  fail_if(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count), "invalid hexadecimal string");
 	  break;
 
 	case '0':
@@ -283,7 +290,7 @@ START_TEST(test_enclosure_string)
 		{
 		case '\0':
 		  sprintf(enclosure_string, "enclosure_string=\\x%c\\x10", d1);
-		  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg);
+		  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count);
 		  /* if there is no error d1 must not be g or G */
 		  cond = ((error != NULL) == (d1 == 'g' || d1 == 'G'));
 		  DBUG_PRINT("info", ("error: %p; d1: %c; cond: %d", error, d1, cond));
@@ -299,7 +306,7 @@ START_TEST(test_enclosure_string)
 		case 'g':
 		case 'G':
 		  sprintf(enclosure_string, "enclosure_string=\\x%c%c", d1, d2);
-		  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg);
+		  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count);
 		  /* \x9G is converted to 9G */
 		  cond = ((error != NULL) == (d1 == 'g' || d1 == 'G'));
 		  DBUG_PRINT("info", ("error: %p; d1: %c; d2: %c; cond: %d", error, d1, d2, cond));
@@ -327,7 +334,7 @@ START_TEST(test_enclosure_string)
 	case '7': /* OK */
 	case '8': /* FAIL */
 	  sprintf(enclosure_string, "enclosure_string=\\%ca", d1);
-	  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg);
+	  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count);
 	  cond = ((error != NULL) == (d1 == '8'));
 	  DBUG_PRINT("info", ("error: %p; d1: %c; cond: %d", error, d1, cond));
 	  fail_unless(cond, "1 octal digit");
@@ -340,7 +347,7 @@ START_TEST(test_enclosure_string)
 		case '7': /* OK */
 		case '8': /* FAIL */
 		  sprintf(enclosure_string, "enclosure_string=\\%c%ca", d1, d2);
-		  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg);
+		  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count);
 		  /* \78 is converted to 78 */
 		  cond = ((error != NULL) == (d1 == '8'));
 		  DBUG_PRINT("info", ("error: %p; d1: %c; d2: %c; cond: %d", error, d1, d2, cond));
@@ -354,7 +361,7 @@ START_TEST(test_enclosure_string)
 			case '7': /* OK */
 			case '8': /* FAIL */
 			  sprintf(enclosure_string, "enclosure_string=\\%c%c%c", d1, d2, d3);
-			  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg);
+			  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count);
 			  /* \078 is converted to 78 */
 			  cond = ((error != NULL) == (d1 == '8'));
 			  DBUG_PRINT("info", ("error: %p; d1: %c; d2: %c; d3: %c; cond: %d", error, d1, d2, d3, cond));
@@ -393,11 +400,15 @@ START_TEST(test_query_sql_error)
   };
   char *error;
 
+  DBUG_ENTER("test_query_sql_error");
+
   fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
 
   (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
 
-  fail_unless(NULL != oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg), error_msg);
+  fail_unless(NULL != oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
+
+  DBUG_LEAVE();
 }
 END_TEST
 
@@ -412,6 +423,7 @@ START_TEST(test_query_data_types)
     "fetch_size=1",
     "nls_date_format=yyyy-mm-dd hh24:mi:ss",
     "nls_timestamp_format=yyyy-mm-dd hh24:mi:ss.ff",
+    "nls_timestamp_tz_format=yyyy-mm-dd hh24:mi:ss.ff tzh:tzm",
     "nls_numeric_characters=.,",
     dbug_options,
     query,
@@ -444,26 +456,54 @@ START_TEST(test_query_data_types)
   };
   int nr;
 
+  DBUG_ENTER("test_query_data_types");
+
 #if defined(WITH_DMALLOC) && defined(HAVE_SEARCH_H)
   dmalloc_track(dmalloc_track_func);
 #endif
 
   (void) sprintf(output_ref, "%s/%s.ref", srcdir, output);
 
-  fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
+  DBUG_PRINT("info", ("output_ref: %s", output_ref));
+
+  DBUG_PRINT("info", ("USERID: %p", getenv("USERID")));
+
+  if (getenv("USERID") == NULL)
+    {
+      fail("Environment variable USERID should be set");
+    }
 
   (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
   (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
+
+  DBUG_PRINT("info", ("output_file: %s", output_file));
 
   for (nr = 0; nr < sizeof(columns)/sizeof(columns[0]); nr++)
     {
       (void) sprintf(query, "query=select %s from oradumper_test", columns[nr]);
 
-      fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]) - (nr > 0 ? 1 : 0), /* supply userid first time */
-				    options,
-				    0,
-				    sizeof(error_msg),
-				    error_msg), error_msg);
+      {
+	int i;
+	const int nr_options = sizeof(options)/sizeof(options[0]) - (nr > 0 ? 1 : 0);
+
+	DBUG_PRINT("info", ("nr_options: %d", nr_options));
+
+	for (i = 0; i < nr_options; i++)
+	  {
+	    DBUG_PRINT("info", ("options[%d]: %s", i, options[i]));
+	  }
+      }
+
+      error = oradumper(sizeof(options)/sizeof(options[0]) - (nr > 0 ? 1 : 0), /* supply userid first time */
+			options,
+			0,
+			sizeof(error_msg),
+			error_msg,
+			&row_count);
+
+      DBUG_PRINT("info", ("error: %s", (error != NULL ? error : "none")));
+
+      fail_unless(NULL == error, error_msg);
 
       (void) strcpy(output_append, "output_append=1");
     }
@@ -475,7 +515,8 @@ START_TEST(test_query_data_types)
 				options,
 				1, /* disconnect */
 				sizeof(error_msg),
-				error_msg), error_msg);
+				error_msg,
+				&row_count), error_msg);
 
 #if defined(WITH_DMALLOC) && defined(HAVE_SEARCH_H)
   fail_if(addr_list != NULL);
@@ -484,6 +525,8 @@ START_TEST(test_query_data_types)
 
   error = cmp_files(output, output_ref);
   fail_if(error != NULL, error);
+
+  DBUG_LEAVE();
 }
 END_TEST
 
@@ -514,6 +557,8 @@ select 2345678901, unistr('YOURSTRING'), to_date('20001231232359', 'yyyymmddhh24
   };
   char *error;
 
+  DBUG_ENTER("test_query1");
+
   (void) sprintf(output_ref, "%s/%s.ref", srcdir, output);
 
   fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
@@ -521,17 +566,19 @@ select 2345678901, unistr('YOURSTRING'), to_date('20001231232359', 'yyyymmddhh24
   (void) strncat(last_option, getenv("USERID"), sizeof(last_option) - strlen(last_option));
   (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
 
-  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg), error_msg);
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count), error_msg);
   /* skip connect, but append */
   strcpy(last_option, "output_append=1");
   fetch_size[strlen(fetch_size)-1] = '2';
-  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg), error_msg);
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count), error_msg);
   /* disconnect */
   fetch_size[strlen(fetch_size)-1] = '3';
-  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg), error_msg);
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
 
   error = cmp_files(output, output_ref);
   fail_if(error != NULL, error);
+
+  DBUG_LEAVE();
 }
 END_TEST
 
@@ -555,6 +602,8 @@ select to_clob(rpad('0123456789', 8000, '0123456789')) as myclob from dual",
   };
   char *error;
 
+  DBUG_ENTER("test_query2");
+
   (void) sprintf(output_ref, "%s/%s.ref", srcdir, output);
 
   fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
@@ -562,10 +611,12 @@ select to_clob(rpad('0123456789', 8000, '0123456789')) as myclob from dual",
   (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
   (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
 
-  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg), error_msg);
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
 
   error = cmp_files(output, output_ref);
   fail_if(error != NULL, error);
+
+  DBUG_LEAVE();
 }
 END_TEST
 
@@ -583,12 +634,14 @@ START_TEST(test_query3)
     "feedback=1", /* to print the dot after each fetch */
     dbug_options,
     "query=\
-select object_name, object_type from all_objects where owner = 'SYS' and object_type <> 'JAVA CLASS' and rownum <= :b1 order by object_name",
+select object_name, object_type from all_objects where owner = 'SYS' and object_name like 'UTL\\_%' escape '\\' and object_type='PACKAGE' and rownum <= :b1 order by object_name",
     output_file,
     "fixed_column_length=0",
-    "1000" /* bind value */
+    "10" /* bind value */
   };
   char *error;
+
+  DBUG_ENTER("test_query3");
 
   (void) sprintf(output_ref, "%s/%s.ref", srcdir, output);
 
@@ -597,10 +650,12 @@ select object_name, object_type from all_objects where owner = 'SYS' and object_
   (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
   (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
 
-  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg), error_msg);
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
 
   error = cmp_files(output, output_ref);
   fail_if(error != NULL, error);
+
+  DBUG_LEAVE();
 }
 END_TEST
 
@@ -629,6 +684,8 @@ select 12, unistr('abc\\00e5\\00f1\\00f6'), null from dual",
   };
   char *error;
 
+  DBUG_ENTER("test_query4");
+
   (void) sprintf(output_ref, "%s/%s.ref", srcdir, output);
 
   fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
@@ -636,10 +693,12 @@ select 12, unistr('abc\\00e5\\00f1\\00f6'), null from dual",
   (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
   (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
 
-  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg), error_msg);
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
 
   error = cmp_files(output, output_ref);
   fail_if(error != NULL, error);
+
+  DBUG_LEAVE();
 }
 END_TEST
 

@@ -3,7 +3,7 @@ AAAMX3AAEAAAAYfAAA
 char
 abcde                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 date
-2000-03-01 00:00:00
+2000-12-31 23:59:59
 float
 100.12345
 number
@@ -13,7 +13,7 @@ timestamp(3)
 timestamp(6)
 2004-08-08 19:10:12.23500
 timestamp(6) with time zone
-08-08-04 17:02:32.212000 
+2004-08-08 17:02:32.21200
 varchar2
 dhgdsh
 clob

@@ -19,6 +19,7 @@ int main( int argc, char **argv )
 {
   const int disconnect = 1;
   char error_msg[1000+1];
+  unsigned int row_count;
 
 #ifdef WITH_DMALLOC
   atexit(dmalloc_shutdown);
@@ -28,7 +29,8 @@ int main( int argc, char **argv )
 			(const char **)(argv + 1),
 			disconnect,
 			sizeof(error_msg),
-			error_msg))
+			error_msg,
+			&row_count))
     {
       (void) fprintf(stderr, "\nERROR: %s\n", error_msg);
       return EXIT_FAILURE;
