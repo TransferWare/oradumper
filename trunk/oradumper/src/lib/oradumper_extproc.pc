@@ -81,6 +81,7 @@ LINT_FLAGS_PROC_END;
 
 typedef /*@null@*/ /*@only@*/ char *char_ptr_t;
 
+static
 error_t
 orasql_register_connect(ctx)
 EXEC SQL BEGIN DECLARE SECTION;

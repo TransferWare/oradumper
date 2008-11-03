@@ -22,7 +22,7 @@ int main( int argc, char **argv )
   unsigned int row_count;
 
 #ifdef WITH_DMALLOC
-  atexit(dmalloc_shutdown);
+  (void) atexit(dmalloc_shutdown);
 #endif
 
   if (NULL != oradumper((unsigned int)(argc - 1),
