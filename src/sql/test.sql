@@ -30,15 +30,26 @@ REMARK
 REMARK  Notes:		See the oradumper.sql for creating the procedure.
 REMARK
 
+variable row_count number
+
 PROMPT Dump all user objects to file &&path/user_objects1.lis
-execute oradumper(sys.odcivarchar2list('query=select * from user_objects', 'output_file=&&path/user_objects1.lis'))
+execute oradumper(sys.odcivarchar2list('query=select * from user_objects', 'output_file=&&path/user_objects1.lis'), :row_count)
+
+print
 
 PROMPT A query is mandatory
-execute oradumper(sys.odcivarchar2list('dbug_options="d,g,t,o=&&path/dbug.log"'))
+execute oradumper(sys.odcivarchar2list('dbug_options="d,g,t,o=&&path/dbug.log"'), :row_count)
+
+print
 
 PROMPT An invalid query raises an exception
-execute oradumper(sys.odcivarchar2list('query=xxx', 'dbug_options="d,g,t,o=&&path/dbug.log"'))
+execute oradumper(sys.odcivarchar2list('query=xxx', 'dbug_options="d,g,t,o=&&path/dbug.log"'), :row_count)
+
+print
 
 PROMPT Empty arguments are skipped
 PROMPT Dump all user objects to file &&path/user_objects2.lis
-execute oradumper(sys.odcivarchar2list(NULL, 'query=select * from user_objects', 'output_file=&&path/user_objects2.lis'))
+execute oradumper(sys.odcivarchar2list(NULL, 'query=select * from user_objects', 'output_file=&&path/user_objects2.lis'), :row_count)
+
+print
+

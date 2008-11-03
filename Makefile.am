@@ -22,3 +22,9 @@ MAINTAINERCLEANFILES 	= Makefile.in aclocal.m4 configure config-h.in \
 EXTRA_DIST              = lint.am
 
 CLEANFILES              = `find . \( -name '*.gcov' -o -name '*.gcda' -o -name '*.gcno' -o -name '*.lis' \)`
+
+lintdirs		= $(top_builddir)/src
+
+lint:
+	@echo Making $@ in $(lintdirs)
+	@for d in $(lintdirs); do (cd $$d && make $@); done

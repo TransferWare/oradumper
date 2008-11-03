@@ -324,6 +324,10 @@ set_option(const option_t option,
 	   /*@partial@*/ settings_t *settings)
 {
   char *error = NULL;
+  
+  /*
+  DBUG_PRINT("info", ("set_option(%d, %p, %d, %p, ...)", (int) option, value, (int)error_msg_size, error_msg));
+  */
 
   switch(option)
     {
@@ -339,6 +343,10 @@ set_option(const option_t option,
 
     case OPTION_FETCH_SIZE:
       settings->fetch_size = (unsigned int) atoi(value);
+      if (settings->fetch_size == 0)
+	{
+	  settings->fetch_size = 1;
+	}
       break;
 
     case OPTION_DBUG_OPTIONS:
@@ -478,7 +486,13 @@ oradumper_process_arguments(const unsigned int nr_arguments,
     {
       if (opt[j].def != NULL)
 	{
+	  /*
+	    DBUG_PRINT("info", ("opt[%d].def: '%s'", (int) j, opt[j].def));
+	  */
 	  error = set_option((option_t) j, opt[j].def, error_msg_size, error_msg, settings);
+	  /*
+	    DBUG_PRINT("info", ("error: %p", error));
+	  */
 	}
     }
 
@@ -685,36 +699,52 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
       FREE(column_value->data);
       FREE(column_value->ind);
 
-      column_value->descr =
-	(value_description_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->descr));
+      if (column_value->value_count == 0)
+	{
+	  column_value->descr = NULL;
+	  column_value->size = NULL;
+	  column_value->display_size = NULL;
+	  column_value->align = NULL;
+	  column_value->buf = NULL;
+	  column_value->data = NULL;
+	  column_value->ind = NULL;
+	}
+      else
+	{
+	  column_value->descr =
+	    (value_description_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->descr));
+	  column_value->size =
+	    (orasql_size_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->size));
+	  column_value->display_size =
+	    (orasql_size_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->display_size));
+	  column_value->align =
+	    (char *) calloc((size_t) column_value->value_count, sizeof(*column_value->align));
+	  column_value->buf =
+	    (byte_ptr_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->buf));
+	  column_value->data = (value_data_ptr_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->data));
+	  column_value->ind = (short_ptr_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->ind));
+	}
+
       assert(column_value->value_count == 0 || column_value->descr != NULL);
-
-      column_value->size =
-	(orasql_size_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->size));
       assert(column_value->value_count == 0 || column_value->size != NULL);
-
-      column_value->display_size =
-	(orasql_size_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->display_size));
       assert(column_value->value_count == 0 || column_value->display_size != NULL);
-
-      column_value->align =
-	(char *) calloc((size_t) column_value->value_count, sizeof(*column_value->align));
       assert(column_value->value_count == 0 || column_value->align != NULL);
-
-      column_value->buf =
-	(byte_ptr_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->buf));
       assert(column_value->value_count == 0 || column_value->buf != NULL);
-
-      column_value->data = (value_data_ptr_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->data));
       assert(column_value->value_count == 0 || column_value->data != NULL);
-
-      column_value->ind = (short_ptr_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->ind));
       assert(column_value->value_count == 0 || column_value->ind != NULL);
 
       for (column_nr = 0;
 	   column_nr < column_value->value_count;
 	   column_nr++)
 	{
+	  assert(column_value->descr != NULL);
+	  assert(column_value->align != NULL);
+	  assert(column_value->size != NULL);
+	  assert(column_value->data != NULL);
+	  assert(column_value->buf != NULL);
+	  assert(column_value->ind != NULL);
+	  assert(column_value->display_size != NULL);
+
 	  if ((status = orasql_value_get(column_value->descriptor_name,
 					 column_nr + 1,
 					 &column_value->descr[column_nr])) != OK)
@@ -868,7 +898,11 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
 		);
 
 	  /* column_value->data[column_nr][array_nr] points to memory in column_value->buf[column_nr] */
-	  column_value->buf[column_nr] = (byte_ptr_t) calloc((size_t) settings->fetch_size, (size_t) column_value->size[column_nr]);
+	  assert(settings->fetch_size > 0);
+	  assert(column_value->size[column_nr] > 0);
+	  column_value->buf[column_nr] =
+	    (byte_ptr_t) calloc((size_t) settings->fetch_size,
+				(size_t) column_value->size[column_nr]);
 	  assert(column_value->buf[column_nr] != NULL);
 
 	  column_value->data[column_nr] =
@@ -897,7 +931,8 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
 		     (column_value->data[column_nr][array_nr] - column_value->data[column_nr][array_nr-1]) == (int)column_value->size[column_nr]);
 	    }
 
-	  column_value->ind[column_nr] = (short *) calloc((size_t) settings->fetch_size, sizeof(**column_value->ind));
+	  column_value->ind[column_nr] =
+	    (short *) calloc((size_t) settings->fetch_size, sizeof(**column_value->ind));
 	  assert(column_value->ind[column_nr] != NULL);
 
 #ifdef DBUG_MEMORY
@@ -1124,6 +1159,8 @@ oradumper(const unsigned int nr_arguments,
 {
   /*@observer@*/ /*@null@*/ char *error = NULL;
 
+  *row_count = 0;
+
   if (nr_arguments == 0)
     {
       oradumper_usage(stderr);
@@ -1331,9 +1368,24 @@ oradumper(const unsigned int nr_arguments,
 	      FREE(bind_value.data);
 	      FREE(bind_value.ind);
 
-	      bind_value.descr =
-		(value_description_t *) calloc((size_t) bind_value.value_count, sizeof(bind_value.descr[0]));
+	      if (bind_value.value_count == 0)
+		{
+		  bind_value.descr = NULL;
+		  bind_value.data = NULL;
+		  bind_value.ind = NULL;
+		}
+	      else
+		{
+		  bind_value.descr =
+		    (value_description_t *) calloc((size_t) bind_value.value_count, sizeof(bind_value.descr[0]));
+		  bind_value.data =
+		    (value_data_t **) calloc((size_t) bind_value.value_count, sizeof(bind_value.data[0]));
+		  bind_value.ind =
+		    (short_ptr_t *) calloc((size_t) bind_value.value_count, sizeof(bind_value.ind[0]));
+		}
 	      assert(bind_value.value_count == 0 || bind_value.descr != NULL);
+	      assert(bind_value.value_count == 0 || bind_value.data != NULL);
+	      assert(bind_value.value_count == 0 || bind_value.ind != NULL);
 
 	      /* bind_value.data[x][y] will point to an argument, hence no allocation is necessary */
 	      bind_value.size = NULL;
@@ -1345,17 +1397,13 @@ oradumper(const unsigned int nr_arguments,
 	      bind_value.buf = NULL;
 	      assert(bind_value.buf == NULL);
 
-	      bind_value.data =
-		(value_data_t **) calloc((size_t) bind_value.value_count, sizeof(bind_value.data[0]));
-	      assert(bind_value.value_count == 0 || bind_value.data != NULL);
-	      bind_value.ind =
-		(short_ptr_t *) calloc((size_t) bind_value.value_count, sizeof(bind_value.ind[0]));
-	      assert(bind_value.value_count == 0 || bind_value.ind != NULL);
-
 	      for (bind_value_nr = 0;
 		   bind_value_nr < bind_value.value_count;
 		   bind_value_nr++)
 		{
+		  assert(bind_value.descr != NULL);
+		  assert(bind_value.data != NULL);
+		  assert(bind_value.ind != NULL);
 		  /* get the bind variable name */
 		  if ((sqlcode = orasql_value_get(bind_value.descriptor_name,
 						  bind_value_nr + 1,
@@ -1374,6 +1422,8 @@ oradumper(const unsigned int nr_arguments,
 				     bind_value.descr[bind_value_nr].scale,
 				     bind_value.descr[bind_value_nr].character_set_name);
 		    }
+
+		  assert(bind_value.array_count > 0);
 
 		  bind_value.data[bind_value_nr] =
 		    (value_data_ptr_t) calloc((size_t) bind_value.array_count,
@@ -1443,8 +1493,6 @@ oradumper(const unsigned int nr_arguments,
 	      DBUG_PRINT("info", ("Dumping column_value.ind (%p)", column_value.ind));
 	      DBUG_DUMP("info", column_value.ind, (unsigned int)(column_value.value_count * sizeof(*column_value.ind)));
 #endif
-	      *row_count = 0;
-
 	      do
 		{
 		  sqlcode = orasql_fetch_rows(column_value.descriptor_name, column_value.array_count, row_count);

@@ -418,7 +418,7 @@ START_TEST(test_query_data_types)
   char userid[100+1] = "userid=";
   char output_file[100+1] = "output_file=";
   char output_append[] = "output_append=0";
-  char query[100+1];
+  char query[1000+1];
   const char *options[] = {
     "fetch_size=1",
     "nls_date_format=yyyy-mm-dd hh24:mi:ss",
@@ -428,7 +428,7 @@ START_TEST(test_query_data_types)
     dbug_options,
     query,
     output_file,
-    "feedback=0",
+    "feedback=1",
     "fixed_column_length=0",
     output_append,
     userid /* userid last so the number of arguments can be decremented forcing no new connect */

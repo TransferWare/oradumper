@@ -31,14 +31,14 @@ REMARK  Notes:		See the admin.sql for creating the library oradumper_library.
 REMARK
 
 create or replace 
-procedure oradumper(coll in sys.odcivarchar2list, row_count out natural)
+procedure oradumper(coll in sys.odcivarchar2list, row_count out pls_integer)
 as
 language C name "oradumper_extproc" library oradumper_library
 with context parameters
 ( CONTEXT,
   coll OCIColl,
   coll INDICATOR short,
-  row_count unsigned integer
+  row_count unsigned int
 );
 /
 
