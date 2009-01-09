@@ -36,9 +36,9 @@ VERSIONS
 ========
 The following combinations are known to work:
 
-ORADUMPER     DBUG
----------     ----
->= 1.0.0      >= 4.0.0
+ORADUMPER     DBUG	   CHECK
+---------     ----	   -----
+>= 1.0.0      >= 4.0.0	   >= 0.9.5
 
 DOCUMENTATION
 =============
@@ -62,6 +62,19 @@ is installed into /cygdrive/c/usr/local):
 ./configure CPPFLAGS="-I/cygdrive/c/usr/local/include" \
 LDFLAGS="-L/cygdrive/c/usr/local/lib" \
 CC="gcc -mno-cygwin" --prefix=/cygdrive/c/usr/local
+
+AIX specific
+============
+When on AIX the xlc compiler is used, pthreads must be added to the
+compiler and linkers flags. So when dbug has been installed with prefix
+$HOME this is the command to configure oradumper.
+
+./configure --prefix=$HOME \
+CC="cc -qlanglvl=extc89 -pthreads" \
+CPPFLAGS="-I$HOME/include" \
+LDFLAGS="-L$HOME/lib -L$ORACLE_HOME/lib32" \
+LIBS="-ln10 -lpthreads"
+
 
 Local Variables:
 fill-column: 72

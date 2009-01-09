@@ -31,10 +31,8 @@ test -L config/epc.m4 || ln -s ${EPC_HOME:=`pwd`/../epc}/config/epc.m4 config
 
 set -e
 inc_dir=""
-for d in /usr/share/aclocal /usr/local/share/aclocal /cygdrive/c/usr/local/share/aclocal
-do
-  test ! -f $d/check.m4 || { inc_dir=$d; break; }
-done
+check_m4=`find $HOME /cygdrive/c/usr/local /usr/local /usr -name check.m4 2>/dev/null | head -1`
+inc_dir=`dirname $check_m4`
 
 if [ -z "$inc_dir" ]
 then
