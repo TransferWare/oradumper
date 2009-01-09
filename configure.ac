@@ -19,7 +19,7 @@ f#                                               -*- Autoconf -*-
 
 AC_PREREQ(2.59)
 AC_REVISION([$Revision: 1292 $])
-AC_INIT([oradumper],[1.0.0],[g.paulissen@chello.nl])
+AC_INIT([oradumper],[1.0.1],[g.paulissen@chello.nl])
 
 # version check
 if test -f "$srcdir/VERSION"
@@ -36,6 +36,7 @@ then
 fi
 
 # Use same configuration file as EPC
+AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([config])
 AH_BOTTOM(
 [#ifndef HAVE_STRDUP
@@ -59,9 +60,9 @@ esac
 AM_INIT_AUTOMAKE
 AM_C_PROTOTYPES
 AM_WITH_DMALLOC
-m4_pattern_allow([^AM_PATH_CHECK$])
-AM_PATH_CHECK
-# PKG_CHECK_MODULES([CHECK], [check >= 0.9.4)])
+# m4_pattern_allow([^AM_PATH_CHECK$])
+AM_PATH_CHECK([0.9.4])
+# PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
 
 # Checks for programs.
 # AM_PROG_CC_C_O
