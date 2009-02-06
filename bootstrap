@@ -43,7 +43,7 @@ test -L config/acoracle.m4 || ln -s ${EPC_HOME:=`pwd`/../epc}/config/acoracle.m4
 test -L config/epc.m4 || ln -s ${EPC_HOME:=`pwd`/../epc}/config/epc.m4 config
 
 # Use check.m4 from sourceforge
-ln -s ${inc_dir}/check.m4 config
+test -L config/check.m4 || ln -s ${inc_dir}/check.m4 config
 
 aclocal -I $inc_dir -I config
 libtoolize --force --copy
