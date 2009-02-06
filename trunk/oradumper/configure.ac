@@ -68,14 +68,20 @@ AM_PATH_CHECK([0.9.4])
 # AM_PROG_CC_C_O
 AC_PROG_CC
 AM_PROG_CC_STDC
-AC_LIBTOOL_WIN32_DLL
-AC_PROG_LIBTOOL
 
 # Enable dbug
 ACX_ENABLE_DBUG
 
 # Enable PRO*C
 ACX_PROG_PROC
+
+#
+# The checks for LIBTOOL must be placed after ACX_PROG_PROC, since
+# that macro changes LDFLAGS and LIBS which affects the libtool settings
+# on AIX.
+#
+AC_LIBTOOL_WIN32_DLL
+AC_PROG_LIBTOOL
 
 # Enable building an extproc routine
 

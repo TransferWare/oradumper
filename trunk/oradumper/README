@@ -20,7 +20,9 @@ QUALITY CHECKS
 ==============
 ORADUMPER can be checked using the check library
 (http://check.sourceforge.net). Currently this does not work for Windows
-(Cygwin). 
+(Cygwin) because the check library is compiled against the Cygwin
+run-time DLL and not against the Windows run-time DLL's 
+(GCC compiler flag -mno-cygwin).
 
 The following may be tested depending on configure options:
 - full code coverage using the GNU code coverage program gcov.
@@ -66,13 +68,12 @@ CC="gcc -mno-cygwin" --prefix=/cygdrive/c/usr/local
 AIX specific
 ============
 When on AIX the xlc compiler is used, pthreads must be added to the
-compiler and linkers flags. And the Oracle 32 bit libraries must be
-used. So when dbug has been installed with prefix $HOME this is the
-command to configure oradumper:
+compiler and linkers flags. So when dbug has been installed with prefix
+$HOME this is the command to configure oradumper:
 
-../configure --prefix=$HOME \
+./configure --prefix=$HOME \
 CPPFLAGS="-pthreads -I$HOME/include" \
-LDFLAGS="-L$HOME/lib -L$ORACLE_HOME/lib32" \
+LDFLAGS="-L$HOME/lib" \
 LIBS="-lpthreads"
 
 Local Variables:
