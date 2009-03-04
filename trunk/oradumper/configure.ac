@@ -36,7 +36,7 @@ then
 fi
 
 # Use same configuration file as EPC
-AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_MACRO_DIR([config])
 AC_CONFIG_AUX_DIR([config])
 AH_BOTTOM(
 [#ifndef HAVE_STRDUP
