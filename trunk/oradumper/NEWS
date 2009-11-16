@@ -6,6 +6,17 @@ See the end for copying conditions.
 Please send ORADUMPER bug reports to g.paulissen@chello.nl.
 
 
+Release 1.1.0
+
+* row count output argument added to oradumper procedure.
+* Added nls_timestamp_tz_format parameter.
+* testing enhanced.
+* INSTALL enhanced.
+* src/sql/README enhanced.
+* added make lint functionality.
+
+
+
 Release 1.0.1
 
 * check.m4 is searched for in $HOME or its subdirectories too.

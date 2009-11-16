@@ -19,7 +19,7 @@ f#                                               -*- Autoconf -*-
 
 AC_PREREQ(2.59)
 AC_REVISION([$Revision: 1292 $])
-AC_INIT([oradumper],[1.0.1],[g.paulissen@chello.nl])
+AC_INIT([oradumper],[1.1.0],[g.paulissen@chello.nl])
 
 # version check
 if test -f "$srcdir/VERSION"
