@@ -12,6 +12,7 @@ Release 1.1.0
 * Added nls_timestamp_tz_format parameter.
 * testing enhanced.
 * INSTALL enhanced.
+* README includes hints for AIX compilation.
 * src/sql/README enhanced.
 * added make lint functionality.
 
