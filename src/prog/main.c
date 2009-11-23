@@ -8,6 +8,12 @@
 #include <stdlib.h>
 #endif
 
+#if HAVE_LOCALE_H
+#include <locale.h>
+#else
+#define setlocale(/*@sef@*/x, /*@sef@*/y)
+#endif
+
 /* include dmalloc as last one */
 #ifdef WITH_DMALLOC
 #include <dmalloc.h>
@@ -25,12 +31,15 @@ int main( int argc, char **argv )
   (void) atexit(dmalloc_shutdown);
 #endif
 
+  /* setup support for UTF-8 */
+  (void) setlocale(LC_ALL, "");
+
   if (NULL != oradumper((unsigned int)(argc - 1),
-			(const char **)(argv + 1),
-			disconnect,
-			sizeof(error_msg),
-			error_msg,
-			&row_count))
+                        (const char **)(argv + 1),
+                        disconnect,
+                        sizeof(error_msg),
+                        error_msg,
+                        &row_count))
     {
       (void) fprintf(stderr, "\nERROR: %s\n", error_msg);
       return EXIT_FAILURE;
