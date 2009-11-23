@@ -8,11 +8,11 @@ Optional parameters:
   userid                          Oracle connect string
   fetch_size                      Array size [default = 10]
   dbug_options                    DBUG options [default = ]
-  nls_language                    NLS language
-  nls_date_format                 NLS date format
-  nls_timestamp_format            NLS timestamp format
-  nls_timestamp_tz_format         NLS timestamp timezone format
-  nls_numeric_characters          NLS numeric characters
+  nls_lang                        Set NLS_LANG environment variable
+  nls_date_format                 Set NLS date format
+  nls_timestamp_format            Set NLS timestamp format
+  nls_timestamp_tz_format         Set NLS timestamp timezone format
+  nls_numeric_characters          Set NLS numeric characters
   details                         Print details about input and output values (1 = yes) [default = 0]
   record_delimiter                Record delimiter [default = \n]
   feedback                        Give feedback (0 = no feedback) [default = 1]
