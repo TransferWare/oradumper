@@ -72,19 +72,19 @@ static char *cmp_files(const char *file1, const char *file2)
   else
     {
       for (nr = 1; ; nr++)
-	{
-	  ch1 = fgetc(fin1);
-	  ch2 = fgetc(fin2);
+        {
+          ch1 = fgetc(fin1);
+          ch2 = fgetc(fin2);
 
-	  if (ch1 == EOF || ch2 == EOF)
-	    {
-	      break;
-	    }
-	  else if (ch1 != ch2)
-	    {
-	      break;
-	    }
-	}
+          if (ch1 == EOF || ch2 == EOF)
+            {
+              break;
+            }
+          else if (ch1 != ch2)
+            {
+              break;
+            }
+        }
     }
   
   if (fin1 != NULL)
@@ -114,12 +114,12 @@ static int addr_cmp(const void *addr1, const void *addr2)
 }
 
 static void dmalloc_track_func(const char *file,
-			       const unsigned int line,
-			       const int func_id,
-			       const DMALLOC_SIZE byte_size,
-			       const DMALLOC_SIZE alignment,
-			       const DMALLOC_PNT old_addr,
-			       const DMALLOC_PNT new_addr)
+                               const unsigned int line,
+                               const int func_id,
+                               const DMALLOC_SIZE byte_size,
+                               const DMALLOC_SIZE alignment,
+                               const DMALLOC_PNT old_addr,
+                               const DMALLOC_PNT new_addr)
 {
   char *this_file = __FILE__;
 
@@ -128,35 +128,35 @@ static void dmalloc_track_func(const char *file,
       dmalloc_message("checking file %s", file);
 
       switch(func_id)
-	{
-	case DMALLOC_FUNC_MALLOC:
-	case DMALLOC_FUNC_CALLOC:
-	case DMALLOC_FUNC_REALLOC:
-	case DMALLOC_FUNC_RECALLOC:
-	case DMALLOC_FUNC_MEMALIGN:
-	case DMALLOC_FUNC_VALLOC:
-	case DMALLOC_FUNC_STRDUP:
-	  if (old_addr != NULL && old_addr != new_addr) /* realloc */
-	    {
-	      dmalloc_message("deleting pointer %p", old_addr);
-	      (void) tdelete(old_addr, &addr_list, addr_cmp);
-	    }
-	  if (new_addr != NULL)
-	    {
-	      dmalloc_message("adding pointer %p", new_addr);
-	      (void) tsearch(new_addr, &addr_list, addr_cmp);
-	    }
-	  break;
+        {
+        case DMALLOC_FUNC_MALLOC:
+        case DMALLOC_FUNC_CALLOC:
+        case DMALLOC_FUNC_REALLOC:
+        case DMALLOC_FUNC_RECALLOC:
+        case DMALLOC_FUNC_MEMALIGN:
+        case DMALLOC_FUNC_VALLOC:
+        case DMALLOC_FUNC_STRDUP:
+          if (old_addr != NULL && old_addr != new_addr) /* realloc */
+            {
+              dmalloc_message("deleting pointer %p", old_addr);
+              (void) tdelete(old_addr, &addr_list, addr_cmp);
+            }
+          if (new_addr != NULL)
+            {
+              dmalloc_message("adding pointer %p", new_addr);
+              (void) tsearch(new_addr, &addr_list, addr_cmp);
+            }
+          break;
 
-	case DMALLOC_FUNC_FREE:
-	case DMALLOC_FUNC_CFREE:
-	  if (old_addr != NULL)
-	    {
-	      dmalloc_message("deleting pointer %p", old_addr);
-	      (void) tdelete(old_addr, &addr_list, addr_cmp);
-	    }
-	  break;
-	}
+        case DMALLOC_FUNC_FREE:
+        case DMALLOC_FUNC_CFREE:
+          if (old_addr != NULL)
+            {
+              dmalloc_message("deleting pointer %p", old_addr);
+              (void) tdelete(old_addr, &addr_list, addr_cmp);
+            }
+          break;
+        }
     }
 }
 #endif
@@ -243,146 +243,146 @@ START_TEST(test_enclosure_string)
   for (d1 = 0; d1 < 128; d1++)
     {
       switch ((char) d1)
-	{
-	case 'a':
-	case 'b':
-	case 'f':
-	case 'n':
-	case 'r':
-	case 't':
-	case 'v':
-	case '\\': /* OK */
-	case 'c': /* FAIL */
-	  sprintf(enclosure_string, "enclosure_string=\\%ca", d1);
-	  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count);
-	  strcpy(userid, ""); /* no reconnect */
-	  cond = ((error != NULL) == (d1 == 'c'));
-	  DBUG_PRINT("info", ("error: %p; d1: %c; cond: %d", error, d1, cond));
-	  fail_unless(cond, "1 escape character");
-	  break;
+        {
+        case 'a':
+        case 'b':
+        case 'f':
+        case 'n':
+        case 'r':
+        case 't':
+        case 'v':
+        case '\\': /* OK */
+        case 'c': /* FAIL */
+          sprintf(enclosure_string, "enclosure_string=\\%ca", d1);
+          error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count);
+          strcpy(userid, ""); /* no reconnect */
+          cond = ((error != NULL) == (d1 == 'c'));
+          DBUG_PRINT("info", ("error: %p; d1: %c; cond: %d", error, d1, cond));
+          fail_unless(cond, "1 escape character");
+          break;
 
-	default:
-	  break;
-	}
+        default:
+          break;
+        }
     }
 
   /* test hexadecimal strings */
   for (d1 = 0; d1 < 128; d1++) /* test hexadecimal boundaries: '\0' (fail), 0, 9, a, f, g (fail) */
     {
       switch ((char) d1)
-	{
-	case '\0':
-	  sprintf(enclosure_string, "enclosure_string=\\x10\\x");
-	  fail_if(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count), "invalid hexadecimal string");
-	  break;
+        {
+        case '\0':
+          sprintf(enclosure_string, "enclosure_string=\\x10\\x");
+          fail_if(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count), "invalid hexadecimal string");
+          break;
 
-	case '0':
-	case '9':
-	case 'a':
-	case 'A':
-	case 'f':
-	case 'F':
-	case 'g':
-	case 'G':
-	  for (d2 = 0; d2 < 128; d2++)
-	    {
-	      switch ((char) d2)
-		{
-		case '\0':
-		  sprintf(enclosure_string, "enclosure_string=\\x%c\\x10", d1);
-		  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count);
-		  /* if there is no error d1 must not be g or G */
-		  cond = ((error != NULL) == (d1 == 'g' || d1 == 'G'));
-		  DBUG_PRINT("info", ("error: %p; d1: %c; cond: %d", error, d1, cond));
-		  fail_unless(cond, "1 hexadecimal digit");
-		  break;
+        case '0':
+        case '9':
+        case 'a':
+        case 'A':
+        case 'f':
+        case 'F':
+        case 'g':
+        case 'G':
+          for (d2 = 0; d2 < 128; d2++)
+            {
+              switch ((char) d2)
+                {
+                case '\0':
+                  sprintf(enclosure_string, "enclosure_string=\\x%c\\x10", d1);
+                  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count);
+                  /* if there is no error d1 must not be g or G */
+                  cond = ((error != NULL) == (d1 == 'g' || d1 == 'G'));
+                  DBUG_PRINT("info", ("error: %p; d1: %c; cond: %d", error, d1, cond));
+                  fail_unless(cond, "1 hexadecimal digit");
+                  break;
 
-		case '0':
-		case '9':
-		case 'a':
-		case 'A':
-		case 'f':
-		case 'F':
-		case 'g':
-		case 'G':
-		  sprintf(enclosure_string, "enclosure_string=\\x%c%c", d1, d2);
-		  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count);
-		  /* \x9G is converted to 9G */
-		  cond = ((error != NULL) == (d1 == 'g' || d1 == 'G'));
-		  DBUG_PRINT("info", ("error: %p; d1: %c; d2: %c; cond: %d", error, d1, d2, cond));
-		  /* if there is no error d1 and d2 must not be g or G */
-		  fail_unless(cond, "2 hexadecimal digits");
-		  break;
+                case '0':
+                case '9':
+                case 'a':
+                case 'A':
+                case 'f':
+                case 'F':
+                case 'g':
+                case 'G':
+                  sprintf(enclosure_string, "enclosure_string=\\x%c%c", d1, d2);
+                  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count);
+                  /* \x9G is converted to 9G */
+                  cond = ((error != NULL) == (d1 == 'g' || d1 == 'G'));
+                  DBUG_PRINT("info", ("error: %p; d1: %c; d2: %c; cond: %d", error, d1, d2, cond));
+                  /* if there is no error d1 and d2 must not be g or G */
+                  fail_unless(cond, "2 hexadecimal digits");
+                  break;
 
-		default:
-		  break;
-		}
-	    }
-	  break;
+                default:
+                  break;
+                }
+            }
+          break;
 
-	default:
-	  break;
-	}
+        default:
+          break;
+        }
     }
 
   /* test octal strings */
   for (d1 = 0; d1 < 128; d1++) /* test hexadecimal boundaries: 0, 7, 8 */
     {
       switch ((char) d1)
-	{
-	case '0':
-	case '7': /* OK */
-	case '8': /* FAIL */
-	  sprintf(enclosure_string, "enclosure_string=\\%ca", d1);
-	  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count);
-	  cond = ((error != NULL) == (d1 == '8'));
-	  DBUG_PRINT("info", ("error: %p; d1: %c; cond: %d", error, d1, cond));
-	  fail_unless(cond, "1 octal digit");
+        {
+        case '0':
+        case '7': /* OK */
+        case '8': /* FAIL */
+          sprintf(enclosure_string, "enclosure_string=\\%ca", d1);
+          error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count);
+          cond = ((error != NULL) == (d1 == '8'));
+          DBUG_PRINT("info", ("error: %p; d1: %c; cond: %d", error, d1, cond));
+          fail_unless(cond, "1 octal digit");
 
-	  for (d2 = 0; d2 < 128; d2++)
-	    {
-	      switch ((char) d2)
-		{
-		case '0':
-		case '7': /* OK */
-		case '8': /* FAIL */
-		  sprintf(enclosure_string, "enclosure_string=\\%c%ca", d1, d2);
-		  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count);
-		  /* \78 is converted to 78 */
-		  cond = ((error != NULL) == (d1 == '8'));
-		  DBUG_PRINT("info", ("error: %p; d1: %c; d2: %c; cond: %d", error, d1, d2, cond));
-		  fail_unless(cond, "2 octal digits");
+          for (d2 = 0; d2 < 128; d2++)
+            {
+              switch ((char) d2)
+                {
+                case '0':
+                case '7': /* OK */
+                case '8': /* FAIL */
+                  sprintf(enclosure_string, "enclosure_string=\\%c%ca", d1, d2);
+                  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count);
+                  /* \78 is converted to 78 */
+                  cond = ((error != NULL) == (d1 == '8'));
+                  DBUG_PRINT("info", ("error: %p; d1: %c; d2: %c; cond: %d", error, d1, d2, cond));
+                  fail_unless(cond, "2 octal digits");
 
-		  for (d3 = 0; d3 < 128; d3++)
-		    {
-		      switch ((char) d3)
-			{
-			case '0':
-			case '7': /* OK */
-			case '8': /* FAIL */
-			  sprintf(enclosure_string, "enclosure_string=\\%c%c%c", d1, d2, d3);
-			  error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count);
-			  /* \078 is converted to 78 */
-			  cond = ((error != NULL) == (d1 == '8'));
-			  DBUG_PRINT("info", ("error: %p; d1: %c; d2: %c; d3: %c; cond: %d", error, d1, d2, d3, cond));
-			  fail_unless(cond, "3 octal digits");
-			  break;
+                  for (d3 = 0; d3 < 128; d3++)
+                    {
+                      switch ((char) d3)
+                        {
+                        case '0':
+                        case '7': /* OK */
+                        case '8': /* FAIL */
+                          sprintf(enclosure_string, "enclosure_string=\\%c%c%c", d1, d2, d3);
+                          error = oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count);
+                          /* \078 is converted to 78 */
+                          cond = ((error != NULL) == (d1 == '8'));
+                          DBUG_PRINT("info", ("error: %p; d1: %c; d2: %c; d3: %c; cond: %d", error, d1, d2, d3, cond));
+                          fail_unless(cond, "3 octal digits");
+                          break;
 
-			default:
-			  break;
-			}
-		    }
-		  break;
+                        default:
+                          break;
+                        }
+                    }
+                  break;
 
-		default:
-		  break;
-		}
-	    }
-	  break;
+                default:
+                  break;
+                }
+            }
+          break;
 
-	default:
-	  break;
-	}
+        default:
+          break;
+        }
     }
 
   DBUG_LEAVE();
@@ -483,23 +483,23 @@ START_TEST(test_query_data_types)
       (void) sprintf(query, "query=select %s from oradumper_test", columns[nr]);
 
       {
-	int i;
-	const int nr_options = sizeof(options)/sizeof(options[0]) - (nr > 0 ? 1 : 0);
+        int i;
+        const int nr_options = sizeof(options)/sizeof(options[0]) - (nr > 0 ? 1 : 0);
 
-	DBUG_PRINT("info", ("nr_options: %d", nr_options));
+        DBUG_PRINT("info", ("nr_options: %d", nr_options));
 
-	for (i = 0; i < nr_options; i++)
-	  {
-	    DBUG_PRINT("info", ("options[%d]: %s", i, options[i]));
-	  }
+        for (i = 0; i < nr_options; i++)
+          {
+            DBUG_PRINT("info", ("options[%d]: %s", i, options[i]));
+          }
       }
 
       error = oradumper(sizeof(options)/sizeof(options[0]) - (nr > 0 ? 1 : 0), /* supply userid first time */
-			options,
-			0,
-			sizeof(error_msg),
-			error_msg,
-			&row_count);
+                        options,
+                        0,
+                        sizeof(error_msg),
+                        error_msg,
+                        &row_count);
 
       DBUG_PRINT("info", ("error: %s", (error != NULL ? error : "none")));
 
@@ -512,11 +512,11 @@ START_TEST(test_query_data_types)
 
   /* final call */
   fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]) - 1, /* do not supply userid */
-				options,
-				1, /* disconnect */
-				sizeof(error_msg),
-				error_msg,
-				&row_count), error_msg);
+                                options,
+                                1, /* disconnect */
+                                sizeof(error_msg),
+                                error_msg,
+                                &row_count), error_msg);
 
 #if defined(WITH_DMALLOC) && defined(HAVE_SEARCH_H)
   fail_if(addr_list != NULL);
@@ -539,7 +539,7 @@ START_TEST(test_query1)
   const char *options[] = {
     fetch_size,
     "null=NULL",
-    "nls_language=AMERICAN",
+    "nls_lang=AMERICAN",
     "nls_date_format=yyyy-mm-dd hh24:mi:ss",
     "nls_timestamp_format=yyyy-mm-dd hh24:mi:ss",
     "nls_numeric_characters=.,",
@@ -668,6 +668,7 @@ START_TEST(test_query4)
     userid,
     "fetch_size=100",
     "feedback=0",
+    "nls_lang=.utf8",
     "nls_date_format=yyyy-mm-dd hh24:mi:ss",
     "nls_timestamp_format=yyyy-mm-dd hh24:mi:ss",
     "nls_numeric_characters=.,",
@@ -677,7 +678,7 @@ select cast(1234567890 as number(10, 0)) as NR, unistr('my,string') as STR, to_d
 union \
 select 2345678901, unistr('YOURSTRING'), to_date('20001231232359', 'yyyymmddhh24miss') from dual \
 union all \
-select 12, unistr('abc\\00e5\\00f1\\00f6'), null from dual",
+select 12, unistr('abc\\00e5\\00f1\\00f6\\0142'), null from dual",
     output_file,
     "fixed_column_length=1",
     "column_separator=\\040" /* space */
@@ -685,6 +686,133 @@ select 12, unistr('abc\\00e5\\00f1\\00f6'), null from dual",
   char *error;
 
   DBUG_ENTER("test_query4");
+
+  (void) sprintf(output_ref, "%s/%s.ref", srcdir, output);
+
+  fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
+
+  (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
+  (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
+
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
+
+  error = cmp_files(output, output_ref);
+  fail_if(error != NULL, error);
+
+  DBUG_LEAVE();
+}
+END_TEST
+
+START_TEST(test_query5)
+{
+  /* Test that fixed column length output has the following properties:
+     column display size is maximum of data size, column heading (if specified) and length of null display (if specified)
+  */
+  const char output[] = "query5.lis";
+  char userid[100+1] = "userid=";
+  char output_file[100+1] = "output_file=";
+  const char *options[] = {
+    userid,
+    "feedback=0",
+    dbug_options,
+    "query=\
+select  cast('query5' as varchar2(30)) as name\
+,       cast(1 as number(10)) as default_retention_period\
+,       cast(null as varchar2(1)) as nl\
+        from dual",
+    output_file,
+    "fixed_column_length=1",
+    "column_heading=0",
+    "column_separator=\\040\\040",
+    "null=null"
+  };
+  char *error;
+
+  DBUG_ENTER("test_query5");
+
+  (void) sprintf(output_ref, "%s/%s.ref", srcdir, output);
+
+  fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
+
+  (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
+  (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
+
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
+
+  error = cmp_files(output, output_ref);
+  fail_if(error != NULL, error);
+
+  DBUG_LEAVE();
+}
+END_TEST
+
+START_TEST(test_query6)
+{
+  /* Test that fixed column length output has the following properties:
+     column display size is maximum of data size, column heading (if specified) and length of null display (if specified).
+  */
+  const char output[] = "query6.lis";
+  char userid[100+1] = "userid=";
+  char output_file[100+1] = "output_file=";
+  const char *options[] = {
+    userid,
+    "feedback=0",
+    dbug_options,
+    "query=\
+select  cast('query6' as varchar2(30)) as name\
+,       cast(1 as number(10)) as default_retention_period\
+,       cast(null as varchar2(1)) as nl\
+        from dual",
+    output_file,
+    "fixed_column_length=1",
+    "column_heading=1",
+    "column_separator=\\040\\040"
+  };
+  char *error;
+
+  DBUG_ENTER("test_query6");
+
+  (void) sprintf(output_ref, "%s/%s.ref", srcdir, output);
+
+  fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
+
+  (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
+  (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
+
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
+
+  error = cmp_files(output, output_ref);
+  fail_if(error != NULL, error);
+
+  DBUG_LEAVE();
+}
+END_TEST
+
+START_TEST(test_query7)
+{
+  /* Test that fixed column length output has the following properties:
+     column display size is maximum of data size, column heading (if specified) and length of null display (if specified).
+  */
+  const char output[] = "query7.lis";
+  char userid[100+1] = "userid=";
+  char output_file[100+1] = "output_file=";
+  const char *options[] = {
+    userid,
+    "feedback=0",
+    dbug_options,
+    "query=\
+select  '\"' as enclosure_string\
+,       ';' as column_separator\
+        from dual",
+    output_file,
+    "fixed_column_length=0",
+    "column_heading=0",
+    "column_separator=;",
+    "enclosure_string=\""
+  };
+  char *error;
+
+  DBUG_ENTER("test_query7");
 
   (void) sprintf(output_ref, "%s/%s.ref", srcdir, output);
 
@@ -727,6 +855,9 @@ options_suite(void)
   tcase_add_test(tc_query, test_query2);
   tcase_add_test(tc_query, test_query3);
   tcase_add_test(tc_query, test_query4);
+  tcase_add_test(tc_query, test_query5);
+  tcase_add_test(tc_query, test_query6);
+  tcase_add_test(tc_query, test_query7);
   suite_add_tcase(s, tc_query);
 
   return s;
