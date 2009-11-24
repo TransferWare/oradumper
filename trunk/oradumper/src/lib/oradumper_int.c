@@ -1180,8 +1180,8 @@ oradumper(const unsigned int nr_arguments,
       unsigned int nr_options;
       typedef enum {
         STEP_OPEN_OUTPUT_FILE = 0,
+        STEP_NLS_LANG, /* environment variable needs to be set before a connection is started */
         STEP_CONNECT,
-        STEP_NLS_LANG,
         STEP_NLS_DATE_FORMAT,
         STEP_NLS_TIMESTAMP_FORMAT,
         STEP_NLS_TIMESTAMP_TZ_FORMAT,
@@ -1249,6 +1249,32 @@ oradumper(const unsigned int nr_arguments,
                 }
               break;
 
+            case STEP_NLS_LANG:
+              DBUG_PRINT("info", ("NLS_LANG before applying settings: %s", (getenv("NLS_LANG") != NULL ? getenv("NLS_LANG") : "null")));
+
+              if (settings.nls_lang == NULL)
+                break;
+
+#if defined(HAVE_SETENV) && HAVE_SETENV != 0
+              ret = setenv("NLS_LANG", settings.nls_lang, 1);
+#else
+              (void) snprintf(nls_lang_stmt,
+                              sizeof(nls_lang_stmt),
+                              "NLS_LANG=%s",
+                              settings.nls_lang);
+              ret = putenv(nls_lang_stmt);
+#endif
+              if (ret != 0)
+                {
+                  (void) snprintf(error_msg,
+                                  error_msg_size,
+                                  "Could not set environment variable NLS_LANG to %s: %s",
+                                  settings.nls_lang,
+                                  strerror(errno));
+                  error = error_msg;
+                }
+              break;
+
             case STEP_CONNECT:
               if (settings.userid == NULL &&
                   (sqlcode = orasql_connected()) != OK)
@@ -1279,31 +1305,6 @@ oradumper(const unsigned int nr_arguments,
                     }
                   sqlcode = orasql_connect(settings.userid);
                 }
-              break;
-
-            case STEP_NLS_LANG:
-              if (settings.nls_lang == NULL)
-                break;
-
-#if defined(HAVE_SETENV) && HAVE_SETENV != 0
-              ret = setenv("NLS_LANG", settings.nls_lang, 1);
-#else
-              (void) snprintf(nls_lang_stmt,
-                              sizeof(nls_lang_stmt),
-                              "NLS_LANG=%s",
-                              settings.nls_lang);
-              ret = putenv(nls_lang_stmt);
-#endif
-              if (ret != 0)
-                {
-                  (void) snprintf(error_msg,
-                                  error_msg_size,
-                                  "Could not set environment variable NLS_LANG to %s: %s",
-                                  settings.nls_lang,
-                                  strerror(errno));
-                  error = error_msg;
-                }
-
               break;
 
             case STEP_NLS_DATE_FORMAT:
@@ -1495,6 +1496,8 @@ oradumper(const unsigned int nr_arguments,
               break;
 
             case STEP_FETCH_ROWS:
+              DBUG_PRINT("info", ("NLS_LANG before fetch: %s", (getenv("NLS_LANG") != NULL ? getenv("NLS_LANG") : "null")));
+
               if ((sqlcode = prepare_fetch(&settings, &column_value)) != OK)
                 break;
 
@@ -1597,9 +1600,9 @@ oradumper(const unsigned int nr_arguments,
           /*@fallthrough@*/
         case STEP_NLS_DATE_FORMAT:
           /*@fallthrough@*/
-        case STEP_NLS_LANG:
-          /*@fallthrough@*/
         case STEP_CONNECT:
+          /*@fallthrough@*/
+        case STEP_NLS_LANG:
           (void) orasql_cache_free_all();
           if (disconnect != 0)
             {
