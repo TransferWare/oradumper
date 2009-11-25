@@ -89,6 +89,7 @@ typedef enum {
   OPTION_OUTPUT_FILE,
   OPTION_OUTPUT_APPEND,
   OPTION_NULL,
+  OPTION_ZERO_BEFORE_DECIMAL_CHARACTER,
 } option_t;
 
 typedef struct {
@@ -111,6 +112,7 @@ typedef struct {
   /*@null@*/ /*@only@*/ char *output_file;
   bool output_append;
   /*@only@*/ char *null;
+  bool zero_before_decimal_character;
 } settings_t;
 
 #define OPTION_TRUE(opt) strcmp((opt == NULL ? "" : opt), "1") == 0;
@@ -141,6 +143,7 @@ static const struct {
 #define OPTION_OUTPUT_FILE_MANDATORY false
 #define OPTION_OUTPUT_APPEND_MANDATORY false
 #define OPTION_NULL_MANDATORY false
+#define OPTION_ZERO_BEFORE_DECIMAL_CHARACTER_MANDATORY false
 
   { "userid", OPTION_USERID_MANDATORY, "Oracle connect string", NULL }, /* userid may be NULL when oradumper is used as a library */
   { "query", OPTION_QUERY_MANDATORY, "Select statement", NULL },
@@ -161,6 +164,7 @@ static const struct {
   { "output_file", OPTION_OUTPUT_FILE_MANDATORY, "The output file", NULL },
   { "output_append", OPTION_OUTPUT_APPEND_MANDATORY, "Append to the output file (1 = yes)?", "0" },
   { "null", OPTION_NULL_MANDATORY, "Value to print for NULL values", NULL },
+  { "zero_before_decimal_character", OPTION_ZERO_BEFORE_DECIMAL_CHARACTER_MANDATORY, "Print zero before a number starting with a decimal character (1 = yes)", "1" },
 };
 
 /* convert2ascii - convert a string which may contain escaped characters into a ascii string.
@@ -428,6 +432,10 @@ set_option(const option_t option,
       FREE(settings->null);
       settings->null = strdup(value);
       break;
+
+    case OPTION_ZERO_BEFORE_DECIMAL_CHARACTER:
+      settings->zero_before_decimal_character = OPTION_TRUE(value);
+      break;
     }
 
   return error;
@@ -651,6 +659,12 @@ oradumper_process_arguments(const unsigned int nr_arguments,
               result = settings->null != NULL;
               break;
 #endif
+
+#if OPTION_ZERO_BEFORE_DECIMAL_CHARACTER_MANDATORY
+            case OPTION_ZERO_BEFORE_DECIMAL_CHARACTER:
+              break;
+#endif
+
             default:
               break;
             }
@@ -1025,6 +1039,7 @@ print_data(/*@in@*/ const settings_t *settings,
   size_t len;
   char *ptr1;
   char *ptr2;
+  char leading_zero[1+1] = "X"; /* important: second character must (and will) be the zero terminator */
 
   DBUG_ENTER("print_data");
 
@@ -1044,6 +1059,19 @@ print_data(/*@in@*/ const settings_t *settings,
              (settings->null != NULL ? settings->null : "")
              );
 
+          if (column_value->align[column_nr] == 'R' /* non numeric fields will never get a leading zero */
+              && settings->zero_before_decimal_character 
+              && ((settings->nls_numeric_characters == NULL && data[0] == '.')
+                  /* the first character in nls_numeric_characters is the decimal character */
+                  || (settings->nls_numeric_characters != NULL && data[0] == settings->nls_numeric_characters[0])))
+            {
+              leading_zero[0] = '0';
+            }
+          else
+            {
+              leading_zero[0] = '\0';
+            }
+          
 
 #ifdef DBUG_MEMORY
           assert(column_value->data[column_nr][array_nr] != NULL);
@@ -1068,7 +1096,7 @@ print_data(/*@in@*/ const settings_t *settings,
               /* fixed length column */
               if (column_value->align[column_nr] == 'R') /* numeric fields do not need to be enclosed */
                 {
-                  n += fprintf(fout, "%*s", (int) column_value->display_size[column_nr], data);
+                  n += fprintf(fout, "%s%*s", leading_zero, (int) column_value->display_size[column_nr], data);
                 }
               else
                 {
@@ -1081,7 +1109,7 @@ print_data(/*@in@*/ const settings_t *settings,
             }
           else if (column_value->align[column_nr] == 'R') /* numeric fields do not need to be enclosed */
             {
-              n += fprintf(fout, "%s", data);
+              n += fprintf(fout, "%s%s", leading_zero, data);
             }
           else /* variable length strings */
             {
@@ -1133,6 +1161,7 @@ print_data(/*@in@*/ const settings_t *settings,
                   n += fprintf(fout, "%s", data);
                 }
             }
+
           DBUG_PRINT("info", ("characters printed for this column: %d", n));
         }
 

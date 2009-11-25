@@ -23,6 +23,7 @@ Optional parameters:
   output_file                     The output file
   output_append                   Append to the output file (1 = yes)? [default = 0]
   null                            Value to print for NULL values
+  zero_before_decimal_character   Print zero before a number starting with a decimal character (1 = yes) [default = 1]
 
 The values for record_delimiter, column_separator and enclosure_string may contain escaped characters like \n, \012 or \x0a (linefeed).
 
