@@ -1036,10 +1036,16 @@ print_data(/*@in@*/ const settings_t *settings,
   unsigned int column_nr, array_nr;
   int n;
   char *data;
+  int display_size;
   size_t len;
   char *ptr1;
   char *ptr2;
-  char leading_zero[1+1] = "X"; /* important: second character must (and will) be the zero terminator */
+  /* print 
+     1) .45 as 0.45
+     2) -.45 as -0.45
+     3) +.45 as +0.45
+  */
+  char data_prefix[2+1] = "XX"; /* important: last character must (and will) be the zero terminator */
 
   DBUG_ENTER("print_data");
 
@@ -1053,25 +1059,50 @@ print_data(/*@in@*/ const settings_t *settings,
           assert(column_value->ind[column_nr] != NULL);
 
           n = 0; /* characters printed */
-          data = 
-            (column_value->ind[column_nr][array_nr] != -1 /* not a NULL value? */ ?
-             (char *) column_value->data[column_nr][array_nr] :
-             (settings->null != NULL ? settings->null : "")
-             );
-
-          if (column_value->align[column_nr] == 'R' /* non numeric fields will never get a leading zero */
-              && settings->zero_before_decimal_character 
-              && ((settings->nls_numeric_characters == NULL && data[0] == '.')
-                  /* the first character in nls_numeric_characters is the decimal character */
-                  || (settings->nls_numeric_characters != NULL && data[0] == settings->nls_numeric_characters[0])))
+          display_size = (int) column_value->display_size[column_nr];
+          if (column_value->ind[column_nr][array_nr] != -1)
             {
-              leading_zero[0] = '0';
+              /* not a NULL value? */
+              data = (char *) column_value->data[column_nr][array_nr];
+            }
+          else if (settings->null != NULL)
+            {
+              data = settings->null;
             }
           else
             {
-              leading_zero[0] = '\0';
+              data = "";
             }
-          
+
+          data_prefix[0] = '\0';
+          if (column_value->align[column_nr] == 'R' /* non numeric fields will never get a leading zero */
+              && settings->zero_before_decimal_character)
+            {
+              if ((settings->nls_numeric_characters == NULL &&
+                   data[0] == '.')
+                  /* the first character in nls_numeric_characters is the decimal character */
+                  || (settings->nls_numeric_characters != NULL &&
+                      data[0] == settings->nls_numeric_characters[0]))
+                {
+                  data_prefix[0] = '0';
+                  data_prefix[1] = '\0';
+                }
+              else if ((settings->nls_numeric_characters == NULL &&
+                        !isdigit(data[0]) &&
+                        data[1] == '.')
+                       /* the first character in nls_numeric_characters is the decimal character */
+                       || (settings->nls_numeric_characters != NULL &&
+                           !isdigit(data[0]) &&
+                           data[1] == settings->nls_numeric_characters[0]))
+                {
+                  /* the first data character is the sign which must be copied to data_prefix */
+                  data_prefix[0] = data[0];
+                  data_prefix[1] = '0';
+                  /* let data point to the second character, i.e. the decimal character */
+                  data++;
+                  display_size--;
+                }
+            }
 
 #ifdef DBUG_MEMORY
           assert(column_value->data[column_nr][array_nr] != NULL);
@@ -1096,11 +1127,11 @@ print_data(/*@in@*/ const settings_t *settings,
               /* fixed length column */
               if (column_value->align[column_nr] == 'R') /* numeric fields do not need to be enclosed */
                 {
-                  n += fprintf(fout, "%s%*s", leading_zero, (int) column_value->display_size[column_nr], data);
+                  n += fprintf(fout, "%s%*s", data_prefix, display_size, data);
                 }
               else
                 {
-                  n += fprintf(fout, "%-*s", (int) column_value->display_size[column_nr], data);
+                  n += fprintf(fout, "%-*s", display_size, data);
                 }
             }
           else if (data[0] == '\0')
@@ -1109,7 +1140,7 @@ print_data(/*@in@*/ const settings_t *settings,
             }
           else if (column_value->align[column_nr] == 'R') /* numeric fields do not need to be enclosed */
             {
-              n += fprintf(fout, "%s%s", leading_zero, data);
+              n += fprintf(fout, "%s%s", data_prefix, data);
             }
           else /* variable length strings */
             {
