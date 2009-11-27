@@ -90,6 +90,7 @@ typedef enum {
   OPTION_OUTPUT_APPEND,
   OPTION_NULL,
   OPTION_ZERO_BEFORE_DECIMAL_CHARACTER,
+  OPTION_LEFT_ALIGN_NUMERIC_COLUMNS,
 } option_t;
 
 typedef struct {
@@ -113,6 +114,7 @@ typedef struct {
   bool output_append;
   /*@only@*/ char *null;
   bool zero_before_decimal_character;
+  bool left_align_numeric_columns;
 } settings_t;
 
 #define OPTION_TRUE(opt) strcmp((opt == NULL ? "" : opt), "1") == 0;
@@ -144,6 +146,7 @@ static const struct {
 #define OPTION_OUTPUT_APPEND_MANDATORY false
 #define OPTION_NULL_MANDATORY false
 #define OPTION_ZERO_BEFORE_DECIMAL_CHARACTER_MANDATORY false
+#define OPTION_LEFT_ALIGN_NUMERIC_COLUMNS_MANDATORY false
 
   { "userid", OPTION_USERID_MANDATORY, "Oracle connect string", NULL }, /* userid may be NULL when oradumper is used as a library */
   { "query", OPTION_QUERY_MANDATORY, "Select statement", NULL },
@@ -165,6 +168,7 @@ static const struct {
   { "output_append", OPTION_OUTPUT_APPEND_MANDATORY, "Append to the output file (1 = yes)?", "0" },
   { "null", OPTION_NULL_MANDATORY, "Value to print for NULL values", NULL },
   { "zero_before_decimal_character", OPTION_ZERO_BEFORE_DECIMAL_CHARACTER_MANDATORY, "Print zero before a number starting with a decimal character (1 = yes)", "1" },
+  { "left_align_numeric_columns", OPTION_LEFT_ALIGN_NUMERIC_COLUMNS_MANDATORY, "Left align numeric columns when the column length is fixed (1 = yes)", "0" },
 };
 
 /* convert2ascii - convert a string which may contain escaped characters into a ascii string.
@@ -436,6 +440,10 @@ set_option(const option_t option,
     case OPTION_ZERO_BEFORE_DECIMAL_CHARACTER:
       settings->zero_before_decimal_character = OPTION_TRUE(value);
       break;
+
+    case OPTION_LEFT_ALIGN_NUMERIC_COLUMNS:
+      settings->left_align_numeric_columns = OPTION_TRUE(value);
+      break;
     }
 
   return error;
@@ -665,6 +673,11 @@ oradumper_process_arguments(const unsigned int nr_arguments,
               break;
 #endif
 
+#if OPTION_LEFT_ALIGN_NUMERIC_COLUMNS_MANDATORY
+            case LEFT_ALIGN_NUMERIC_COLUMNS:
+              break;
+#endif
+
             default:
               break;
             }
@@ -776,6 +789,20 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
                              column_value->descr[column_nr].character_set_name);
             }
 
+#define COLUMN_IS_NUMERIC(column_descr) \
+( (column_descr)->type_orig == ANSI_NUMERIC || \
+  (column_descr)->type_orig == ORA_NUMBER || \
+  (column_descr)->type_orig == ANSI_SMALLINT || \
+  (column_descr)->type_orig == ANSI_INTEGER || \
+  (column_descr)->type_orig == ORA_INTEGER || \
+  (column_descr)->type_orig == ORA_UNSIGNED || \
+  (column_descr)->type_orig == ANSI_DECIMAL || \
+  (column_descr)->type_orig == ORA_DECIMAL || \
+  (column_descr)->type_orig == ANSI_FLOAT || \
+  (column_descr)->type_orig == ORA_FLOAT || \
+  (column_descr)->type_orig == ANSI_DOUBLE_PRECISION || \
+  (column_descr)->type_orig == ANSI_REAL )
+
           switch (column_value->descr[column_nr].type_orig = column_value->descr[column_nr].type)
             {
             case ANSI_NUMERIC:
@@ -796,7 +823,7 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
 
               column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
               column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
-              column_value->align[column_nr] = 'R';
+              column_value->align[column_nr] = (settings->left_align_numeric_columns ? 'L' : 'R');
               break;
 
               /* When gcoverage is on, some datatypes are not checked */
@@ -820,7 +847,7 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
 
               column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
               column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
-              column_value->align[column_nr] = 'R';
+              column_value->align[column_nr] = (settings->left_align_numeric_columns ? 'L' : 'R');
               break;
 #endif
 
@@ -1036,6 +1063,7 @@ print_data(/*@in@*/ const settings_t *settings,
   unsigned int column_nr, array_nr;
   int n;
   char *data;
+  static char empty[1] = ""; /* to prevent a lint error */
   int display_size;
   size_t len;
   char *ptr1;
@@ -1071,11 +1099,11 @@ print_data(/*@in@*/ const settings_t *settings,
             }
           else
             {
-              data = "";
+              data = empty;
             }
 
           data_prefix[0] = '\0';
-          if (column_value->align[column_nr] == 'R' /* non numeric fields will never get a leading zero */
+          if (COLUMN_IS_NUMERIC(&column_value->descr[column_nr]) /* non numeric fields will never get a leading zero */
               && settings->zero_before_decimal_character)
             {
               if ((settings->nls_numeric_characters == NULL &&
@@ -1125,20 +1153,20 @@ print_data(/*@in@*/ const settings_t *settings,
           if (settings->fixed_column_length)
             {
               /* fixed length column */
-              if (column_value->align[column_nr] == 'R') /* numeric fields do not need to be enclosed */
+              if (column_value->align[column_nr] == 'R')
                 {
                   n += fprintf(fout, "%s%*s", data_prefix, display_size, data);
                 }
               else
                 {
-                  n += fprintf(fout, "%-*s", display_size, data);
+                  n += fprintf(fout, "%s%-*s", data_prefix, display_size, data);
                 }
             }
           else if (data[0] == '\0')
             {
               ; /* do not print an empty string when the column has variable length */
             }
-          else if (column_value->align[column_nr] == 'R') /* numeric fields do not need to be enclosed */
+          else if (COLUMN_IS_NUMERIC(&column_value->descr[column_nr])) /* numeric fields do not need to be enclosed */
             {
               n += fprintf(fout, "%s%s", data_prefix, data);
             }
@@ -1310,8 +1338,6 @@ oradumper(const unsigned int nr_arguments,
               break;
 
             case STEP_NLS_LANG:
-              DBUG_PRINT("info", ("NLS_LANG before applying settings: %s", (getenv("NLS_LANG") != NULL ? getenv("NLS_LANG") : "null")));
-
               if (settings.nls_lang == NULL)
                 break;
 
@@ -1556,8 +1582,6 @@ oradumper(const unsigned int nr_arguments,
               break;
 
             case STEP_FETCH_ROWS:
-              DBUG_PRINT("info", ("NLS_LANG before fetch: %s", (getenv("NLS_LANG") != NULL ? getenv("NLS_LANG") : "null")));
-
               if ((sqlcode = prepare_fetch(&settings, &column_value)) != OK)
                 break;
 
