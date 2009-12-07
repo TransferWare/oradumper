@@ -309,6 +309,27 @@ value_description_t *value_description;
 
   value_description->unicode = (strcmp("AL16UTF16", character_set_name) == 0);
 
+  switch (*type)
+    {
+    case ANSI_NUMERIC:
+    case ORA_NUMBER:
+    case ANSI_SMALLINT:
+    case ANSI_INTEGER:
+    case ORA_INTEGER:
+    case ORA_UNSIGNED:
+    case ANSI_DECIMAL:
+    case ORA_DECIMAL:
+    case ANSI_FLOAT:
+    case ORA_FLOAT:
+    case ANSI_DOUBLE_PRECISION:
+    case ANSI_REAL:
+      value_description->is_numeric = true;
+      break;
+
+    default:
+      value_description->is_numeric = false;
+    }
+
   DBUG_PRINT("output", ("name: %s; type: %d; octet_length: %u; length: %u; precision: %d; scale: %d; character set name: %s; return: %d", name, (int) *type, *octet_length, *length, *precision, *scale, character_set_name, sqlca.sqlcode));
   DBUG_LEAVE();
 
@@ -336,15 +357,15 @@ value_description_t *value_description;
 
   DBUG_ENTER("orasql_value_set");
   DBUG_PRINT("input",
-	     ("descriptor_name: %s; nr: %u; array_size: %u; type: %d; length: %u; data: %p; ind: %p; character set name: %s",
-	      descriptor_name,
-	      nr,
-	      array_size,
-	      type,
-	      length,
-	      data,
-	      ind,
-	      character_set_name));
+             ("descriptor_name: %s; nr: %u; array_size: %u; type: %d; length: %u; data: %p; ind: %p; character set name: %s",
+              descriptor_name,
+              nr,
+              array_size,
+              type,
+              length,
+              data,
+              ind,
+              character_set_name));
 
   LINT_FLAGS_PROC_BEGIN;
   EXEC SQL SET DESCRIPTOR LOCAL :descriptor_name VALUE :nr
@@ -427,7 +448,7 @@ unsigned int *count;
       LINT_FLAGS_PROC_BEGIN;
       EXEC SQL WHENEVER NOT FOUND CONTINUE;
       EXEC SQL FOR :array_size 
-	FETCH C INTO DESCRIPTOR LOCAL :descriptor_name;
+        FETCH C INTO DESCRIPTOR LOCAL :descriptor_name;
       LINT_FLAGS_PROC_END;
 
       *count = (unsigned int) sqlca.sqlerrd[2] - *count; /* fetch count */

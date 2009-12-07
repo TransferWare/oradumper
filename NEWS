@@ -15,7 +15,10 @@ Release 1.1.0
 * README includes hints for AIX compilation.
 * src/sql/README enhanced.
 * added make lint functionality.
-
+* changed nls_language command line option into nls_lang option.
+* added zero_before_decimal_character command line option.
+* added left_align_numeric_columns command line option.
+* numeric fields depend on database type and not the alignment.
 
 
 Release 1.0.1

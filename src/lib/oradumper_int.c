@@ -789,20 +789,6 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
                              column_value->descr[column_nr].character_set_name);
             }
 
-#define COLUMN_IS_NUMERIC(column_descr) \
-( (column_descr)->type_orig == ANSI_NUMERIC || \
-  (column_descr)->type_orig == ORA_NUMBER || \
-  (column_descr)->type_orig == ANSI_SMALLINT || \
-  (column_descr)->type_orig == ANSI_INTEGER || \
-  (column_descr)->type_orig == ORA_INTEGER || \
-  (column_descr)->type_orig == ORA_UNSIGNED || \
-  (column_descr)->type_orig == ANSI_DECIMAL || \
-  (column_descr)->type_orig == ORA_DECIMAL || \
-  (column_descr)->type_orig == ANSI_FLOAT || \
-  (column_descr)->type_orig == ORA_FLOAT || \
-  (column_descr)->type_orig == ANSI_DOUBLE_PRECISION || \
-  (column_descr)->type_orig == ANSI_REAL )
-
           switch (column_value->descr[column_nr].type_orig = column_value->descr[column_nr].type)
             {
             case ANSI_NUMERIC:
@@ -1103,7 +1089,7 @@ print_data(/*@in@*/ const settings_t *settings,
             }
 
           data_prefix[0] = '\0';
-          if (COLUMN_IS_NUMERIC(&column_value->descr[column_nr]) /* non numeric fields will never get a leading zero */
+          if (column_value->descr[column_nr].is_numeric /* non numeric fields will never get a leading zero */
               && settings->zero_before_decimal_character)
             {
               if ((settings->nls_numeric_characters == NULL &&
@@ -1166,7 +1152,7 @@ print_data(/*@in@*/ const settings_t *settings,
             {
               ; /* do not print an empty string when the column has variable length */
             }
-          else if (COLUMN_IS_NUMERIC(&column_value->descr[column_nr])) /* numeric fields do not need to be enclosed */
+          else if (column_value->descr[column_nr].is_numeric) /* numeric fields do not need to be enclosed */
             {
               n += fprintf(fout, "%s%s", data_prefix, data);
             }
