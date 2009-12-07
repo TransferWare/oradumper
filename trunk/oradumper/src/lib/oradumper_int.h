@@ -68,6 +68,7 @@ typedef struct {
   int scale;
   character_set_name_t character_set_name;
   bool unicode;
+  bool is_numeric;
 } value_description_t;
 
 /* zero terminated character array */
@@ -173,17 +174,17 @@ orasql_value_count(const char *descriptor_name, /*@out@*/ unsigned int *count);
 extern
 error_t
 orasql_value_get(const char *descriptor_name,
-		 const unsigned int nr,
-		 /*@out@*/ value_description_t *value_description);
+                 const unsigned int nr,
+                 /*@out@*/ value_description_t *value_description);
 
 extern
 error_t
 orasql_value_set(const char *descriptor_name,
-		 const unsigned int nr,
-		 const unsigned int array_size,
-		 /*@in@*/ value_description_t *value_description,
-		 const char *data,
-		 const short *ind);
+                 const unsigned int nr,
+                 const unsigned int array_size,
+                 /*@in@*/ value_description_t *value_description,
+                 const char *data,
+                 const short *ind);
 
 extern
 error_t
@@ -196,8 +197,8 @@ orasql_describe_output(const char *descriptor_name);
 extern
 error_t
 orasql_fetch_rows(const char *descriptor_name,
-		  const unsigned int array_size,
-		  /*@out@*/ unsigned int *count);
+                  const unsigned int array_size,
+                  /*@out@*/ unsigned int *count);
 
 extern
 error_t
