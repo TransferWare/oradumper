@@ -789,6 +789,7 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
                              column_value->descr[column_nr].character_set_name);
             }
 
+          column_value->descr[column_nr].is_numeric = false; /* the default */
           switch (column_value->descr[column_nr].type_orig = column_value->descr[column_nr].type)
             {
             case ANSI_NUMERIC:
@@ -797,6 +798,7 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
             case ANSI_INTEGER:
             case ORA_INTEGER:
             case ORA_UNSIGNED:
+              column_value->descr[column_nr].is_numeric = true;
               column_value->descr[column_nr].length =
                 (orasql_size_t) (column_value->descr[column_nr].precision <= 0
                                  ? 38
@@ -820,6 +822,7 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
             case ORA_FLOAT:
             case ANSI_DOUBLE_PRECISION:
             case ANSI_REAL:
+              column_value->descr[column_nr].is_numeric = true;
               column_value->descr[column_nr].length =
                 (orasql_size_t) (column_value->descr[column_nr].precision <= 0
                                  ? 38
