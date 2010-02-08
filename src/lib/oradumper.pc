@@ -309,28 +309,8 @@ value_description_t *value_description;
 
   value_description->unicode = (strcmp("AL16UTF16", character_set_name) == 0);
 
-  switch (*type)
-    {
-    case ANSI_NUMERIC:
-    case ORA_NUMBER:
-    case ANSI_SMALLINT:
-    case ANSI_INTEGER:
-    case ORA_INTEGER:
-    case ORA_UNSIGNED:
-    case ANSI_DECIMAL:
-    case ORA_DECIMAL:
-    case ANSI_FLOAT:
-    case ORA_FLOAT:
-    case ANSI_DOUBLE_PRECISION:
-    case ANSI_REAL:
-      value_description->is_numeric = true;
-      break;
-
-    default:
-      value_description->is_numeric = false;
-    }
-
-  DBUG_PRINT("output", ("name: %s; type: %d; octet_length: %u; length: %u; precision: %d; scale: %d; character set name: %s; return: %d", name, (int) *type, *octet_length, *length, *precision, *scale, character_set_name, sqlca.sqlcode));
+  DBUG_PRINT("output", ("name: %s; type: %d; octet_length: %u; length: %u; precision: %d; scale: %d; character set name: %s; return: %d",
+                        name, (int) *type, *octet_length, *length, *precision, *scale, character_set_name, sqlca.sqlcode));
   DBUG_LEAVE();
 
   return sqlca.sqlcode;
