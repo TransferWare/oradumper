@@ -20,7 +20,7 @@ include $(top_srcdir)/lint.am
 MAINTAINERCLEANFILES    = Makefile.in
 DISTCLEANFILES          = oradumper.h oradumper_int.h
 
-AUTOMAKE_OPTIONS        = $(top_builddir)/src/prog/ansi2knr
+# AUTOMAKE_OPTIONS        = $(top_builddir)/src/prog/ansi2knr
 
 AM_CPPFLAGS             = @DBUG_CPPFLAGS@ -I$(srcdir)
 

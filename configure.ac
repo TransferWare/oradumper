@@ -1,4 +1,4 @@
-f#                                               -*- Autoconf -*-
+#                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
 # Copyright (C) 2008 G.J. Paulissen
@@ -19,7 +19,7 @@ f#                                               -*- Autoconf -*-
 
 AC_PREREQ(2.59)
 AC_REVISION([$Revision: 1292 $])
-AC_INIT([oradumper],[1.1.0],[g.paulissen@chello.nl])
+AC_INIT([oradumper],[1.1.0],[gert.jan.paulissen@gmail.com])
 
 # version check
 if test -f "$srcdir/VERSION"
@@ -58,10 +58,10 @@ case ${host} in
 esac
 
 AM_INIT_AUTOMAKE
-AM_C_PROTOTYPES
+# AM_C_PROTOTYPES
 AM_WITH_DMALLOC
 # m4_pattern_allow([^AM_PATH_CHECK$])
-AM_PATH_CHECK([0.9.4])
+# AM_PATH_CHECK([0.9.4])
 # PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
 
 # Checks for programs.
@@ -71,6 +71,7 @@ AM_PROG_CC_STDC
 
 # Enable dbug
 ACX_ENABLE_DBUG
+CPPFLAGS="$DBUG_CPPFLAGS $CPPFLAGS"
 
 # Enable PRO*C
 ACX_PROG_PROC

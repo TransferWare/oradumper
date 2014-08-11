@@ -17,7 +17,7 @@
 
 MAINTAINERCLEANFILES  = Makefile.in
 
-AUTOMAKE_OPTIONS      = $(top_builddir)/src/lib/ansi2knr
+# AUTOMAKE_OPTIONS      = $(top_builddir)/src/lib/ansi2knr
 
 MOSTLYCLEANFILES      =
 

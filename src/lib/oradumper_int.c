@@ -150,7 +150,7 @@ static const struct {
 
   { "userid", OPTION_USERID_MANDATORY, "Oracle connect string", NULL }, /* userid may be NULL when oradumper is used as a library */
   { "query", OPTION_QUERY_MANDATORY, "Select statement", NULL },
-  { "fetch_size", OPTION_FETCH_SIZE_MANDATORY, "Array size", "10" },
+  { "fetch_size", OPTION_FETCH_SIZE_MANDATORY, "Array size", "1000" },
   { "dbug_options", OPTION_DBUG_OPTIONS_MANDATORY, "DBUG options", "" },
   { "nls_lang", OPTION_NLS_LANG_MANDATORY, "Set NLS_LANG environment variable", NULL },
   { "nls_date_format", OPTION_NLS_DATE_FORMAT_MANDATORY, "Set NLS date format", NULL },

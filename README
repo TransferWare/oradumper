@@ -21,8 +21,7 @@ QUALITY CHECKS
 ORADUMPER can be checked using the check library
 (http://check.sourceforge.net). Currently this does not work for Windows
 (Cygwin) because the check library is compiled against the Cygwin
-run-time DLL and not against the Windows run-time DLL's 
-(GCC compiler flag -mno-cygwin).
+run-time DLL and not against the Windows run-time DLL's.
 
 The following may be tested depending on configure options:
 - full code coverage using the GNU code coverage program gcov.
@@ -40,7 +39,7 @@ The following combinations are known to work:
 
 ORADUMPER     DBUG	   CHECK
 ---------     ----	   -----
->= 1.0.0      >= 4.0.0	   >= 0.9.5
+>= 1.0.0      >= 4.0.0 >= 0.9.5
 
 DOCUMENTATION
 =============
@@ -56,14 +55,6 @@ For Windows platforms the Cygwin suite with GCC and the MinGW extension
 can be used. There is one caveat: the libraries should not depend on the
 Cygwin DLL, but on the Microsoft run-time DLLs instead. See the file
 BUGS in the DBUG distribution for more information.
-
-The configure script will try to set the environment correctly. In case
-that fails the following configure command may be tried (provided dbug
-is installed into /cygdrive/c/usr/local):
-
-./configure CPPFLAGS="-I/cygdrive/c/usr/local/include" \
-LDFLAGS="-L/cygdrive/c/usr/local/lib" \
-CC="gcc -mno-cygwin" --prefix=/cygdrive/c/usr/local
 
 AIX specific
 ============
