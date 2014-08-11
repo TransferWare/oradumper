@@ -1,4 +1,4 @@
-Basic Installation
+5Basic Installation
 ==================
 
    These are generic installation instructions.
@@ -68,6 +68,19 @@ this:
 
 Or on systems that have the `env' program, you can do it like this:
      env CPPFLAGS=-I/usr/local/include LDFLAGS=-s ./configure
+
+On Windows systems using the Cygwin (at most 1.5.x) GCC compiler and Microsoft system DLLs (see BUGS):
+
+    ./configure --prefix=/cygdrive/c/usr/local CC="gcc -mno-cygwin"
+
+On Windows systems using the Cygwin (at most 1.7.x) GCC compiler and Microsoft system DLLs
+with Mingw support installed (see BUGS):
+
+    ./configure --host=i686-pc-mingw32 --prefix=/cygdrive/c/usr/local
+
+On Windows systems using the MinGW and MSYS environment:
+
+    ./configure --prefix=/c/usr/local
 
 Compiling For Multiple Architectures
 ====================================
