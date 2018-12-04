@@ -634,7 +634,7 @@ START_TEST(test_query3)
     "feedback=1", /* to print the dot after each fetch */
     dbug_options,
     "query=\
-select object_name, object_type from all_objects where owner = 'SYS' and object_name like 'UTL\\_%' escape '\\' and object_type='PACKAGE' and rownum <= :b1 order by object_name",
+select object_name, object_type from all_objects where owner = 'SYS' and object_name like 'UTL\\_%' escape '\\' and object_type='PACKAGE' and object_name not in ('UTL_DBWS','UTL_IDENT','UTL_MATCH') and rownum <= :b1 order by object_name",
     output_file,
     "fixed_column_length=0",
     "10" /* bind value */

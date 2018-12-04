@@ -120,10 +120,10 @@ void oradumper_extproc(OCIExtProcContext *ctx, OCIColl *coll, short coll_ind, un
       orasql_error(&length, &msg);
     }
   else if (/*@-nullpass@*/
-	   SQLEnvGet(0, &envhp) != OCI_SUCCESS ||
-	   OCIHandleAlloc(envhp, (void **)&errhp, OCI_HTYPE_ERROR, 0, 0) != OCI_SUCCESS ||
-	   SQLSvcCtxGet(0, NULL, 0, &svchp) != OCI_SUCCESS 
-	   /*@=nullpass@*/)
+     SQLEnvGet(0, &envhp) != OCI_SUCCESS ||
+     OCIHandleAlloc(envhp, (void **)&errhp, OCI_HTYPE_ERROR, 0, 0) != OCI_SUCCESS ||
+     SQLSvcCtxGet(0, NULL, 0, &svchp) != OCI_SUCCESS 
+     /*@=nullpass@*/)
     {
       msg = "failed to setup OCI environment";
     }
@@ -147,70 +147,70 @@ void oradumper_extproc(OCIExtProcContext *ctx, OCIColl *coll, short coll_ind, un
       assert(errhp != NULL);
 
       if ( coll_ind != OCI_IND_NULL &&
-	   OCICollSize(envhp, errhp, coll, &array_size) == OCI_SUCCESS )
-	{
-	  DBUG_PRINT("info", ("array_size: %d", (int) array_size));
+           OCICollSize(envhp, errhp, coll, &array_size) == OCI_SUCCESS )
+        {
+          DBUG_PRINT("info", ("array_size: %d", (int) array_size));
 
-	  arguments = (char **) calloc((size_t) array_size, sizeof(*arguments));
-	  assert(arguments != NULL);
+          arguments = (char **) calloc((size_t) array_size, sizeof(*arguments));
+          assert(arguments != NULL);
 
-	  /* Make sure arguments starts with non-NULL entries only. */
+          /* Make sure arguments starts with non-NULL entries only. */
 
-	  for (i = 0; i < array_size; i++)
-	    arguments[i] = NULL;
+          for (i = 0; i < array_size; i++)
+            arguments[i] = NULL;
 
-	  for (i = j = 0; i < array_size; i++)
-	    {
-	      if (/*@-nullpass@*/
-		  OCICollGetElem(envhp, errhp, coll, i, &exists,
-				 (void **) &ocistring, 0) == OCI_SUCCESS
-		  /*@=nullpass@*/ &&
-		  exists != 0)
-		{
-		  assert(ocistring != NULL);
-		  txt = OCIStringPtr(envhp, *ocistring);
-		  DBUG_PRINT("info", ("array[%d]: '%s'", i, (char*) txt));
+          for (i = j = 0; i < array_size; i++)
+            {
+              if (/*@-nullpass@*/
+                  OCICollGetElem(envhp, errhp, coll, i, &exists,
+                                 (void **) &ocistring, 0) == OCI_SUCCESS
+                  /*@=nullpass@*/ &&
+                  exists != 0)
+                {
+                  assert(ocistring != NULL);
+                  txt = OCIStringPtr(envhp, *ocistring);
+                  DBUG_PRINT("info", ("array[%d]: '%s'", i, (char*) txt));
 
-		  if (txt[0] != (unsigned char) '\0')
-		    {
-		      arguments[j++] = strdup((char *)txt);
-		    }
-		}
-	      else
-		{
-		  DBUG_PRINT("info", ("array[%d]: NULL", i));
-		}
-	    }
+                  if (txt[0] != (unsigned char) '\0')
+                    {
+                      arguments[j++] = strdup((char *)txt);
+                    }
+                }
+              else
+                {
+                  DBUG_PRINT("info", ("array[%d]: NULL", i));
+                }
+            }
 
-	  msg = oradumper((unsigned int) j,
-			  (const char **) arguments,
-			  disconnect,
-			  sizeof(error_msg),
-			  error_msg,
-			  row_count);
-	}
+          msg = oradumper((unsigned int) j,
+                          (const char **) arguments,
+                          disconnect,
+                          sizeof(error_msg),
+                          error_msg,
+                          row_count);
+        }
       else
-	{
-	  DBUG_PRINT("warning", ("Could not determine array size"));
-	}
+        {
+          DBUG_PRINT("warning", ("Could not determine array size"));
+        }
 
       if (arguments != NULL)
-	{
-	  for (i = 0; i < array_size; i++)
-	    {
-	      if (arguments[i] != NULL)
-		{
-		  free(arguments[i]);
-		}
-	    }
-	  free(arguments);
-	}
+        {
+          for (i = 0; i < array_size; i++)
+            {
+              if (arguments[i] != NULL)
+                {
+                  free(arguments[i]);
+                }
+            }
+          free(arguments);
+        }
 
       if (errhp != NULL)
-	{
-	  (void) OCIHandleFree(errhp, OCI_HTYPE_ERROR);
-	  errhp = NULL;
-	}
+        {
+          (void) OCIHandleFree(errhp, OCI_HTYPE_ERROR);
+          errhp = NULL;
+        }
     }
 
   /* free handle */
@@ -223,9 +223,9 @@ void oradumper_extproc(OCIExtProcContext *ctx, OCIColl *coll, short coll_ind, un
     {
       /* set length if not already set */
       if (length == 0)
-	{
-	  length = (unsigned int) strlen(msg);
-	}
+        {
+          length = (unsigned int) strlen(msg);
+        }
 
       DBUG_PRINT("error", ("msg: %*.*s", length, length, msg));
 
