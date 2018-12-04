@@ -449,6 +449,25 @@ set_option(const option_t option,
   return error;
 }
 
+#if HAVE_DBUG_H
+static
+void
+print_value_description(value_description_t *value_description)
+{
+  DBUG_PRINT("info", ("name: %s; type: %d; type_orig: %d; octet_length: %d; length: %d; precision: %d; scale: %d; character_set_name: %s; unicode: %d; is_numeric: %d",
+                      value_description->name,
+                      (int) value_description->type,
+                      (int) value_description->type_orig,
+                      (int) value_description->octet_length,
+                      (int) value_description->length,
+                      (int) value_description->precision,
+                      (int) value_description->scale,
+                      value_description->character_set_name,
+                      (int) value_description->unicode,
+                      (int) value_description->is_numeric));
+}
+#endif
+
 void
 oradumper_usage(FILE *fout)
 {
@@ -502,11 +521,11 @@ oradumper_process_arguments(const unsigned int nr_arguments,
       if (opt[j].def != NULL)
         {
           /*
-            DBUG_PRINT("info", ("opt[%d].def: '%s'", (int) j, opt[j].def));
+          DBUG_PRINT("info", ("opt[%d].def: '%s'", (int) j, opt[j].def));
           */
           error = set_option((option_t) j, opt[j].def, error_msg_size, error_msg, settings);
           /*
-            DBUG_PRINT("info", ("error: %p", error));
+          DBUG_PRINT("info", ("error: %p", error));
           */
         }
     }
@@ -711,6 +730,7 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
   unsigned int column_nr;
   /*@observer@*/ data_ptr_t data_ptr = NULL;
   unsigned int array_nr;
+  unsigned int bytes_per_character;
   
   do
     {
@@ -911,21 +931,34 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
             }
 
           /* Do not receive columns in Unicode but in UTF8 */
+          bytes_per_character = 1;
           if (column_value->descr[column_nr].unicode)
             {
-              column_value->descr[column_nr].length = column_value->descr[column_nr].octet_length;
+              if (strcmp(column_value->descr[column_nr].character_set_name, "AL16UTF16") == 0)
+                {
+                  bytes_per_character = 2;
+                }
+              else if (strcmp(column_value->descr[column_nr].character_set_name, "AL32UTF8") == 0)
+                {
+                  bytes_per_character = 4;
+                }
             }
           (void) strcpy(column_value->descr[column_nr].character_set_name, "UTF8");
+
+#if HAVE_DBUG_H
+          print_value_description(&column_value->descr[column_nr]);
+#endif
 
           /* add 1 byte for a terminating zero */
           column_value->size[column_nr] = column_value->descr[column_nr].octet_length + 1;
           /* GJP 23-11-2009 Only set display size to description if there is a heading */
           column_value->display_size[column_nr] = 
             max(
-                max(column_value->descr[column_nr].octet_length,
+                max(column_value->descr[column_nr].octet_length / bytes_per_character,
                     (settings->column_heading ? (orasql_size_t) strlen(column_value->descr[column_nr].name) : (orasql_size_t) 0)),
                 (settings->null != NULL ? (orasql_size_t) strlen(settings->null) : (orasql_size_t) 0)
                 );
+          DBUG_PRINT("info", ("column_value->display_size[%u]= %u", column_nr, (unsigned int) column_value->display_size[column_nr]));
 
           /* column_value->data[column_nr][array_nr] points to memory in column_value->buf[column_nr] */
           assert(settings->fetch_size > 0);
@@ -952,7 +985,7 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
               /*@=observertrans@*/
               /*@=dependenttrans@*/
 
-/*#define DBUG_MEMORY 1*/
+#define DBUG_MEMORY 1
 #ifdef DBUG_MEMORY
               DBUG_PRINT("info", ("Dumping column_value->data[%u][%u] (%p)", column_nr, array_nr, column_value->data[column_nr][array_nr]));
               DBUG_DUMP("info", column_value->data[column_nr][array_nr], (unsigned int) column_value->size[column_nr]);
@@ -986,6 +1019,10 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
                                          &column_value->descr[column_nr])) != OK)
             break;
 
+#if HAVE_DBUG_H
+          print_value_description(&column_value->descr[column_nr]);
+#endif
+          
           /* UTF8 should have been used */
           assert(!column_value->descr[column_nr].unicode);
         }

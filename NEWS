@@ -6,6 +6,11 @@ See the end for copying conditions.
 Please send ORADUMPER bug reports to gert.jan.paulissen@gmail.com.
 
 
+Release 1.2.0
+
+* Enabling building for gcc 4 and higher on Windows (Cygwin).
+
+
 Release 1.1.0
 
 * row count output argument added to oradumper procedure.

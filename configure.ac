@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-# Copyright (C) 2008 G.J. Paulissen
+# Copyright (C) 2008-2018 G.J. Paulissen
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -19,7 +19,7 @@
 
 AC_PREREQ(2.59)
 AC_REVISION([$Revision: 1292 $])
-AC_INIT([oradumper],[1.1.0],[gert.jan.paulissen@gmail.com])
+AC_INIT([oradumper],[1.2.0],[gert.jan.paulissen@gmail.com])
 
 # version check
 if test -f "$srcdir/VERSION"
@@ -50,9 +50,17 @@ AC_CANONICAL_HOST
 
 case ${host} in
 *-cygwin)
-	test "$CC" = "" && CC="gcc -mno-cygwin" && export CC
+	if gcc --version | grep -E "gcc \(GCC\) [1-3]\." 1>/dev/null 2>&1
+  then
+          # gcc (GCC) 1.x or 2.x or 3.x: use -mno-cygwin
+          test "$CC" = "" && CC="gcc -mno-cygwin" && export CC
+  fi
 	;;
-?*)	;;
+*solaris*|*sun*)
+  test "$LIBS" = "" && LIBS="-lm" && export LIBS
+  ;;
+?*)
+  ;;
 *)	AC_MSG_ERROR([Host not set])
 	;;
 esac
@@ -60,18 +68,19 @@ esac
 AM_INIT_AUTOMAKE
 # AM_C_PROTOTYPES
 AM_WITH_DMALLOC
+
+## AM_PATH_CHECK deprecated
 # m4_pattern_allow([^AM_PATH_CHECK$])
-# AM_PATH_CHECK([0.9.4])
-# PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
+# AM_PATH_CHECK([0.10.0])
+PKG_CHECK_MODULES([CHECK], [check >= 0.10.0])
 
 # Checks for programs.
 # AM_PROG_CC_C_O
 AC_PROG_CC
 AM_PROG_CC_STDC
 
-# Enable dbug
-ACX_ENABLE_DBUG
-CPPFLAGS="$DBUG_CPPFLAGS $CPPFLAGS"
+# dbug package ?
+ACX_WITH_DBUG
 
 # Enable PRO*C
 ACX_PROG_PROC

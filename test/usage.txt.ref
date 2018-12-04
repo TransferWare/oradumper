@@ -6,7 +6,7 @@ Mandatory parameters:
 
 Optional parameters:
   userid                          Oracle connect string
-  fetch_size                      Array size [default = 10]
+  fetch_size                      Array size [default = 1000]
   dbug_options                    DBUG options [default = ]
   nls_lang                        Set NLS_LANG environment variable
   nls_date_format                 Set NLS date format
