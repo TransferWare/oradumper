@@ -32,10 +32,6 @@
 #include <sys/errno.h>
 #endif
 
-#if HAVE_DBUG_H
-#include <dbug.h>
-#endif
-
 /* include dmalloc as last one */
 #ifdef WITH_DMALLOC
 #include <dmalloc.h>
@@ -72,7 +68,6 @@ typedef enum {
   OPTION_USERID = 0,
   OPTION_QUERY,
   OPTION_FETCH_SIZE,
-  OPTION_DBUG_OPTIONS,
   /* GJP 23-11-2009 Setting environment variable NLS_LANG=.utf8 returns UTF8 output. */
   OPTION_NLS_LANG,
   OPTION_NLS_DATE_FORMAT,
@@ -97,7 +92,6 @@ typedef struct {
   /*@null@*/ /*@only@*/ char *userid;
   /*@only@*/ char *query;
   unsigned int fetch_size;
-  /*@only@*/ char *dbug_options;
   /*@null@*/ /*@only@*/ char *nls_lang;
   /*@null@*/ /*@only@*/ char *nls_date_format;
   /*@null@*/ /*@only@*/ char *nls_timestamp_format;
@@ -129,7 +123,6 @@ static const struct {
 #define OPTION_USERID_MANDATORY false
 #define OPTION_QUERY_MANDATORY true
 #define OPTION_FETCH_SIZE_MANDATORY false
-#define OPTION_DBUG_OPTIONS_MANDATORY false
 #define OPTION_NLS_LANG_MANDATORY false
 #define OPTION_NLS_DATE_FORMAT_MANDATORY false
 #define OPTION_NLS_TIMESTAMP_FORMAT_MANDATORY false
@@ -151,7 +144,6 @@ static const struct {
   { "userid", OPTION_USERID_MANDATORY, "Oracle connect string", NULL }, /* userid may be NULL when oradumper is used as a library */
   { "query", OPTION_QUERY_MANDATORY, "Select statement", NULL },
   { "fetch_size", OPTION_FETCH_SIZE_MANDATORY, "Array size", "1000" },
-  { "dbug_options", OPTION_DBUG_OPTIONS_MANDATORY, "DBUG options", "" },
   { "nls_lang", OPTION_NLS_LANG_MANDATORY, "Set NLS_LANG environment variable", NULL },
   { "nls_date_format", OPTION_NLS_DATE_FORMAT_MANDATORY, "Set NLS date format", NULL },
   { "nls_timestamp_format", OPTION_NLS_TIMESTAMP_FORMAT_MANDATORY, "Set NLS timestamp format", NULL },
@@ -217,20 +209,14 @@ convert2ascii(const size_t error_msg_size, char *error_msg, char *str)
   int ch2;
   const size_t len = strlen(str);
 
-  /* DBUG is only activated here after options have been parsed */
-
-  /*
   DBUG_ENTER("convert2ascii");
   DBUG_PRINT("input", ("str: '%s'", str));
-  */
 
   for (src = dst = 0; error == NULL && str[src] != '\0'; src++, dst++)
     {
       assert(dst <= src);
 
-      /*
       DBUG_PRINT("input", ("str[src=%d]: '%c'", (int)src, str[src]));
-      */
 
       switch(str[src])
         {
@@ -287,26 +273,20 @@ convert2ascii(const size_t error_msg_size, char *error_msg, char *str)
           break;
         }
 
-      /*
       DBUG_PRINT("input", ("str[src=%d]: '%c'", (int)src, str[src]));
       DBUG_PRINT("input", ("str[dst=%d]: '%c'", (int)dst, str[dst]));
-      */
     }
 
   /*@-nullpass@*/
-  /*
   DBUG_PRINT("info",
              ("error: %p; src=%d; original length of str: %d%s",
               error,
               (int) src,
               (int) len,
               (error != NULL || src == len ? "" : " (convert2ascii error)")));
-  */
   /*@=nullpass@*/
 
-  /*
   DBUG_PRINT("output", ("str: '%s'", str));
-  */
 
   assert(error != NULL || src == len);
 
@@ -315,9 +295,7 @@ convert2ascii(const size_t error_msg_size, char *error_msg, char *str)
       str[dst] = '\0';
     }
 
-  /*
   DBUG_LEAVE();
-  */
 
   return error;
 }
@@ -331,10 +309,8 @@ set_option(const option_t option,
            /*@partial@*/ settings_t *settings)
 {
   char *error = NULL;
-  
-  /*
-  DBUG_PRINT("info", ("set_option(%d, %p, %d, %p, ...)", (int) option, value, (int)error_msg_size, error_msg));
-  */
+
+  DBUG_PRINT("info", ("set_option(%d, %s, %d, %p, ...)", (int) option, value, (int)error_msg_size, error_msg));
 
   switch(option)
     {
@@ -354,11 +330,6 @@ set_option(const option_t option,
         {
           settings->fetch_size = 1;
         }
-      break;
-
-    case OPTION_DBUG_OPTIONS:
-      FREE(settings->dbug_options);
-      settings->dbug_options = strdup(value);
       break;
 
     case OPTION_NLS_LANG:
@@ -449,15 +420,97 @@ set_option(const option_t option,
   return error;
 }
 
-#if HAVE_DBUG_H
+static
+char *
+get_type_str(const orasql_datatype_t type)
+{
+  switch (type)
+    {
+    case ANSI_CHARACTER:
+      return "ANSI_CHARACTER";
+    case ANSI_CHARACTER_VARYING:
+      return "ANSI_CHARACTER_VARYING";
+    case ANSI_DATE:
+      return "ANSI_DATE";
+    case ANSI_DECIMAL:
+      return "ANSI_DECIMAL";
+    case ANSI_DOUBLE_PRECISION:
+      return "ANSI_DOUBLE_PRECISION";
+    case ANSI_FLOAT:
+      return "ANSI_FLOAT";
+    case ANSI_INTEGER:
+      return "ANSI_INTEGER";
+    case ANSI_NUMERIC:
+      return "ANSI_NUMERIC";
+    case ANSI_REAL:
+      return "ANSI_REAL";
+    case ANSI_SMALLINT:
+      return "ANSI_SMALLINT";
+    case ORA_VARCHAR2:
+      return "ORA_VARCHAR2";
+    case ORA_NUMBER:
+      return "ORA_NUMBER";
+    case ORA_INTEGER:
+      return "ORA_INTEGER";
+    case ORA_FLOAT:
+      return "ORA_FLOAT";
+    case ORA_STRING:
+      return "ORA_STRING";
+    case ORA_VARNUM:
+      return "ORA_VARNUM";
+    case ORA_DECIMAL:
+      return "ORA_DECIMAL";
+    case ORA_LONG:
+      return "ORA_LONG";
+    case ORA_VARCHAR:
+      return "ORA_VARCHAR";
+    case ORA_ROWID:
+      return "ORA_ROWID";
+    case ORA_DATE:
+      return "ORA_DATE";
+    case ORA_VARRAW:
+      return "ORA_VARRAW";
+    case ORA_RAW:
+      return "ORA_RAW";
+    case ORA_LONG_RAW:
+      return "ORA_LONG_RAW";
+    case ORA_UNSIGNED:
+      return "ORA_UNSIGNED";
+    case ORA_DISPLAY:
+      return "ORA_DISPLAY";
+    case ORA_LONG_VARCHAR:
+      return "ORA_LONG_VARCHAR";
+    case ORA_LONG_VARRAW:
+      return "ORA_LONG_VARRAW";
+    case ORA_CHAR:
+      return "ORA_CHAR";
+    case ORA_CHARZ:
+      return "ORA_CHARZ";
+    case ORA_UROWID:
+      return "ORA_UROWID";
+    case ORA_CLOB:
+      return "ORA_CLOB";
+    case ORA_BLOB:
+      return "ORA_BLOB";
+    case ORA_INTERVAL:
+      return "ORA_INTERVAL";
+    default:
+      return "UNKNOWN";
+    }
+  return NULL;
+}
+
 static
 void
 print_value_description(value_description_t *value_description)
 {
-  DBUG_PRINT("info", ("name: %s; type: %d; type_orig: %d; octet_length: %d; length: %d; precision: %d; scale: %d; character_set_name: %s; unicode: %d; is_numeric: %d",
+  DBUG_ENTER("print_value_description");
+  DBUG_PRINT("info", ("name: %s; type: %d (%s); type_orig: %d (%s); octet_length: %d; length: %d; precision: %d; scale: %d; character_set_name: %s; unicode: %d; is_numeric: %d",
                       value_description->name,
                       (int) value_description->type,
+                      get_type_str(value_description->type),
                       (int) value_description->type_orig,
+                      get_type_str(value_description->type_orig),
                       (int) value_description->octet_length,
                       (int) value_description->length,
                       (int) value_description->precision,
@@ -465,8 +518,8 @@ print_value_description(value_description_t *value_description)
                       value_description->character_set_name,
                       (int) value_description->unicode,
                       (int) value_description->is_numeric));
+  DBUG_LEAVE();
 }
-#endif
 
 void
 oradumper_usage(FILE *fout)
@@ -512,7 +565,9 @@ oradumper_process_arguments(const unsigned int nr_arguments,
 {
   size_t i = 0, j = 0;
   char *error = NULL;
-
+  
+  DBUG_ENTER("oradumper_process_arguments");
+  
   (void) memset(settings, 0, sizeof(*settings));
 
   /* set defaults */
@@ -520,13 +575,14 @@ oradumper_process_arguments(const unsigned int nr_arguments,
     {
       if (opt[j].def != NULL)
         {
-          /*
-          DBUG_PRINT("info", ("opt[%d].def: '%s'", (int) j, opt[j].def));
-          */
+          DBUG_PRINT("info", ("option %d; name: %s; mandatory: %d; description: %s; default: '%s'", (int) j, opt[j].name, opt[j].mandatory, opt[j].desc, opt[j].def));
+          
           error = set_option((option_t) j, opt[j].def, error_msg_size, error_msg, settings);
-          /*
-          DBUG_PRINT("info", ("error: %p", error));
-          */
+
+          if (error != NULL)
+            {
+              DBUG_PRINT("info", ("error: %s", error));
+            }
         }
     }
 
@@ -589,12 +645,6 @@ oradumper_process_arguments(const unsigned int nr_arguments,
 
 #if OPTION_FETCH_SIZE_MANDATORY
             case OPTION_FETCH_SIZE:
-              break;
-#endif
-
-#if OPTION_DBUG_OPTIONS_MANDATORY
-            case OPTION_DBUG_OPTIONS:
-              result = settings->dbug_options != NULL;
               break;
 #endif
 
@@ -719,6 +769,8 @@ oradumper_process_arguments(const unsigned int nr_arguments,
                       "\n\nRun oradumper without arguments for help.\n");
     }
 
+  DBUG_LEAVE();
+  
   return error;
 }
 
@@ -731,7 +783,10 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
   /*@observer@*/ data_ptr_t data_ptr = NULL;
   unsigned int array_nr;
   unsigned int bytes_per_character;
-  
+
+  DBUG_ENTER("prepare_fetch");
+
+  /* use a do {} while (0) to be able to break within {} */
   do
     {
       if ((status = orasql_value_count(column_value->descriptor_name, &column_value->value_count)) != OK)
@@ -945,9 +1000,7 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
             }
           (void) strcpy(column_value->descr[column_nr].character_set_name, "UTF8");
 
-#if HAVE_DBUG_H
           print_value_description(&column_value->descr[column_nr]);
-#endif
 
           /* add 1 byte for a terminating zero */
           column_value->size[column_nr] = column_value->descr[column_nr].octet_length + 1;
@@ -1019,15 +1072,15 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
                                          &column_value->descr[column_nr])) != OK)
             break;
 
-#if HAVE_DBUG_H
           print_value_description(&column_value->descr[column_nr]);
-#endif
           
           /* UTF8 should have been used */
           assert(!column_value->descr[column_nr].unicode);
         }
     } while (0);
 
+  DBUG_LEAVE();
+  
   return status;
 }
 
@@ -1102,11 +1155,22 @@ print_data(/*@in@*/ const settings_t *settings,
   char data_prefix[2+1] = "XX"; /* important: last character must (and will) be the zero terminator */
 
   DBUG_ENTER("print_data");
+  DBUG_PRINT("input", ("row_count: %u; total_fetch_size: %u", row_count, total_fetch_size));
+
+#ifdef DBUG_MEMORY
+  for (column_nr = 0; column_nr < column_value->value_count; column_nr++)
+    {
+      DBUG_PRINT("info", ("Dumping data for column %u from address %p for %d items fetched of size %d",
+                          column_nr+1,
+                          column_value->buf[column_nr],
+                          (int) settings->fetch_size,
+                          (int) column_value->size[column_nr]));
+      DBUG_DUMP("info", column_value->buf[column_nr], (unsigned int)(settings->fetch_size * column_value->size[column_nr]));
+    }
+#endif
 
   for (array_nr = 0; array_nr < row_count; array_nr++)
     {
-      DBUG_PRINT("info", ("array_nr: %u", array_nr));
-
       for (column_nr = 0; column_nr < column_value->value_count; column_nr++)
         {
           assert(column_value->data[column_nr] != NULL);
@@ -1127,6 +1191,8 @@ print_data(/*@in@*/ const settings_t *settings,
             {
               data = empty;
             }
+
+          DBUG_PRINT("info", ("row %u, column %u: '%s'", array_nr+1, column_nr+1, data));
 
           data_prefix[0] = '\0';
           if (column_value->descr[column_nr].is_numeric /* non numeric fields will never get a leading zero */
@@ -1283,6 +1349,9 @@ oradumper(const unsigned int nr_arguments,
 {
   /*@observer@*/ /*@null@*/ char *error = NULL;
 
+  DBUG_ENTER("oradumper");
+  DBUG_PRINT("input", ("nr_arguments: %u; disconnect: %d; error_msg_size: %u", nr_arguments, disconnect, (unsigned int)error_msg_size)); 
+  
   *row_count = 0;
 
   if (nr_arguments == 0)
@@ -1338,8 +1407,6 @@ oradumper(const unsigned int nr_arguments,
 #ifndef DBUG_OFF
       if (error == NULL)
         {
-          (void)dbug_init(settings.dbug_options, "oradumper");
-          (void)dbug_enter(__FILE__, "oradumper", __LINE__, NULL);        
 #if defined(HAVE_LANGINFO_H) && HAVE_LANGINFO_H != 0
           DBUG_PRINT("info", ("language info: %s", nl_langinfo(CODESET)));
 #endif
@@ -1623,12 +1690,6 @@ oradumper(const unsigned int nr_arguments,
               print_heading(&settings, &column_value, fout);
               /*@=nullstate@*/
 
-#ifdef DBUG_MEMORY
-              DBUG_PRINT("info", ("Dumping column_value.data (%p)", column_value.data));
-              DBUG_DUMP("info", column_value.data, (unsigned int)(column_value.value_count * sizeof(*column_value.data)));
-              DBUG_PRINT("info", ("Dumping column_value.ind (%p)", column_value.ind));
-              DBUG_DUMP("info", column_value.ind, (unsigned int)(column_value.value_count * sizeof(*column_value.ind)));
-#endif
               do
                 {
                   sqlcode = orasql_fetch_rows(column_value.descriptor_name, column_value.array_count, row_count);
@@ -1725,17 +1786,8 @@ oradumper(const unsigned int nr_arguments,
           break;
         }
 
-#ifndef DBUG_OFF
-      if (settings.dbug_options != NULL && settings.dbug_options[0] != '\0')
-        {
-          (void)dbug_leave(__LINE__, NULL);
-          (void)dbug_done();
-        }
-#endif
-
       FREE(settings.userid);
       FREE(settings.query);
-      FREE(settings.dbug_options);
       FREE(settings.nls_lang);
       FREE(settings.nls_date_format);
       FREE(settings.nls_timestamp_format);
@@ -1812,6 +1864,9 @@ oradumper(const unsigned int nr_arguments,
       FREE(column_value.data);
       FREE(column_value.ind);
     }
+
+  DBUG_PRINT("output", ("row_count: %u; return: %s", *row_count, (error != NULL ? error : "")));
+  DBUG_LEAVE();
 
   return error;
 }

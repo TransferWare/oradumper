@@ -48,10 +48,6 @@
 
 /*EXEC SQL INCLUDE "oci.h";*/
 
-#if HAVE_DBUG_H
-#include <dbug.h>
-#endif
-
 /* include dmalloc as last one */
 #ifdef WITH_DMALLOC
 #include <dmalloc.h>
@@ -258,7 +254,6 @@ EXEC SQL VAR descriptor_name IS STRING;
 unsigned int *count;
 EXEC SQL END DECLARE SECTION;
 {
-
   DBUG_ENTER("orasql_value_count");
   DBUG_PRINT("input", ("descriptor_name: %s", descriptor_name));
 
@@ -370,6 +365,7 @@ EXEC SQL VAR descriptor_name IS STRING;
 EXEC SQL END DECLARE SECTION;
 {
   DBUG_ENTER("orasql_open_cursor");
+  DBUG_PRINT("input", ("descriptor_name: %s", descriptor_name));
 
   /* Open the cursor and execute the statement. */
   LINT_FLAGS_PROC_BEGIN;
@@ -413,7 +409,7 @@ EXEC SQL END DECLARE SECTION;
 unsigned int *count;
 {
   DBUG_ENTER("orasql_fetch_rows");
-  DBUG_PRINT("input", ("array_size: %u", array_size));
+  DBUG_PRINT("input", ("descriptor: %s; array_size: %u", descriptor_name, array_size));
 
   switch (sqlca.sqlcode)
     {

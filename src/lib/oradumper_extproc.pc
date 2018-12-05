@@ -65,10 +65,6 @@ LINT_FLAGS_PROC_END;
 #include <sqlcpr.h>
 #endif
 
-#if HAVE_DBUG_H
-#include <dbug.h>
-#endif
-
 /* include dmalloc as last one */
 #ifdef WITH_DMALLOC
 #include <dmalloc.h>
@@ -112,18 +108,19 @@ void oradumper_extproc(OCIExtProcContext *ctx, OCIColl *coll, short coll_ind, un
   unsigned int length = 0;
   /*@observer@*/ char *msg = NULL;
 
-  DBUG_INIT(getenv("DBUG_OPTIONS"), "oradumper_extproc");
+  DBUG_INIT((getenv("DBUG_OPTIONS") != NULL ? getenv("DBUG_OPTIONS") : ""), "oradumper_extproc");
   DBUG_ENTER("oradumper_extproc");
+  DBUG_PRINT("input", ("coll_ind: %d", (int)coll_ind));
 
   if (orasql_register_connect(ctx) != OK)
     {
       orasql_error(&length, &msg);
     }
   else if (/*@-nullpass@*/
-     SQLEnvGet(0, &envhp) != OCI_SUCCESS ||
-     OCIHandleAlloc(envhp, (void **)&errhp, OCI_HTYPE_ERROR, 0, 0) != OCI_SUCCESS ||
-     SQLSvcCtxGet(0, NULL, 0, &svchp) != OCI_SUCCESS 
-     /*@=nullpass@*/)
+           SQLEnvGet(0, &envhp) != OCI_SUCCESS ||
+           OCIHandleAlloc(envhp, (void **)&errhp, OCI_HTYPE_ERROR, 0, 0) != OCI_SUCCESS ||
+           SQLSvcCtxGet(0, NULL, 0, &svchp) != OCI_SUCCESS 
+           /*@=nullpass@*/)
     {
       msg = "failed to setup OCI environment";
     }
@@ -234,6 +231,7 @@ void oradumper_extproc(OCIExtProcContext *ctx, OCIColl *coll, short coll_ind, un
       /*@=nullpass@*/
     }
 
+  DBUG_PRINT("output", ("row_count: %u", *row_count));
   DBUG_LEAVE();
   DBUG_DONE();
 }
