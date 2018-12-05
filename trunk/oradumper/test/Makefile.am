@@ -35,13 +35,11 @@ GCOV_TESTS              =
 
 endif
 
-## Set DBUG_OPTIONS for code coverage
-DBUG_OPTIONS            = d,g,t,o=dbug.log
 DMALLOC_OPTIONS         = debug=0x4000503,log=dmalloc%p.log
 TESTS_ENVIRONMENT       = top_builddir=${top_builddir} top_srcdir=${top_srcdir} DBUG_OPTIONS=$(DBUG_OPTIONS) DMALLOC_OPTIONS=$(DMALLOC_OPTIONS)
 
 TESTS                   = oradumper_test $(check_PROGRAMS) check_userid $(GCOV_TESTS)
 
 EXTRA_DIST              = check_coverage check_userid oradumper_test oradumper_test.sql \
-                          query1.lis.ref query2.lis.ref query3.lis.ref query4.lis.ref \
+                          query1.lis.ref query2.lis.ref query3.lis.ref query4.lis.ref query5.lis.ref query6.lis.ref query7.lis.ref \
                           query_data_types.lis.ref usage.txt.ref

@@ -13,6 +13,10 @@ typedef int bool;
 #include <oci.h>
 #endif
 
+/*#if HAVE_DBUG_H*/
+#include <dbug.h>
+/*#endif*/
+
 typedef enum {
   ANSI_CHARACTER = 1,
   ANSI_CHARACTER_VARYING = 12, /* VARCHAR2, NVARCHAR */

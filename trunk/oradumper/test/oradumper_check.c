@@ -47,7 +47,6 @@
 #define FILENAME_MAX 1024
 #endif
 
-static char dbug_options[1000+1] = "dbug_options=";
 static char error_msg[1000+1] = "";
 static unsigned int row_count;
 static char *srcdir; /* environment variable set by automake */
@@ -222,7 +221,6 @@ START_TEST(test_enclosure_string)
   char enclosure_string[100+1];
   int d1, d2, d3;
   const char *options[] = {
-    /*    dbug_options,*/
     "query=select * from dual where 0=1",
     enclosure_string,
     "column_heading=0",
@@ -394,7 +392,6 @@ START_TEST(test_query_sql_error)
   char userid[100+1] = "userid=";
   const char *options[] = {
     userid,
-    dbug_options,
     "feedback=0",
     "query=select "
   };
@@ -425,7 +422,6 @@ START_TEST(test_query_data_types)
     "nls_timestamp_format=yyyy-mm-dd hh24:mi:ss.ff",
     "nls_timestamp_tz_format=yyyy-mm-dd hh24:mi:ss.ff tzh:tzm",
     "nls_numeric_characters=.,",
-    dbug_options,
     query,
     output_file,
     "feedback=1",
@@ -543,11 +539,16 @@ START_TEST(test_query1)
     "nls_date_format=yyyy-mm-dd hh24:mi:ss",
     "nls_timestamp_format=yyyy-mm-dd hh24:mi:ss",
     "nls_numeric_characters=.,",
-    dbug_options,
+    /*    
     "query=\
 select 1234567890 as NR, unistr('\"my,string\"') as STR, to_date('1900-12-31 23:23:59') as DAY from dual \
 union all \
 select 2345678901, unistr('YOURSTRING'), to_date('20001231232359', 'yyyymmddhh24miss') from dual where :x is null",
+    */
+    "query=\
+select 1234567890 as NR, '\"my,string\"' as STR, to_date('1900-12-31 23:23:59') as DAY from dual \
+union all \
+select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') from dual where :x is null",
     output_file,
     "fixed_column_length=0",
     "column_separator=,",
@@ -569,10 +570,10 @@ select 2345678901, unistr('YOURSTRING'), to_date('20001231232359', 'yyyymmddhh24
   fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count), error_msg);
   /* skip connect, but append */
   strcpy(last_option, "output_append=1");
-  fetch_size[strlen(fetch_size)-1] = '2';
+  strcpy(fetch_size, "fetch_size=10");
   fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count), error_msg);
   /* disconnect */
-  fetch_size[strlen(fetch_size)-1] = '3';
+  strcpy(fetch_size, "fetch_size=100");
   fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
 
   error = cmp_files(output, output_ref);
@@ -594,7 +595,6 @@ START_TEST(test_query2)
     "nls_timestamp_format=yyyy-mm-dd hh24:mi:ss",
     "nls_numeric_characters=.,",
     "feedback=0",
-    dbug_options,
     "query=\
 select to_clob(rpad('0123456789', 8000, '0123456789')) as myclob from dual",
     output_file,
@@ -632,9 +632,15 @@ START_TEST(test_query3)
     "nls_timestamp_format=yyyy-mm-dd hh24:mi:ss",
     "nls_numeric_characters=.,",
     "feedback=1", /* to print the dot after each fetch */
-    dbug_options,
     "query=\
-select object_name, object_type from all_objects where owner = 'SYS' and object_name like 'UTL\\_%' escape '\\' and object_type='PACKAGE' and object_name not in ('UTL_DBWS','UTL_IDENT','UTL_MATCH') and rownum <= :b1 order by object_name",
+select object_name, object_type \
+from all_objects \
+where owner = 'SYS' \
+and object_name like 'UTL\\_%' escape '\\' \
+and object_type='PACKAGE' \
+and object_name in ('UTL_COLL','UTL_COMPRESS','UTL_ENCODE','UTL_FILE','UTL_GDK','UTL_HTTP','UTL_I18N','UTL_INADDR','UTL_LMS') \
+and rownum <= :b1 \
+order by object_name",
     output_file,
     "fixed_column_length=0",
     "10" /* bind value */
@@ -666,13 +672,12 @@ START_TEST(test_query4)
   char output_file[100+1] = "output_file=";
   const char *options[] = {
     userid,
-    "fetch_size=100",
+    "fetch_size=1", /* 100 */
     "feedback=0",
     "nls_lang=.utf8",
     "nls_date_format=yyyy-mm-dd hh24:mi:ss",
     "nls_timestamp_format=yyyy-mm-dd hh24:mi:ss",
     "nls_numeric_characters=.,",
-    dbug_options,
     "query=\
 select cast(1234567890 as number(10, 0)) as NR, unistr('my,string') as STR, to_date('1900-12-31 23:23:59') as DAY from dual \
 union \
@@ -714,7 +719,6 @@ START_TEST(test_query5)
   const char *options[] = {
     userid,
     "feedback=0",
-    dbug_options,
     "query=\
 select  cast('query5' as varchar2(30)) as name\
 ,       cast(1 as number(10)) as default_retention_period\
@@ -757,7 +761,6 @@ START_TEST(test_query6)
   const char *options[] = {
     userid,
     "feedback=0",
-    dbug_options,
     "query=\
 select  cast('query6' as varchar2(30)) as name\
 ,       cast(1 as number(10)) as default_retention_period\
@@ -799,7 +802,6 @@ START_TEST(test_query7)
   const char *options[] = {
     userid,
     "feedback=0",
-    dbug_options,
     "query=\
 select  '\"' as enclosure_string\
 ,       ';' as column_separator\
@@ -870,17 +872,16 @@ main(void)
   Suite *s = options_suite();
   SRunner *sr = srunner_create(s);
 
-  DBUG_INIT("d,g,t,o=oradumper_check.log", "oradumper_check");
-
-  if (getenv("DBUG_OPTIONS") != NULL)
-    (void) strcat(dbug_options, getenv("DBUG_OPTIONS"));
-
+  DBUG_INIT("d,g,t,o=dbug.log", "oradumper_check");  
+  DBUG_ENTER("main");
+  
   srcdir = (getenv("srcdir") != NULL ? getenv("srcdir") : ".");
 
   srunner_run_all(sr, CK_ENV); /* Use environment variable CK_VERBOSITY, which can have the values "silent", "minimal", "normal", "verbose" */
   number_failed = srunner_ntests_failed(sr);
   srunner_free(sr);
 
+  DBUG_LEAVE();
   DBUG_DONE();
 
   return (number_failed == 0 ? EXIT_SUCCESS : EXIT_FAILURE);

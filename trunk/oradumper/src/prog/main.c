@@ -19,6 +19,8 @@
 #include <dmalloc.h>
 #endif
 
+#include <dbug.h>
+
 #include "oradumper.h"
 
 int main( int argc, char **argv )
@@ -26,6 +28,7 @@ int main( int argc, char **argv )
   const int disconnect = 1;
   char error_msg[1000+1];
   unsigned int row_count;
+  int status;
 
 #ifdef WITH_DMALLOC
   (void) atexit(dmalloc_shutdown);
@@ -34,6 +37,9 @@ int main( int argc, char **argv )
   /* setup support for UTF-8 */
   (void) setlocale(LC_ALL, "");
 
+  DBUG_INIT((getenv("DBUG_OPTIONS") != NULL ? getenv("DBUG_OPTIONS") : ""), "oradumper");
+  DBUG_ENTER("main");
+  
   if (NULL != oradumper((unsigned int)(argc - 1),
                         (const char **)(argv + 1),
                         disconnect,
@@ -42,10 +48,14 @@ int main( int argc, char **argv )
                         &row_count))
     {
       (void) fprintf(stderr, "\nERROR: %s\n", error_msg);
-      return EXIT_FAILURE;
+      status = EXIT_FAILURE;
     }
   else
     {
-      return EXIT_SUCCESS;
+      status = EXIT_SUCCESS;
     }
+
+  DBUG_LEAVE();
+  
+  return status;
 }
