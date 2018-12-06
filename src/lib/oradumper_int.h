@@ -67,12 +67,14 @@ typedef struct {
   orasql_datatype_t type;
   orasql_datatype_t type_orig; /* type is converted to a string type */
   orasql_size_t octet_length; /* length in bytes */
-  orasql_size_t length; /* length in characters */
+  orasql_size_t length; /* length in characters for NCHAR; in bytes otherwise */
   int precision;
   int scale;
   character_set_name_t character_set_name;
-  bool unicode;
   bool is_numeric;
+  /* Oracle extensions */
+  unsigned int national_character;
+  unsigned int internal_length;
 } value_description_t;
 
 /* zero terminated character array */
@@ -125,6 +127,10 @@ typedef struct {
 #define OK 0
 
 /* functions which need to be tested only are defined in the internal oradumper source */
+
+extern
+void
+print_value_description(value_description_t *value_description);
 
 /*@-exportlocal@*/
 extern

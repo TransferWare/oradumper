@@ -281,11 +281,13 @@ value_description_t *value_description;
   EXEC SQL VAR name IS STRING(30);
   int *type = &value_description->type;
   unsigned int *octet_length = &value_description->octet_length; /* length in bytes */
-  unsigned int *length = &value_description->length; /* length in characters */
+  unsigned int *length = &value_description->length; /* length in characters for NCHAR; in bytes otherwise */
   int *precision = &value_description->precision;
   int *scale = &value_description->scale;
   char *character_set_name = value_description->character_set_name;
   EXEC SQL VAR character_set_name IS STRING(20);
+  unsigned int *national_character = &value_description->national_character;
+  unsigned int *internal_length = &value_description->internal_length;  
   EXEC SQL END DECLARE SECTION;
 
   DBUG_ENTER("orasql_value_get");
@@ -299,13 +301,13 @@ value_description_t *value_description;
     :length = LENGTH,
     :precision = PRECISION,
     :scale = SCALE,
-    :character_set_name = CHARACTER_SET_NAME;
+    :character_set_name = CHARACTER_SET_NAME,
+    :national_character = NATIONAL_CHARACTER,
+    :internal_length = INTERNAL_LENGTH;
   LINT_FLAGS_PROC_END;
 
-  value_description->unicode = (strcmp("AL16UTF16", character_set_name) == 0 || strcmp("AL32UTF8", character_set_name) == 0);
-
-  DBUG_PRINT("output", ("name: %s; type: %d; octet_length: %u; length: %u; precision: %d; scale: %d; character set name: %s; unicode: %d; sqlca.sqlcode: %d",
-                        name, (int) *type, *octet_length, *length, *precision, *scale, character_set_name, value_description->unicode, sqlca.sqlcode));
+  print_value_description(value_description);
+  DBUG_PRINT("output", ("return (sqlca.sqlcode): %d", sqlca.sqlcode));
   DBUG_LEAVE();
 
   return sqlca.sqlcode;
@@ -332,15 +334,13 @@ value_description_t *value_description;
 
   DBUG_ENTER("orasql_value_set");
   DBUG_PRINT("input",
-             ("descriptor_name: %s; nr: %u; array_size: %u; type: %d; length: %u; data: %p; ind: %p; character set name: %s",
+             ("descriptor_name: %s; nr: %u; array_size: %u; data: %p; ind: %p",
               descriptor_name,
               nr,
               array_size,
-              type,
-              length,
               data,
-              ind,
-              character_set_name));
+              ind));
+  print_value_description(value_description);
 
   LINT_FLAGS_PROC_BEGIN;
   EXEC SQL SET DESCRIPTOR LOCAL :descriptor_name VALUE :nr

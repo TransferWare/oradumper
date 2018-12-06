@@ -526,10 +526,62 @@ START_TEST(test_query_data_types)
 }
 END_TEST
 
+START_TEST(test_query0)
+{
+  const char output[] = "query0.lis";
+  char last_option[100+1] = "userid=";
+  char output_file[100+1] = "output_file=";
+  char query[1000+1] = "query=\
+select  1234567890 as NR \
+,       to_char(1234567890) as NR_STR \
+,       'DUMMY' as CH \
+,       unistr('DUMMY') as CH_UNICODE \
+,       to_date('1900-12-31 23:23:59') as DT \
+,       to_char(to_date('1900-12-31 23:23:59')) as DT_STR \
+from    dual \
+connect by \
+        level <= 2";
+  const char *options[] = {
+    "fetch_size=2",
+    "null=NULL",
+    "nls_lang=AMERICAN",
+    "nls_date_format=yyyy-mm-dd hh24:mi:ss",
+    "nls_timestamp_format=yyyy-mm-dd hh24:mi:ss",
+    "nls_numeric_characters=.,",
+    query,
+    output_file,
+    "fixed_column_length=1",    
+    "column_separator=\\040",
+    last_option
+  };
+  char *error;
+
+  DBUG_ENTER("test_query0");
+
+  (void) sprintf(output_ref, "%s/%s.ref", srcdir, output);
+
+  fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
+
+  (void) strncat(last_option, getenv("USERID"), sizeof(last_option) - strlen(last_option));
+  (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
+
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count), error_msg);
+
+  strcpy(query, "query=select * from t");
+  strcpy(last_option, "output_append=1");
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
+
+  error = cmp_files(output, output_ref);
+  fail_if(error != NULL, error);
+
+  DBUG_LEAVE();
+}
+END_TEST
+
 START_TEST(test_query1)
 {
   const char output[] = "query1.lis";
-  char fetch_size[100+1] = "fetch_size=1";
+  char fetch_size[100+1] = "fetch_size=3";
   char last_option[100+1] = "userid=";
   char output_file[100+1] = "output_file=";
   const char *options[] = {
@@ -539,16 +591,16 @@ START_TEST(test_query1)
     "nls_date_format=yyyy-mm-dd hh24:mi:ss",
     "nls_timestamp_format=yyyy-mm-dd hh24:mi:ss",
     "nls_numeric_characters=.,",
-    /*    
     "query=\
 select 1234567890 as NR, unistr('\"my,string\"') as STR, to_date('1900-12-31 23:23:59') as DAY from dual \
 union all \
 select 2345678901, unistr('YOURSTRING'), to_date('20001231232359', 'yyyymmddhh24miss') from dual where :x is null",
-    */
+    /*
     "query=\
 select 1234567890 as NR, '\"my,string\"' as STR, to_date('1900-12-31 23:23:59') as DAY from dual \
 union all \
 select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') from dual where :x is null",
+    */
     output_file,
     "fixed_column_length=0",
     "column_separator=,",
@@ -570,10 +622,10 @@ select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') f
   fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count), error_msg);
   /* skip connect, but append */
   strcpy(last_option, "output_append=1");
-  strcpy(fetch_size, "fetch_size=10");
+  strcpy(fetch_size, "fetch_size=2");
   fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count), error_msg);
   /* disconnect */
-  strcpy(fetch_size, "fetch_size=100");
+  strcpy(fetch_size, "fetch_size=1");
   fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
 
   error = cmp_files(output, output_ref);
@@ -837,10 +889,13 @@ options_suite(void)
 {
   Suite *s = suite_create("General");
 
+  /*
   TCase *tc_internal = tcase_create("Internal");
   TCase *tc_options = tcase_create("Options");
+  */
   TCase *tc_query = tcase_create("query");
 
+  /*
   tcase_add_test(tc_internal, test_sizes);
   tcase_add_test(tc_internal, test_usage);
   suite_add_tcase(s, tc_internal);
@@ -849,10 +904,15 @@ options_suite(void)
   tcase_add_test(tc_internal, test_output_file);
   tcase_add_test(tc_options, test_enclosure_string);
   suite_add_tcase(s, tc_options);
+  */
 
   tcase_set_timeout(tc_query, 60);
+  /*
   tcase_add_test(tc_query, test_query_sql_error);
   tcase_add_test(tc_query, test_query_data_types);
+  */
+  tcase_add_test(tc_query, test_query0);
+  /*
   tcase_add_test(tc_query, test_query1);
   tcase_add_test(tc_query, test_query2);
   tcase_add_test(tc_query, test_query3);
@@ -860,6 +920,7 @@ options_suite(void)
   tcase_add_test(tc_query, test_query5);
   tcase_add_test(tc_query, test_query6);
   tcase_add_test(tc_query, test_query7);
+  */
   suite_add_tcase(s, tc_query);
 
   return s;

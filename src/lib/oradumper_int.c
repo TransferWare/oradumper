@@ -37,6 +37,7 @@
 #include <dmalloc.h>
 #endif
 
+#include "oradumper.h"
 #include "oradumper_int.h"
 
 extern
@@ -500,12 +501,11 @@ get_type_str(const orasql_datatype_t type)
   return NULL;
 }
 
-static
 void
 print_value_description(value_description_t *value_description)
 {
   DBUG_ENTER("print_value_description");
-  DBUG_PRINT("info", ("name: %s; type: %d (%s); type_orig: %d (%s); octet_length: %d; length: %d; precision: %d; scale: %d; character_set_name: %s; unicode: %d; is_numeric: %d",
+  DBUG_PRINT("info", ("name: %s; type: %d (%s); type_orig: %d (%s); octet_length: %d; length: %d; precision: %d; scale: %d; character_set_name: %s; is_numeric: %d; national_character: %u; internal_length: %u",
                       value_description->name,
                       (int) value_description->type,
                       get_type_str(value_description->type),
@@ -516,8 +516,9 @@ print_value_description(value_description_t *value_description)
                       (int) value_description->precision,
                       (int) value_description->scale,
                       value_description->character_set_name,
-                      (int) value_description->unicode,
-                      (int) value_description->is_numeric));
+                      (int) value_description->is_numeric,
+                      value_description->national_character,
+                      value_description->internal_length));
   DBUG_LEAVE();
 }
 
@@ -782,7 +783,6 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
   unsigned int column_nr;
   /*@observer@*/ data_ptr_t data_ptr = NULL;
   unsigned int array_nr;
-  unsigned int bytes_per_character;
 
   DBUG_ENTER("prepare_fetch");
 
@@ -885,7 +885,6 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
                 column_value->descr[column_nr].length++;
 
               column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
-              column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
               column_value->align[column_nr] = (settings->left_align_numeric_columns ? 'L' : 'R');
               break;
 
@@ -910,7 +909,6 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
               column_value->descr[column_nr].length += 5;
 
               column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
-              column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
               column_value->align[column_nr] = (settings->left_align_numeric_columns ? 'L' : 'R');
               break;
 #endif
@@ -919,7 +917,6 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
             case ORA_LONG_RAW:
               column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
               column_value->descr[column_nr].length = 2000;
-              column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
               column_value->align[column_nr] = 'L';
               break;
 
@@ -927,7 +924,6 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
             case ORA_UROWID:
               column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
               column_value->descr[column_nr].length = 18;
-              column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
               column_value->align[column_nr] = 'L';
               break;
 
@@ -935,7 +931,6 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
             case ORA_DATE:
               column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
               column_value->descr[column_nr].length = 25;
-              column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
               column_value->align[column_nr] = 'L';
               break;
 
@@ -945,7 +940,6 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
                 ( column_value->descr[column_nr].length == 0
                   ? 512U
                   : column_value->descr[column_nr].length );
-              column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
               column_value->align[column_nr] = 'L';
               break;
 
@@ -985,29 +979,37 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
 #endif
             }
 
-          /* Do not receive columns in Unicode but in UTF8 */
-          bytes_per_character = 1;
-          if (column_value->descr[column_nr].unicode)
+          column_value->display_size[column_nr] = column_value->descr[column_nr].length;
+              
+          /* Change non national character colums to string columns with character set AL32UTF8 */
+          switch (column_value->descr[column_nr].national_character) /* If 2, NCHAR or NVARCHAR2. If 1, character. If 0, non-character. */
             {
-              if (strcmp(column_value->descr[column_nr].character_set_name, "AL16UTF16") == 0)
-                {
-                  bytes_per_character = 2;
-                }
-              else if (strcmp(column_value->descr[column_nr].character_set_name, "AL32UTF8") == 0)
-                {
-                  bytes_per_character = 4;
-                }
-            }
-          (void) strcpy(column_value->descr[column_nr].character_set_name, "UTF8");
+            case 1:
+              /* no change whatsoever */
+              column_value->display_size[column_nr] = column_value->display_size[column_nr] / 4;
+              break;
+              
+            case 0:
+              /*@fallthrough@*/
+            case 2:
+              (void) strcpy(column_value->descr[column_nr].character_set_name, "AL32UTF8");
+              /* multiply the length by 4 since AL32UTF8 may need 4 bytes for a character and
+                 since national_character equals 0, length is in bytes */
+              column_value->descr[column_nr].length = column_value->descr[column_nr].length * 4;
+              /* set octet_length */
+              column_value->descr[column_nr].octet_length = column_value->descr[column_nr].length;
+              break;
 
-          print_value_description(&column_value->descr[column_nr]);
+            default:
+              assert(column_value->descr[column_nr].national_character >= 0 && column_value->descr[column_nr].national_character <= 2);
+            }
 
           /* add 1 byte for a terminating zero */
           column_value->size[column_nr] = column_value->descr[column_nr].octet_length + 1;
           /* GJP 23-11-2009 Only set display size to description if there is a heading */
           column_value->display_size[column_nr] = 
             max(
-                max(column_value->descr[column_nr].octet_length / bytes_per_character,
+                max(column_value->display_size[column_nr],
                     (settings->column_heading ? (orasql_size_t) strlen(column_value->descr[column_nr].name) : (orasql_size_t) 0)),
                 (settings->null != NULL ? (orasql_size_t) strlen(settings->null) : (orasql_size_t) 0)
                 );
@@ -1072,10 +1074,23 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
                                          &column_value->descr[column_nr])) != OK)
             break;
 
-          print_value_description(&column_value->descr[column_nr]);
+          if (settings->details)
+            {
+              (void) fprintf(stderr,
+                             "column[%u] name: %s; type: %d; byte length: %d; precision: %d; scale: %d; character set: %s\n",
+                             column_nr,
+                             column_value->descr[column_nr].name,
+                             column_value->descr[column_nr].type,
+                             (int) column_value->descr[column_nr].octet_length,
+                             column_value->descr[column_nr].precision,
+                             column_value->descr[column_nr].scale,
+                             column_value->descr[column_nr].character_set_name);
+            }
           
-          /* UTF8 should have been used */
-          assert(!column_value->descr[column_nr].unicode);
+          /* length is in characters for NCHAR, bytes otherwise */
+          /*
+          assert(column_value->descr[column_nr].national_character || (column_value->descr[column_nr].octet_length == column_value->descr[column_nr].length));
+          */
         }
     } while (0);
 
@@ -1313,7 +1328,7 @@ print_data(/*@in@*/ const settings_t *settings,
                 }
             }
 
-          DBUG_PRINT("info", ("characters printed for this column: %d", n));
+          DBUG_PRINT("info", ("#characters printed for this column: %d; display size: %d", n, display_size));
         }
 
       /* newline */
