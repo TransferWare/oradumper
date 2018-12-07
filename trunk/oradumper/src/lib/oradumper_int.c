@@ -505,7 +505,7 @@ void
 print_value_description(value_description_t *value_description)
 {
   DBUG_ENTER("print_value_description");
-  DBUG_PRINT("info", ("name: %s; type: %d (%s); type_orig: %d (%s); octet_length: %d; length: %d; precision: %d; scale: %d; character_set_name: %s; is_numeric: %d; national_character: %u; internal_length: %u",
+  DBUG_PRINT("info", ("name: %s; type: %d (%s); type_orig: %d (%s); octet_length: %d; length: %d; display_length: %d; precision: %d; scale: %d; character_set_name: %s; is_numeric: %d; national_character: %u; internal_length: %u",
                       value_description->name,
                       (int) value_description->type,
                       get_type_str(value_description->type),
@@ -513,6 +513,7 @@ print_value_description(value_description_t *value_description)
                       get_type_str(value_description->type_orig),
                       (int) value_description->octet_length,
                       (int) value_description->length,
+                      (int) value_description->display_length,
                       (int) value_description->precision,
                       (int) value_description->scale,
                       value_description->character_set_name,
@@ -794,7 +795,6 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
 
       FREE(column_value->descr);
       FREE(column_value->size);
-      FREE(column_value->display_size);
       FREE(column_value->align);
       FREE(column_value->buf);
       FREE(column_value->data);
@@ -804,7 +804,6 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
         {
           column_value->descr = NULL;
           column_value->size = NULL;
-          column_value->display_size = NULL;
           column_value->align = NULL;
           column_value->buf = NULL;
           column_value->data = NULL;
@@ -816,8 +815,6 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
             (value_description_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->descr));
           column_value->size =
             (orasql_size_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->size));
-          column_value->display_size =
-            (orasql_size_t *) calloc((size_t) column_value->value_count, sizeof(*column_value->display_size));
           column_value->align =
             (char *) calloc((size_t) column_value->value_count, sizeof(*column_value->align));
           column_value->buf =
@@ -828,7 +825,6 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
 
       assert(column_value->value_count == 0 || column_value->descr != NULL);
       assert(column_value->value_count == 0 || column_value->size != NULL);
-      assert(column_value->value_count == 0 || column_value->display_size != NULL);
       assert(column_value->value_count == 0 || column_value->align != NULL);
       assert(column_value->value_count == 0 || column_value->buf != NULL);
       assert(column_value->value_count == 0 || column_value->data != NULL);
@@ -844,7 +840,6 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
           assert(column_value->data != NULL);
           assert(column_value->buf != NULL);
           assert(column_value->ind != NULL);
-          assert(column_value->display_size != NULL);
 
           if ((status = orasql_value_get(column_value->descriptor_name,
                                          column_nr + 1,
@@ -979,14 +974,14 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
 #endif
             }
 
-          column_value->display_size[column_nr] = column_value->descr[column_nr].length;
+          column_value->descr[column_nr].display_length = column_value->descr[column_nr].length;
               
           /* Change non national character colums to string columns with character set AL32UTF8 */
           switch (column_value->descr[column_nr].national_character) /* If 2, NCHAR or NVARCHAR2. If 1, character. If 0, non-character. */
             {
             case 1:
               /* no change whatsoever */
-              column_value->display_size[column_nr] = column_value->display_size[column_nr] / 4;
+              column_value->descr[column_nr].display_length = column_value->descr[column_nr].display_length / 4;
               break;
               
             case 0:
@@ -1007,13 +1002,12 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
           /* add 1 byte for a terminating zero */
           column_value->size[column_nr] = column_value->descr[column_nr].octet_length + 1;
           /* GJP 23-11-2009 Only set display size to description if there is a heading */
-          column_value->display_size[column_nr] = 
+          column_value->descr[column_nr].display_length = 
             max(
-                max(column_value->display_size[column_nr],
+                max(column_value->descr[column_nr].display_length,
                     (settings->column_heading ? (orasql_size_t) strlen(column_value->descr[column_nr].name) : (orasql_size_t) 0)),
                 (settings->null != NULL ? (orasql_size_t) strlen(settings->null) : (orasql_size_t) 0)
                 );
-          DBUG_PRINT("info", ("column_value->display_size[%u]= %u", column_nr, (unsigned int) column_value->display_size[column_nr]));
 
           /* column_value->data[column_nr][array_nr] points to memory in column_value->buf[column_nr] */
           assert(settings->fetch_size > 0);
@@ -1102,7 +1096,7 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
 static
 void
 print_heading(/*@in@*/ const settings_t *settings, /*@in@*/ value_info_t *column_value, FILE *fout)
-/*@requires notnull column_value->descr, column_value->display_size, column_value->align @*/
+/*@requires notnull column_value->descr, column_value->align @*/
 {
   unsigned int column_nr;
 
@@ -1123,13 +1117,13 @@ print_heading(/*@in@*/ const settings_t *settings, /*@in@*/ value_info_t *column
               if (column_value->align[column_nr] == 'L')
                 {
                   (void) fprintf(fout, "%-*s",
-                                 (int) column_value->display_size[column_nr],
+                                 (int) column_value->descr[column_nr].display_length,
                                  column_value->descr[column_nr].name);
                 }
               else
                 {
                   (void) fprintf(fout, "%*s",
-                                 (int) column_value->display_size[column_nr],
+                                 (int) column_value->descr[column_nr].display_length,
                                  column_value->descr[column_nr].name);
                 }
             }
@@ -1152,7 +1146,7 @@ print_data(/*@in@*/ const settings_t *settings,
            const unsigned int total_fetch_size,
            /*@in@*/ value_info_t *column_value,
            FILE *fout)
-/*@requires notnull column_value->descr, column_value->data, column_value->ind, column_value->size, column_value->display_size, column_value->align @*/
+/*@requires notnull column_value->descr, column_value->data, column_value->ind, column_value->size, column_value->align @*/
 {
   unsigned int column_nr, array_nr;
   int n;
@@ -1188,11 +1182,13 @@ print_data(/*@in@*/ const settings_t *settings,
     {
       for (column_nr = 0; column_nr < column_value->value_count; column_nr++)
         {
+          DBUG_PRINT("info", ("#0"));
+          
           assert(column_value->data[column_nr] != NULL);
           assert(column_value->ind[column_nr] != NULL);
 
           n = 0; /* characters printed */
-          display_size = (int) column_value->display_size[column_nr];
+          display_size = (int) column_value->descr[column_nr].display_length;
           if (column_value->ind[column_nr][array_nr] != -1)
             {
               /* not a NULL value? */
@@ -1207,7 +1203,8 @@ print_data(/*@in@*/ const settings_t *settings,
               data = empty;
             }
 
-          DBUG_PRINT("info", ("row %u, column %u: '%s'", array_nr+1, column_nr+1, data));
+          DBUG_PRINT("info", ("row %u; column %u", array_nr+1, column_nr+1));
+          DBUG_PRINT("info", ("data: %p", data));
 
           data_prefix[0] = '\0';
           if (column_value->descr[column_nr].is_numeric /* non numeric fields will never get a leading zero */
@@ -1239,6 +1236,8 @@ print_data(/*@in@*/ const settings_t *settings,
                 }
             }
 
+          DBUG_PRINT("info", ("#1"));
+
 #ifdef DBUG_MEMORY
           assert(column_value->data[column_nr][array_nr] != NULL);
 
@@ -1257,8 +1256,11 @@ print_data(/*@in@*/ const settings_t *settings,
               (void) fputs(settings->column_separator, fout);
             }
 
+          DBUG_PRINT("info", ("#2"));
+
           if (settings->fixed_column_length)
             {
+              DBUG_PRINT("info", ("#3"));
               /* fixed length column */
               if (column_value->align[column_nr] == 'R')
                 {
@@ -1271,14 +1273,17 @@ print_data(/*@in@*/ const settings_t *settings,
             }
           else if (data[0] == '\0')
             {
+              DBUG_PRINT("info", ("#4"));          
               ; /* do not print an empty string when the column has variable length */
             }
           else if (column_value->descr[column_nr].is_numeric) /* numeric fields do not need to be enclosed */
             {
+              DBUG_PRINT("info", ("#5"));
               n += fprintf(fout, "%s%s", data_prefix, data);
             }
           else /* variable length strings */
             {
+              DBUG_PRINT("info", ("#6"));              
               /* 
                  GJP 23-11-2009
 
@@ -1297,6 +1302,7 @@ print_data(/*@in@*/ const settings_t *settings,
                   (strstr(data, settings->column_separator) != NULL ||
                    strstr(data, settings->enclosure_string) != NULL))
                 {
+                  DBUG_PRINT("info", ("#7"));                  
                   /* assume fprintf does not return an error */
                   len = (size_t) fprintf(fout, "%s", settings->enclosure_string);
 
@@ -1309,6 +1315,7 @@ print_data(/*@in@*/ const settings_t *settings,
                        (ptr2 = strstr(ptr1, settings->enclosure_string)) != NULL;
                        ptr1 = ptr2 + len)
                     {
+                      DBUG_PRINT("info", ("#8"));                  
                       /* assume fprintf returns >= 0 */
                       n += fprintf(fout, "%*.*s%s%s",
                                    ptr2 - ptr1,
@@ -1318,12 +1325,14 @@ print_data(/*@in@*/ const settings_t *settings,
                                    settings->enclosure_string);
                     }
 
+                  DBUG_PRINT("info", ("#9"));                  
                   /* print the remainder */
                   /* assume fprintf returns 0 */
                   n += fprintf(fout, "%s%s", ptr1, settings->enclosure_string);
                 }
               else
                 {
+                  DBUG_PRINT("info", ("#10"));
                   n += fprintf(fout, "%s", data);
                 }
             }
@@ -1334,10 +1343,13 @@ print_data(/*@in@*/ const settings_t *settings,
       /* newline */
       if (settings->record_delimiter != NULL)
         {
+          DBUG_PRINT("info", ("#11"));                  
           (void) fputs(settings->record_delimiter, fout); /* column heading end */
         }
     }
 
+  DBUG_PRINT("info", ("#12"));
+  
   if (settings->feedback)
     {
       if ((total_fetch_size / settings->fetch_size) % DOTS_PER_LINE == 0)
@@ -1405,9 +1417,9 @@ oradumper(const unsigned int nr_arguments,
       char nls_timestamp_tz_format_stmt[NLS_MAX_SIZE+1];
       char nls_numeric_characters_stmt[NLS_MAX_SIZE+1];
       unsigned int total_fetch_size = 0;
-      value_info_t bind_value = { 0, 0, "", NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+      value_info_t bind_value = { 0, 0, "", NULL, NULL, NULL, NULL, NULL, NULL };
       unsigned int bind_value_nr;
-      value_info_t column_value = { 0, 0, "", NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+      value_info_t column_value = { 0, 0, "", NULL, NULL, NULL, NULL, NULL, NULL };
       unsigned int column_nr;
       FILE *fout = stdout;
       settings_t settings;
@@ -1580,7 +1592,6 @@ oradumper(const unsigned int nr_arguments,
 
               FREE(bind_value.descr);
               FREE(bind_value.size);
-              FREE(bind_value.display_size);
               FREE(bind_value.align);
               FREE(bind_value.buf);
               FREE(bind_value.data);
@@ -1608,8 +1619,6 @@ oradumper(const unsigned int nr_arguments,
               /* bind_value.data[x][y] will point to an argument, hence no allocation is necessary */
               bind_value.size = NULL;
               assert(bind_value.size == NULL);
-              bind_value.display_size = NULL;
-              assert(bind_value.display_size == NULL);
               bind_value.align = NULL;
               assert(bind_value.align == NULL);
               bind_value.buf = NULL;
@@ -1695,7 +1704,6 @@ oradumper(const unsigned int nr_arguments,
 
               assert(column_value.descr != NULL);
               assert(column_value.size != NULL);
-              assert(column_value.display_size != NULL);
               assert(column_value.align != NULL);
               assert(column_value.buf != NULL);
               assert(column_value.data != NULL);
@@ -1851,7 +1859,6 @@ oradumper(const unsigned int nr_arguments,
         }
       FREE(bind_value.descr);
       FREE(bind_value.size);
-      FREE(bind_value.display_size);
       FREE(bind_value.align);
 
       for (column_nr = 0;
@@ -1873,7 +1880,6 @@ oradumper(const unsigned int nr_arguments,
 
       FREE(column_value.descr);
       FREE(column_value.size);
-      FREE(column_value.display_size);
       FREE(column_value.align);
       FREE(column_value.buf);
       FREE(column_value.data);
