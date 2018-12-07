@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -x
 
 # check_userid: test asking via stdin for USERID
 

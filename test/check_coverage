@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -x
 
 # set -ue: treat unset variables as an error; exit on error
 set -ue
@@ -11,21 +11,21 @@ for rd in src/lib # relative directories to scan for gcda files
 do
     for f in `ls -1 ${top_builddir}/${rd}/*.gcda`
     do
-	test -f $f || continue
+  test -f $f || continue
 
-	d=`dirname $f`
-	s="`basename $f .gcda`.c"
-	(cd $d
-	test ! -L $s || rm $s
-	# create links to absolute paths
-	test -f $s || test -L $s || ln -s "`cd ${top_srcdir}/${rd}; pwd`"/$s .
-	gcov $s)
+  d=`dirname $f`
+  s="`basename $f .gcda`.c"
+  (cd $d
+  test ! -L $s || rm $s
+  # create links to absolute paths
+  test -f $s || test -L $s || ln -s "`cd ${top_srcdir}/${rd}; pwd`"/$s .
+  gcov $s)
     done
     echo "Source files with untriggered lines (i.e. .gcov file contains #####):"
     for f in `ls -1 ${top_builddir}/${rd}/*.gcov`
     do
-	test -f $f || continue
+  test -f $f || continue
 
-	! grep -l '#####' $f
+  ! grep -l '#####' $f
     done
 done

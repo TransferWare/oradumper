@@ -74,7 +74,9 @@ typedef struct {
   bool is_numeric;
   /* Oracle extensions */
   unsigned int national_character;
-  unsigned int internal_length;
+  orasql_size_t internal_length;
+  /* Length of column to display */
+  orasql_size_t display_length;
 } value_description_t;
 
 /* zero terminated character array */
@@ -101,8 +103,6 @@ typedef struct {
   /* must be a multiple of 4 */
   /* size[value_count] */
   /*@null@*/ /*@only@*/ orasql_size_t *size;
-
-  /*@null@*/ /*@only@*/ orasql_size_t *display_size;
 
   /*
         NR STR        DAY

@@ -19,6 +19,7 @@ MAINTAINERCLEANFILES    = Makefile.in
 DISTCLEANFILES          = test_enclosure_string
 
 check_PROGRAMS          = oradumper_check
+check_SCRIPTS           = check_userid oradumper_test
 oradumper_check_SOURCES = oradumper_check.c $(top_srcdir)/src/lib/oradumper.h $(top_srcdir)/src/lib/oradumper_int.h
 AM_CPPFLAGS             = @CHECK_CFLAGS@
 oradumper_check_LDADD   = $(top_builddir)/src/lib/liboradumper.la @CHECK_LIBS@ @DBUG_LDADD@
@@ -35,10 +36,13 @@ GCOV_TESTS              =
 
 endif
 
+check_SCRIPTS          +=  $(GCOV_TESTS)
+
 DMALLOC_OPTIONS         = debug=0x4000503,log=dmalloc%p.log
+AM_TESTS_ENVIRONMENT    = (cd ${srcdir}; for f in ${check_SCRIPTS}; do chmod +x $$f; done);
 TESTS_ENVIRONMENT       = top_builddir=${top_builddir} top_srcdir=${top_srcdir} DMALLOC_OPTIONS=$(DMALLOC_OPTIONS)
 
-TESTS                   = oradumper_test $(check_PROGRAMS) check_userid $(GCOV_TESTS)
+TESTS                   = $(check_PROGRAMS) $(check_SCRIPTS)
 
 EXTRA_DIST              = check_coverage check_userid oradumper_test oradumper_test.sql \
                           query0.lis.ref query1.lis.ref query2.lis.ref query3.lis.ref query4.lis.ref query5.lis.ref query6.lis.ref query7.lis.ref \

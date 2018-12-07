@@ -567,10 +567,6 @@ connect by \
 
   fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count), error_msg);
 
-  strcpy(query, "query=select * from t");
-  strcpy(last_option, "output_append=1");
-  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
-
   error = cmp_files(output, output_ref);
   fail_if(error != NULL, error);
 
@@ -889,13 +885,10 @@ options_suite(void)
 {
   Suite *s = suite_create("General");
 
-  /*
   TCase *tc_internal = tcase_create("Internal");
   TCase *tc_options = tcase_create("Options");
-  */
   TCase *tc_query = tcase_create("query");
 
-  /*
   tcase_add_test(tc_internal, test_sizes);
   tcase_add_test(tc_internal, test_usage);
   suite_add_tcase(s, tc_internal);
@@ -904,15 +897,11 @@ options_suite(void)
   tcase_add_test(tc_internal, test_output_file);
   tcase_add_test(tc_options, test_enclosure_string);
   suite_add_tcase(s, tc_options);
-  */
 
-  tcase_set_timeout(tc_query, 60);
-  /*
+  tcase_set_timeout(tc_query, 120);
   tcase_add_test(tc_query, test_query_sql_error);
   tcase_add_test(tc_query, test_query_data_types);
-  */
   tcase_add_test(tc_query, test_query0);
-  /*
   tcase_add_test(tc_query, test_query1);
   tcase_add_test(tc_query, test_query2);
   tcase_add_test(tc_query, test_query3);
@@ -920,7 +909,6 @@ options_suite(void)
   tcase_add_test(tc_query, test_query5);
   tcase_add_test(tc_query, test_query6);
   tcase_add_test(tc_query, test_query7);
-  */
   suite_add_tcase(s, tc_query);
 
   return s;

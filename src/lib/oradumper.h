@@ -1,8 +1,6 @@
 #ifndef ORADUMPER_H
 #define ORADUMPER_H
 
-#define TRANSFERWARE_BUG_67 1
-
 extern
 /*@null@*/ /*@observer@*/
 char *
