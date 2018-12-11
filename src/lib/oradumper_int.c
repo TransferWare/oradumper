@@ -44,7 +44,7 @@
 #include "oradumper.h"
 #include "oradumper_int.h"
 
-#define DBUG_MEMORY 1
+/*#define DBUG_MEMORY 1*/
 
 extern
 void FREE(/*@only@*//*@sef@*/ void *ptr);
@@ -513,14 +513,15 @@ get_type_str(const orasql_datatype_t type)
 
 static
 void
-check_value_info(value_info_t *value_info)
+check_value_info(value_info_t *value_info, const bool bind_variable)
 {
   unsigned int value_nr;
   unsigned int array_nr;
 
   DBUG_ENTER("check_value_info");
 
-  DBUG_PRINT("info", ("value_count: %u; array_count: %u; descr: %p; size: %p; align: %p; buf: %p; data: %p; ind: %p; returned_length: %p",
+  DBUG_PRINT("info", ("bind_variable: %d; value_count: %u; array_count: %u; descr: %p; size: %p; align: %p; buf: %p; data: %p; ind: %p; returned_length: %p",
+		      (int) bind_variable,
                       value_info->value_count,
                       value_info->array_count,
                       value_info->descr,
@@ -534,14 +535,15 @@ check_value_info(value_info_t *value_info)
   for (value_nr = 0; value_nr < value_info->value_count; value_nr++)
     {
       assert(value_info->descr != NULL);
-      assert(value_info->size != NULL);
-      assert(value_info->align != NULL);
-      assert(value_info->buf != NULL);
+      assert((bind_variable == 0) == (value_info->size != NULL));
+      assert((bind_variable == 0) == (value_info->align != NULL));
+      assert((bind_variable == 0) == (value_info->buf != NULL));
       assert(value_info->data != NULL);
       assert(value_info->ind != NULL);
       assert(value_info->returned_length != NULL);
   
       DBUG_PRINT("info", ("value_nr: %u; align: %c; size: %u", value_nr, value_info->align[value_nr], value_info->size[value_nr]));
+      DBUG_PRINT("info", ("buf: %p; data: %p; ind: %p; returned_length: %p", value_info->buf[value_nr], value_info->data[value_nr], value_info->ind[value_nr], value_info->returned_length[value_nr]));
       
       print_value_description(&value_info->descr[value_nr]);
         
@@ -551,7 +553,7 @@ check_value_info(value_info_t *value_info)
       assert(value_info->returned_length[value_nr] != NULL);
 
       assert(value_info->align[value_nr] == 'R' || value_info->align[value_nr] == 'L');
-      assert((value_info->size[value_nr]-1) == value_info->descr[value_nr].octet_length);
+      assert((value_info->size[value_nr]-1) >= value_info->descr[value_nr].octet_length);
 
       for (array_nr = 0; array_nr < value_info->array_count; array_nr++)
         {
@@ -575,7 +577,6 @@ check_value_info(value_info_t *value_info)
 
   DBUG_LEAVE();
 }
-
 
 void
 print_value_description(value_description_t *value_description)
@@ -868,7 +869,7 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
   /* use a do {} while (0) to be able to break within {} */
   do
     {
-      DBUG_PRINT("info", ("#1"));
+      DBUG_PRINT("info", ("line#1"));
       
       if ((status = orasql_value_count(column_value->descriptor_name, &column_value->value_count)) != OK)
         break;
@@ -926,13 +927,13 @@ prepare_fetch(/*@in@*/ const settings_t *settings, value_info_t *column_value)
           assert(column_value->ind != NULL);
           assert(column_value->returned_length != NULL);
 
-          DBUG_PRINT("info", ("#2"));
+          DBUG_PRINT("info", ("line#2"));
           if ((status = orasql_value_get(column_value->descriptor_name,
                                          column_nr + 1,
                                          &column_value->descr[column_nr])) != OK)
             break;
 
-          DBUG_PRINT("info", ("#3"));
+          DBUG_PRINT("info", ("line#3"));
           if (settings->details)
             {
               (void) fprintf(stderr,
@@ -978,7 +979,7 @@ SQL> desc oradumper_test
   
 */
 
-          DBUG_PRINT("info", ("#4"));
+          DBUG_PRINT("info", ("line#4"));
           DBUG_PRINT("info", ("type: %d (%s)", (int)column_value->descr[column_nr].type, get_type_str(column_value->descr[column_nr].type)));
 
           column_value->descr[column_nr].is_numeric = false; /* the default */
@@ -1096,7 +1097,7 @@ SQL> desc oradumper_test
 #endif
             }
  
-          DBUG_PRINT("info", ("#5"));
+          DBUG_PRINT("info", ("line#5"));
           column_value->descr[column_nr].display_length = column_value->descr[column_nr].length;
           
           /* Change non national character colums to string columns with character set AL32UTF8 */
@@ -1105,6 +1106,7 @@ SQL> desc oradumper_test
             case 1:
               /* no change whatsoever */
               column_value->descr[column_nr].display_length = column_value->descr[column_nr].display_length / 4;
+              column_value->descr[column_nr].octet_length = max(column_value->descr[column_nr].octet_length, column_value->descr[column_nr].length);
               break;
               
             case 0:
@@ -1132,7 +1134,7 @@ SQL> desc oradumper_test
                 (settings->null != NULL ? (orasql_size_t) strlen(settings->null) : (orasql_size_t) 0)
                 );
 
-          DBUG_PRINT("info", ("#6"));
+          DBUG_PRINT("info", ("line#6"));
 
           /* column_value->data[column_nr][array_nr] points to memory in column_value->buf[column_nr] */
           assert(settings->fetch_size > 0);
@@ -1147,7 +1149,7 @@ SQL> desc oradumper_test
                                       sizeof(column_value->data[column_nr][0]));
           assert(column_value->data[column_nr] != NULL);
 
-          DBUG_PRINT("info", ("#7"));
+          DBUG_PRINT("info", ("line#7"));
           DBUG_PRINT("info", ("column_value->buf[%u]= %p", column_nr, column_value->buf[column_nr]));
 
           for (array_nr = 0, data_ptr = (char *) column_value->buf[column_nr];
@@ -1166,7 +1168,7 @@ SQL> desc oradumper_test
                      (column_value->data[column_nr][array_nr] - column_value->data[column_nr][array_nr-1]) == (int)column_value->size[column_nr]);
             }
 
-          DBUG_PRINT("info", ("#8"));
+          DBUG_PRINT("info", ("line#8"));
           
           column_value->ind[column_nr] =
             (short *) calloc((size_t) settings->fetch_size, sizeof(**column_value->ind));
@@ -1182,7 +1184,7 @@ SQL> desc oradumper_test
           
           assert(column_value->returned_length[column_nr] != NULL);
 
-          DBUG_PRINT("info", ("#9"));
+          DBUG_PRINT("info", ("line#9"));
 
           if ((status = orasql_value_set(column_value->descriptor_name,
                                          column_nr + 1,
@@ -1193,7 +1195,7 @@ SQL> desc oradumper_test
                                          column_value->returned_length[column_nr])) != OK)
             break;
 
-          DBUG_PRINT("info", ("#10"));
+          DBUG_PRINT("info", ("line#10"));
 
           /* get descriptor info again */
           if ((status = orasql_value_get(column_value->descriptor_name,
@@ -1201,7 +1203,7 @@ SQL> desc oradumper_test
                                          &column_value->descr[column_nr])) != OK)
             break;
 
-          DBUG_PRINT("info", ("#11"));
+          DBUG_PRINT("info", ("line#11"));
 
           if (settings->details)
             {
@@ -1223,7 +1225,7 @@ SQL> desc oradumper_test
         }
 
       /* test at the end */
-      check_value_info(column_value);
+      check_value_info(column_value, false);
 
     } while (0);
 
@@ -1305,26 +1307,11 @@ print_data(/*@in@*/ const settings_t *settings,
   DBUG_ENTER("print_data");
   DBUG_PRINT("input", ("row_count: %u; total_fetch_size: %u", row_count, total_fetch_size));
 
-#ifdef DBUG_MEMORY
-  for (column_nr = 0; column_nr < column_value->value_count; column_nr++)
-    {
-      assert(column_value->buf != NULL);
-      assert(column_value->buf[column_nr] != NULL);
-      
-      DBUG_PRINT("info", ("Dumping data for column %u from address %p for %d items fetched of size %d",
-                          column_nr+1,
-                          column_value->buf[column_nr],
-                          (int) settings->fetch_size,
-                          (int) column_value->size[column_nr]));
-      DBUG_DUMP("info", column_value->buf[column_nr], (unsigned int)(settings->fetch_size * column_value->size[column_nr]));
-    }
-#endif
-
   for (array_nr = 0; array_nr < row_count; array_nr++)
     {
       for (column_nr = 0; column_nr < column_value->value_count; column_nr++)
         {
-          DBUG_PRINT("info", ("#0"));
+          DBUG_PRINT("info", ("line#0"));
           
           assert(column_value->data[column_nr] != NULL);
           assert(column_value->ind[column_nr] != NULL);
@@ -1379,7 +1366,7 @@ print_data(/*@in@*/ const settings_t *settings,
                 }
             }
 
-          DBUG_PRINT("info", ("#1"));
+          DBUG_PRINT("info", ("line#1"));
 
 #ifdef DBUG_MEMORY
           assert(column_value->data[column_nr][array_nr] != NULL);
@@ -1389,9 +1376,10 @@ print_data(/*@in@*/ const settings_t *settings,
                       column_nr,
                       array_nr,
                       column_value->data[column_nr][array_nr]));
+	  /* print returned length plus null terminator */
           DBUG_DUMP("info",
                     column_value->data[column_nr][array_nr],
-                    (unsigned int) column_value->size[column_nr]);
+                    (column_value->returned_length[column_nr][array_nr]+1));
 #endif
 
           if (column_nr > 0 && settings->column_separator != NULL)
@@ -1399,11 +1387,11 @@ print_data(/*@in@*/ const settings_t *settings,
               (void) fputs(settings->column_separator, fout);
             }
 
-          DBUG_PRINT("info", ("#2"));
+          DBUG_PRINT("info", ("line#2"));
 
           if (settings->fixed_column_length)
             {
-              DBUG_PRINT("info", ("#3"));
+              DBUG_PRINT("info", ("line#3"));
               /* fixed length column */
               if (column_value->align[column_nr] == 'R')
                 {
@@ -1416,17 +1404,17 @@ print_data(/*@in@*/ const settings_t *settings,
             }
           else if (data[0] == '\0')
             {
-              DBUG_PRINT("info", ("#4"));          
+              DBUG_PRINT("info", ("line#4"));          
               ; /* do not print an empty string when the column has variable length */
             }
           else if (column_value->descr[column_nr].is_numeric) /* numeric fields do not need to be enclosed */
             {
-              DBUG_PRINT("info", ("#5"));
+              DBUG_PRINT("info", ("line#5"));
               n += fprintf(fout, "%s%s", data_prefix, data);
             }
           else /* variable length strings */
             {
-              DBUG_PRINT("info", ("#6"));              
+              DBUG_PRINT("info", ("line#6"));              
               /* 
                  GJP 23-11-2009
 
@@ -1445,7 +1433,7 @@ print_data(/*@in@*/ const settings_t *settings,
                   (strstr(data, settings->column_separator) != NULL ||
                    strstr(data, settings->enclosure_string) != NULL))
                 {
-                  DBUG_PRINT("info", ("#7"));                  
+                  DBUG_PRINT("info", ("line#7"));                  
                   /* assume fprintf does not return an error */
                   len = (size_t) fprintf(fout, "%s", settings->enclosure_string);
 
@@ -1458,7 +1446,7 @@ print_data(/*@in@*/ const settings_t *settings,
                        (ptr2 = strstr(ptr1, settings->enclosure_string)) != NULL;
                        ptr1 = ptr2 + len)
                     {
-                      DBUG_PRINT("info", ("#8"));                  
+                      DBUG_PRINT("info", ("line#8"));                  
                       /* assume fprintf returns >= 0 */
                       n += fprintf(fout, "%*.*s%s%s",
                                    ptr2 - ptr1,
@@ -1468,14 +1456,14 @@ print_data(/*@in@*/ const settings_t *settings,
                                    settings->enclosure_string);
                     }
 
-                  DBUG_PRINT("info", ("#9"));                  
+                  DBUG_PRINT("info", ("line#9"));                  
                   /* print the remainder */
                   /* assume fprintf returns 0 */
                   n += fprintf(fout, "%s%s", ptr1, settings->enclosure_string);
                 }
               else
                 {
-                  DBUG_PRINT("info", ("#10"));
+                  DBUG_PRINT("info", ("line#10"));
                   n += fprintf(fout, "%s", data);
                 }
             }
@@ -1486,12 +1474,12 @@ print_data(/*@in@*/ const settings_t *settings,
       /* newline */
       if (settings->record_delimiter != NULL)
         {
-          DBUG_PRINT("info", ("#11"));                  
+          DBUG_PRINT("info", ("line#11"));                  
           (void) fputs(settings->record_delimiter, fout); /* column heading end */
         }
     }
 
-  DBUG_PRINT("info", ("#12"));
+  DBUG_PRINT("info", ("line#12"));
   
   if (settings->feedback)
     {
@@ -1844,7 +1832,7 @@ oradumper(const unsigned int nr_arguments,
                                                   &bind_value.returned_length[bind_value_nr][0])) != OK)
                     break;
 
-                  check_value_info(&bind_value);
+                  check_value_info(&bind_value, true);
                 }
               break;
 
@@ -1878,7 +1866,7 @@ oradumper(const unsigned int nr_arguments,
 
                   DBUG_PRINT("info", ("sqlcode: %d; rows fetched: %u", sqlcode, *row_count));
 
-                  check_value_info(&column_value);
+                  check_value_info(&column_value, false);
 
                   if (sqlcode != OK
 #ifdef HAVE_GCOV
