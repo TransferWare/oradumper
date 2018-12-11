@@ -56,8 +56,5 @@ liboradumper_la_LIBADD  = $(top_builddir)/replace/libreplace.la @DBUG_LIBADD@
 .pc.c:
 	$(PROC) $(PROCINCLUDES) $(PROCFLAGS) DYNAMIC=ANSI MODE=ANSI INAME=$< ONAME=$@
 
-oradumper.ln: oradumper.c
-	$(LINT_c) -f $(srcdir)/oradumper.splintrc $<;
-
-oradumper_extproc.ln: oradumper_extproc.c
-	$(LINT_c) -f $(srcdir)/oradumper.splintrc $<;
+LINTFLAGS += -f $(srcdir)/oradumper.splintrc
+SOURCES    = $(liboradumper_la_SOURCES)

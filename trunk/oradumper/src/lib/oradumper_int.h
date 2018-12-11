@@ -62,21 +62,21 @@ typedef char value_name_t[30 + 1];
 typedef unsigned int orasql_size_t;
 
 typedef struct {
+  /* Length of column to display */
+  orasql_size_t display_length;
+  bool is_numeric;
   /* the following fields are returned by exec sql get descriptor */
   value_name_t name;
   orasql_datatype_t type;
-  orasql_datatype_t type_orig; /* type is converted to a string type */
+  orasql_datatype_t type_orig; /* type is converted to a string type so this will store the original type */
   orasql_size_t octet_length; /* length in bytes */
   orasql_size_t length; /* length in characters for NCHAR; in bytes otherwise */
   int precision;
   int scale;
   character_set_name_t character_set_name;
-  bool is_numeric;
   /* Oracle extensions */
   unsigned int national_character;
   orasql_size_t internal_length;
-  /* Length of column to display */
-  orasql_size_t display_length;
 } value_description_t;
 
 /* zero terminated character array */
@@ -90,6 +90,7 @@ typedef /*@observer@*/ unsigned char *value_data_t;
 
 typedef /*@null@*/ /*@only@*/ value_data_t *value_data_ptr_t;
 typedef /*@null@*/ /*@only@*/ short *short_ptr_t;
+typedef /*@null@*/ /*@only@*/ orasql_size_t *orasql_size_ptr_t;
 
 /* a structure which contains info about (arrays of) input and output values */
 typedef struct {
@@ -113,7 +114,7 @@ typedef struct {
 
   /*@null@*/ /*@only@*/ char *align; /* values 'R' and 'L': a numeric fixed column aligns at the right */
 
-  /* buffer array: buf[value_count] is the buffer for data[value_count[array_count] */
+  /* buffer array: buf[value_count] is the buffer for data[value_count][array_count] */
   /*@null@*/ /*@only@*/ byte_ptr_t *buf;
 
   /* data array: data[value_count][array_count] */
@@ -122,6 +123,9 @@ typedef struct {
 
   /* indicator array: ind[value_count][array_count] */
   /*@null@*/ /*@only@*/ short_ptr_t *ind;
+  
+  /* returned length array: returned_length[value_count][array_count] */
+  /*@null@*/ /*@only@*/ orasql_size_ptr_t *returned_length;
 } value_info_t;
 
 #define OK 0
@@ -194,7 +198,8 @@ orasql_value_set(const char *descriptor_name,
                  const unsigned int array_size,
                  /*@in@*/ value_description_t *value_description,
                  const char *data,
-                 const short *ind);
+                 const short *ind,
+                 const orasql_size_t *returned_length);
 
 extern
 error_t
