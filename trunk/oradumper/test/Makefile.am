@@ -45,5 +45,5 @@ TESTS_ENVIRONMENT       = top_builddir=${top_builddir} top_srcdir=${top_srcdir} 
 TESTS                   = $(check_PROGRAMS) $(check_SCRIPTS)
 
 EXTRA_DIST              = check_coverage check_userid oradumper_test oradumper_test.sql \
-                          query0.lis.ref query1.lis.ref query2.lis.ref query3.lis.ref query4.lis.ref query5.lis.ref query6.lis.ref query7.lis.ref \
+                          query0.lis.ref query1.lis.ref query2.lis.ref query3.lis.ref query4.lis.ref query5.lis.ref query6.lis.ref query7.lis.ref query8.lis.ref \
                           query_data_types.lis.ref usage.txt.ref

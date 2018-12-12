@@ -1,5 +1,9 @@
 /* -*-mode: c-*- */
 
+/*@+matchanyintegral@*/
+/*@-initallelements@*/
+/*@-type@*/
+
 #define LINT_FLAGS_PROC_BEGIN \
 /*@-shadow@*/ \
 /*@-fullinitblock@*/ \
@@ -32,6 +36,8 @@
 #include <config.h>
 #endif
 
+#ifndef S_SPLINT_S
+
 #include <stdio.h>
 
 #if HAVE_STDLIB_H
@@ -42,16 +48,16 @@
 #include <string.h>
 #endif
 
-#if HAVE_SQLCPR_H
-#include <sqlcpr.h>
-#endif
-
-/*EXEC SQL INCLUDE "oci.h";*/
-
 /* include dmalloc as last one */
 #ifdef WITH_DMALLOC
 #include <dmalloc.h>
 #endif
+
+#if HAVE_SQLCPR_H
+#include <sqlcpr.h>
+#endif
+
+#endif /* #ifndef S_SPLINT_S */
 
 #include "oradumper.h"
 
@@ -70,7 +76,7 @@ LINT_FLAGS_PROC_END;
 #undef SQLCA_STORAGE_CLASS
 #endif
 
-#define SQLCA_STORAGE_CLASS 
+#define SQLCA_STORAGE_CLASS static
 
 /* force initialisation of the static sqlca struct */
 #ifndef SQLCA_INIT
@@ -444,8 +450,10 @@ unsigned int *count;
       *count = (unsigned int) sqlca.sqlerrd[2] - *count; /* fetch count */
       break;
 
+#ifndef HAVE_GCOV
     default:
       break;
+#endif      
     }
 
   DBUG_PRINT("output", ("count: %u; return: %d", *count, sqlca.sqlcode));

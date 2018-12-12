@@ -17,44 +17,42 @@
 
 include $(top_srcdir)/lint.am
 
-MAINTAINERCLEANFILES    = Makefile.in
-DISTCLEANFILES          = oradumper.h oradumper_int.h
+MAINTAINERCLEANFILES     = Makefile.in
+DISTCLEANFILES           = oradumper.h oradumper_int.h
 
-# AUTOMAKE_OPTIONS        = $(top_builddir)/src/prog/ansi2knr
+# AUTOMAKE_OPTIONS         = $(top_builddir)/src/prog/ansi2knr
 
-AM_CPPFLAGS             = @DBUG_CPPFLAGS@ -I$(srcdir)
+AM_CPPFLAGS              = @DBUG_CPPFLAGS@ -I$(srcdir)
 
-noinst_HEADERS          = oradumper_int.h
-include_HEADERS         = oradumper.h
+noinst_HEADERS           = oradumper_int.h
+include_HEADERS          = oradumper.h
 
-lib_LTLIBRARIES	        = liboradumper.la
+lib_LTLIBRARIES	         = liboradumper.la
+
+liboradumper_la_SOURCES  = oradumper.pc oradumper.h oradumper_int.c oradumper_int.h
+SOURCES                  = oradumper.c oradumper_int.c
+MOSTLYCLEANFILES         = oradumper.c
 
 if EXTPROC
 
-liboradumper_la_SOURCES = oradumper.pc oradumper.h oradumper_int.c oradumper_int.h oradumper_extproc.pc
-MOSTLYCLEANFILES        = oradumper.c oradumper_extproc.c
-
-else
-
-liboradumper_la_SOURCES = oradumper.pc oradumper.h oradumper_int.c oradumper_int.h
-MOSTLYCLEANFILES        = oradumper.c
+liboradumper_la_SOURCES += oradumper_extproc.pc
+SOURCES                 += oradumper_extproc.c
+MOSTLYCLEANFILES        += oradumper_extproc.c
 
 endif
 
 # Do not forget the PRO*C files
 
-EXTRA_DIST              = oradumper.pc oradumper_extproc.pc
+EXTRA_DIST               = oradumper.pc oradumper_extproc.pc
 
 ##
 ## History of interface versions:
 ## - 0:0:0 start
 
-liboradumper_la_LDFLAGS = -no-undefined -version-info 0:0:0
-#liboradumper_la_LIBADD  = $(top_builddir)/replace/libreplace.la @DBUG_LIBADD@ @EPC_LIBADD@
-liboradumper_la_LIBADD  = $(top_builddir)/replace/libreplace.la @DBUG_LIBADD@
+liboradumper_la_LDFLAGS  = -no-undefined -version-info 0:0:0
+liboradumper_la_LIBADD   = $(top_builddir)/replace/libreplace.la @DBUG_LIBADD@
 
 .pc.c:
 	$(PROC) $(PROCINCLUDES) $(PROCFLAGS) DYNAMIC=ANSI MODE=ANSI INAME=$< ONAME=$@
 
 LINTFLAGS += -f $(srcdir)/oradumper.splintrc
-SOURCES    = $(liboradumper_la_SOURCES)
