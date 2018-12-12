@@ -38,9 +38,11 @@ OWNER,VIEW_NAME,TEXT
 SYS,ALL_VIEWS,"select u.name, o.name, v.textlength, v.text, t.typetextlength, t.typetext,
        t.oidtextlength, t.oidtext, t.typeowner, t.typename,
        decode(bitand(v.property, 134217728), 134217728,
-              (select sv.name from superobj$ h, obj$ sv
-              where h.subobj# = o.obj# and h.superobj# = sv.obj#), null)
-from sys.obj$ o, sys.view$ v, sys.user$ u, sys.typed_view$ t
+              (select sv.name from superobj$ h, ""_CURRENT_EDITION_OBJ"" sv
+              where h.subobj# = o.obj# and h.superobj# = sv.obj#), null),
+       decode(bitand(v.property, 32), 32, 'Y', 'N'),
+       decode(bitand(v.property, 16384), 16384, 'Y', 'N')
+from sys.""_CURRENT_EDITION_OBJ"" o, sys.view$ v, sys.user$ u, sys.typed_view$ t
 where o.obj# = v.obj#
   and o.obj# = t.obj#(+)
   and o.owner# = u.user#

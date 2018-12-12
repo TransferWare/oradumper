@@ -880,6 +880,70 @@ select  '\"' as enclosure_string\
 }
 END_TEST
 
+START_TEST(test_query8)
+{
+  /* Test that fixed column length output has the following properties:
+     column display size is maximum of data size, column heading (if specified) and length of null display (if specified).
+  */
+  const char output[] = "query8.lis";
+  char userid[100+1] = "userid=";
+  char output_file[100+1] = "output_file=";
+  char left_align_numeric_columns[100+1] = "left_align_numeric_columns=0";
+  char output_append[] = "output_append=0";
+  char nls_numeric_characters[100+1] = "nls_numeric_characters=,.";
+  char query[1000+1] =
+    "query=\
+select  -.05 as number_negative\
+,       .05 as number_positive\
+        from dual";
+  const char *options[] = {
+    userid,
+    "feedback=0",
+    query,
+    output_file,
+    "fixed_column_length=1",
+    "column_separator=\\174", /* | */
+    "column_heading=1",
+    "zero_before_decimal_character=1",
+    output_append,
+    left_align_numeric_columns,
+    nls_numeric_characters
+  };
+  char *error;
+
+  DBUG_ENTER("test_query8");
+
+  (void) sprintf(output_ref, "%s/%s.ref", srcdir, output);
+
+  fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
+
+  (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
+  (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
+
+  /* no disconnect */
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count), error_msg);
+  
+  /* use left align and append to output */
+  strcpy(left_align_numeric_columns, "left_align_numeric_columns=1");
+  strcpy(output_append, "output_append=1");
+  
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count), error_msg);
+
+  /* disconnect */
+  strcpy(query, "query=\
+select  cast(to_char(-.05) as char(39)) as number_negative_str\
+,       cast(to_char(.05) as char(39)) as number_positive_str\
+        from dual");
+  
+  fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
+  
+  error = cmp_files(output, output_ref);
+  fail_if(error != NULL, error);
+
+  DBUG_LEAVE();
+}
+END_TEST
+
 Suite *
 options_suite(void)
 {
@@ -909,6 +973,7 @@ options_suite(void)
   tcase_add_test(tc_query, test_query5);
   tcase_add_test(tc_query, test_query6);
   tcase_add_test(tc_query, test_query7);
+  tcase_add_test(tc_query, test_query8);
   suite_add_tcase(s, tc_query);
 
   return s;

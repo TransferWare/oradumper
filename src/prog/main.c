@@ -2,6 +2,8 @@
 #include <config.h>
 #endif
 
+#ifndef S_SPLINT_S
+
 #include <stdio.h> /* should always be there */
 
 #if HAVE_STDLIB_H
@@ -19,6 +21,8 @@
 #include <dmalloc.h>
 #endif
 
+#endif /* #ifndef S_SPLINT_S */
+
 #include <dbug.h>
 
 #include "oradumper.h"
@@ -30,7 +34,7 @@ int main( int argc, char **argv )
   unsigned int row_count;
   int status;
 
-#ifdef WITH_DMALLOC
+#if defined(WITH_DMALLOC) && !defined(S_SPLINT_S)
   (void) atexit(dmalloc_shutdown);
 #endif
 

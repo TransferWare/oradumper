@@ -132,6 +132,7 @@ typedef struct {
 
 /* functions which need to be tested only are defined in the internal oradumper source */
 
+/*@-exportlocal@*/
 extern
 void
 print_value_description(value_description_t *value_description);
