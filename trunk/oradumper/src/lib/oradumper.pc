@@ -356,16 +356,12 @@ value_description_t *value_description;
     const unsigned short *returned_length_ptr = (unsigned short *)returned_length;
     EXEC SQL END DECLARE SECTION;
 
-    DBUG_PRINT("info", ("line#1"));
-
     LINT_FLAGS_PROC_BEGIN;
     EXEC SQL SET DESCRIPTOR LOCAL :descriptor_name VALUE :nr
       TYPE = :type,
       LENGTH = :length,
       CHARACTER_SET_NAME = :character_set_name;
 
-    DBUG_PRINT("info", ("line#2"));
-    
     EXEC SQL FOR :array_size
       SET DESCRIPTOR LOCAL :descriptor_name VALUE :nr
       REF DATA = :data, REF INDICATOR = :ind, REF RETURNED_LENGTH = :returned_length_ptr;

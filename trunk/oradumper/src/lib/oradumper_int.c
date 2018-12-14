@@ -1807,6 +1807,7 @@ oradumper(const unsigned int nr_arguments,
                           bind_value.returned_length[bind_value_nr][0] = (orasql_size_t) strlen((char*)bind_value.data[bind_value_nr][0]);
                           bind_value.descr[bind_value_nr].type = ANSI_CHARACTER_VARYING;
                           bind_value.descr[bind_value_nr].length = (orasql_size_t) strlen((char *)bind_value.data[bind_value_nr][0]);
+                          bind_value.descr[bind_value_nr].octet_length = bind_value.descr[bind_value_nr].length;
 
                           DBUG_PRINT("info",
                                      ("bind variable %u has name %s and value %s",
