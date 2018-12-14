@@ -96,13 +96,13 @@ AC_PROG_LIBTOOL
 # Enable building an extproc routine
 
 AC_ARG_ENABLE([extproc],
-[  --enable-extproc        turn on creating an Oracle extproc routine for the oradumper],
-[case "${enableval}" in
-  yes) EXTPROC=true; ACX_PROG_OCI ;;
-   no) EXTPROC=false ;;
-    *) AC_MSG_ERROR(bad value ${enableval} for --enable-extproc) ;;
-esac],
-[EXTPROC=false])
+              AS_HELP_STRING([--enable-extproc],[turn on creating an Oracle extproc routine for the oradumper]),
+							[case "${enableval}" in
+							   yes) EXTPROC=true; ACX_PROG_OCI ;;
+								 no)  EXTPROC=false ;;
+								 *)   AC_MSG_ERROR(bad value ${enableval} for --enable-extproc) ;;
+							 esac],
+							[EXTPROC=false])
 
 AM_CONDITIONAL([EXTPROC], [test x$EXTPROC = xtrue])
 
@@ -111,13 +111,13 @@ ACX_EPC
 
 # Checks for programs
 AC_ARG_ENABLE([gcov],
-[  --enable-gcov           turn on profiling with gcov],
-[case "${enableval}" in
-  yes) AC_CHECK_PROG([GCOV], [gcov], [true], [false]) ;;
-   no) GCOV=false ;;
-    *) AC_MSG_ERROR(bad value ${enableval} for --enable-gcov) ;;
-esac],
-[GCOV=false])
+							AS_HELP_STRING([--enable-gcov],[turn on profiling with gcov]),
+							[case "${enableval}" in
+							   yes) AC_CHECK_PROG([GCOV], [gcov], [true], [false]) ;;
+								 no)  GCOV=false ;;
+    						 *)   AC_MSG_ERROR(bad value ${enableval} for --enable-gcov) ;;
+							 esac],
+							[GCOV=false])
 
 AM_CONDITIONAL([GCOV], [test x$GCOV = xtrue])
 
@@ -127,6 +127,25 @@ then
   AC_CHECK_LIB([gcov],
   [__gcov_init],
   [CFLAGS="-ftest-coverage -fprofile-arcs $CFLAGS -O0 -pg"; LIBS="-lgcov $LIBS"])
+fi
+
+# Check library unistring
+AC_ARG_ENABLE([unistring],
+              AS_HELP_STRING([--enable-unistring],[turn on the GNU library unistring]),
+							[case "${enableval}" in
+							   yes) UNISTRING=true;;
+								 no)  UNISTRING=false ;;
+								 *)   AC_MSG_ERROR(bad value ${enableval} for --enable-unistring) ;;
+							 esac],
+							[UNISTRING=false])
+
+AM_CONDITIONAL([UNISTRING], [test x$UNISTRING = xtrue])
+
+if test "x$UNISTRING" = 'xtrue'
+then
+  AC_CHECK_LIB([unistring],[u8_check],[LIBS="-lunistring $LIBS"])
+	AC_CHECK_HEADERS([unitypes.h unistr.h uniconv.h unistdio.h uniname.h unictype.h uniwidth.h uniwbrk.h unilbrk.h uninorm.h unicase.h])
+  AH_BOTTOM([#define HAVE_UNISTRING 1])
 fi
 
 # Checks for libraries.
