@@ -21,7 +21,9 @@ MAINTAINERCLEANFILES = Makefile.in
 
 # AUTOMAKE_OPTIONS     = ansi2knr
 
-AM_CPPFLAGS          = -I$(top_srcdir)/src/lib @DBUG_CPPFLAGS@
+AM_CPPFLAGS          = -I$(top_srcdir)/src/lib
+
+AM_CFLAGS            = @DBUG_CPPFLAGS@
 
 bin_PROGRAMS         = oradumper
 oradumper_SOURCES    = main.c

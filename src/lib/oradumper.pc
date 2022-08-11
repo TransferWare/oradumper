@@ -67,6 +67,11 @@ LINT_FLAGS_PROC_BEGIN;
 EXEC SQL INCLUDE "oradumper_int.h";
 LINT_FLAGS_PROC_END;
 
+/* include sqlca.h even though it has been included already */
+#ifdef SQLCA
+#undef SQLCA
+#endif
+
 /* declare a structure */
 #ifdef SQLCA_NONE 
 #undef SQLCA_NONE 
@@ -76,6 +81,7 @@ LINT_FLAGS_PROC_END;
 #undef SQLCA_STORAGE_CLASS
 #endif
 
+/* a static sqlca only */
 #define SQLCA_STORAGE_CLASS static
 
 /* force initialisation of the static sqlca struct */
@@ -84,7 +90,9 @@ LINT_FLAGS_PROC_END;
 #endif
 
 LINT_FLAGS_PROC_BEGIN;
+EXEC SQL BEGIN DECLARE SECTION;
 EXEC SQL INCLUDE sqlca;
+EXEC SQL END DECLARE SECTION;
 LINT_FLAGS_PROC_END;
 
 EXEC SQL BEGIN DECLARE SECTION;

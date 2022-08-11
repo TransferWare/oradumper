@@ -46,12 +46,24 @@ test -L config/epc.m4 || ln -s ${EPC_HOME:=`pwd`/../epc}/config/epc.m4 config
 test -L config/check.m4 || ln -s ${inc_dir}/check.m4 config
 
 aclocal -I $inc_dir -I config
-libtoolize --force --copy
+test ! -f config/install-sh || chmod +x config/install-sh
+case `uname` in 
+    Darwin*) LIBTOOLIZE=glibtoolize
+             ;;
+    *) LIBTOOLIZE=libtoolize
+       ;;
+esac
+$LIBTOOLIZE --force --copy
 autoheader
 automake --add-missing --copy
 autoconf
 # Get version info
-for p in aclocal libtoolize autoheader automake autoconf
-do
-  $p --version | grep $p
-done
+if test "${1:-}" == "--version"
+then   
+  # Get version info
+  for p in aclocal $LIBTOOLIZE autoheader automake autoconf
+  do
+    $p --version | grep $p
+  done
+fi  
+

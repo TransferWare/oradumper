@@ -1,0 +1,27 @@
+# Generic
+*.log
+*.lis
+
+# Emacs
+*~
+
+# Maven
+target/
+.flattened-pom.xml
+
+# Autotools
+aclocal.m4
+autom4te.cache/
+*.in
+config/
+configure
+VERSION
+
+# Doxygen
+doc/c/
+doc/sql/
+
+# Make build directories
+build/
+b/
+.deps/
