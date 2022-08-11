@@ -1,7 +1,7 @@
-#                                               -*- Autoconf -*-
+# -*-autoconf-*-
 # Process this file with autoconf to produce a configure script.
 
-# Copyright (C) 2008-2018 G.J. Paulissen
+# Copyright (C) 2008-2022 G.J. Paulissen
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -17,9 +17,8 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-AC_PREREQ(2.59)
-AC_REVISION([$Revision: 1292 $])
-AC_INIT([oradumper],[1.2.0],[gert.jan.paulissen@gmail.com])
+AC_REVISION([2022-08-11])
+AC_INIT([oradumper],[1.3.0],[gert.jan.paulissen@gmail.com])
 
 # version check
 if test -f "$srcdir/VERSION"
@@ -33,6 +32,8 @@ if test "$version" != "$PACKAGE_VERSION"
 then
   echo "Updating file $srcdir/VERSION with package version $PACKAGE_VERSION." 1>&2
   echo "$PACKAGE_VERSION" > $srcdir/VERSION
+	test -d $srcdir/.mvn || mkdir $srcdir/.mvn
+	echo "-Drevision=$PACKAGE_VERSION" > $srcdir/.mvn/maven.config
 fi
 
 # Use same configuration file as EPC
@@ -50,19 +51,20 @@ AC_CANONICAL_HOST
 
 case ${host} in
 *-cygwin)
-	if gcc --version | grep -E "gcc \(GCC\) [1-3]\." 1>/dev/null 2>&1
+  if gcc --version | grep -E "gcc \(GCC\) [1-3]\." 1>/dev/null 2>&1
   then
-          # gcc (GCC) 1.x or 2.x or 3.x: use -mno-cygwin
-          test "$CC" = "" && CC="gcc -mno-cygwin" && export CC
+    # gcc (GCC) 1.x or 2.x or 3.x: use -mno-cygwin
+    test "$CC" = "" && CC="gcc -mno-cygwin" && export CC
   fi
-	;;
+  ;;
 *solaris*|*sun*)
   test "$LIBS" = "" && LIBS="-lm" && export LIBS
   ;;
 ?*)
   ;;
-*)	AC_MSG_ERROR([Host not set])
-	;;
+*)
+  AC_MSG_ERROR([Host not set])
+  ;;
 esac
 
 AM_INIT_AUTOMAKE
@@ -92,6 +94,26 @@ ACX_PROG_PROC
 #
 AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
+
+case ${host_os} in
+*darwin*)
+  case "${enable_shared}" in
+	yes)
+    AC_MSG_NOTICE([On Mac OS X you should disable shared libraries (configure --help)])
+    enable_shared=no
+    enable_static=yes
+    ;;
+	no)
+    ;;
+  esac
+  darwin=true
+  ;;
+*)
+  darwin=false
+  ;;
+esac
+
+AM_CONDITIONAL([DARWIN], [test x$darwin = xtrue])
 
 # Enable building an extproc routine
 

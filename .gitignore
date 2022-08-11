@@ -25,3 +25,5 @@ doc/sql/
 build/
 b/
 .deps/
+
+darwin-remove-rpath.sh

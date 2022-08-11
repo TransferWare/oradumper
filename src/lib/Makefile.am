@@ -51,8 +51,8 @@ EXTRA_DIST               = oradumper.pc oradumper_extproc.pc
 ## History of interface versions:
 ## - 0:0:0 start
 
-liboradumper_la_LDFLAGS  = -no-undefined -version-info 0:0:0
-liboradumper_la_LIBADD   = $(top_builddir)/replace/libreplace.la @DBUG_LIBADD@
+liboradumper_la_LDFLAGS  = -no-undefined -version-info 0:0:0 @ORACLE_LDFLAGS@
+liboradumper_la_LIBADD   = $(top_builddir)/replace/libreplace.la @DBUG_LIBADD@ @ORACLE_LIBS@
 
 .pc.c:
 	$(PROC) $(PROCINCLUDES) $(PROCFLAGS) DYNAMIC=ANSI MODE=ANSI INAME=$< ONAME=$@

@@ -1443,8 +1443,8 @@ print_data(/*@in@*/ const settings_t *settings,
                     {
                       /* assume fprintf returns >= 0 */
                       n += fprintf(fout, "%*.*s%s%s",
-                                   ptr2 - ptr1,
-                                   ptr2 - ptr1,
+                                   (int) (ptr2 - ptr1),
+                                   (int) (ptr2 - ptr1),
                                    ptr1,
                                    settings->enclosure_string,
                                    settings->enclosure_string);
