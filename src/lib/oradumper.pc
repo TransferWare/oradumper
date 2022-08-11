@@ -1,3 +1,6 @@
+/* GJP 2022-08-11 Otherwise sqlca.h is included twice. */
+#define SQLCA 1
+
 /* -*-mode: c-*- */
 
 /*@+matchanyintegral@*/
