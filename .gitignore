@@ -27,3 +27,4 @@ b/
 .deps/
 
 darwin-remove-rpath.sh
+*.bak

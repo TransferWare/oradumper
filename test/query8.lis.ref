@@ -2,5 +2,5 @@
                                   -0,05|                                   0,05
 NUMBER_NEGATIVE                        |NUMBER_POSITIVE                        
 -0,05                                  |0,05                                   
-NUMBER_NEGATIVE_STR                    |NUMBER_POSITIVE_STR                    
+NUMBER_NEGATIVE_STR|NUMBER_POSITIVE_STR
 -,05                                   |,05                                    

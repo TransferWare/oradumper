@@ -235,7 +235,7 @@ START_TEST(test_enclosure_string)
 
   fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
 
-  (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
+  (void) strncat(userid, getenv("USERID"), sizeof(userid)-1 - strlen(userid));
 
   /* test \a \b \f \n \r \t \v \\ (ok) and \c (wrong) */
   for (d1 = 0; d1 < 128; d1++)
@@ -401,7 +401,7 @@ START_TEST(test_query_sql_error)
 
   fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
 
-  (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
+  (void) strncat(userid, getenv("USERID"), sizeof(userid)-1 - strlen(userid));
 
   fail_unless(NULL != oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
 
@@ -469,8 +469,8 @@ START_TEST(test_query_data_types)
       fail("Environment variable USERID should be set");
     }
 
-  (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
-  (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
+  (void) strncat(userid, getenv("USERID"), sizeof(userid)-1 - strlen(userid));
+  (void) strncat(output_file, output, sizeof(output_file)-1 - strlen(output_file));
 
   DBUG_PRINT("info", ("output_file: %s", output_file));
 
@@ -562,8 +562,8 @@ connect by \
 
   fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
 
-  (void) strncat(last_option, getenv("USERID"), sizeof(last_option) - strlen(last_option));
-  (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
+  (void) strncat(last_option, getenv("USERID"), sizeof(last_option)-1 - strlen(last_option));
+  (void) strncat(output_file, output, sizeof(output_file)-1 - strlen(output_file));
 
   fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count), error_msg);
 
@@ -612,8 +612,8 @@ select 2345678901, 'YOURSTRING', to_date('20001231232359', 'yyyymmddhh24miss') f
 
   fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
 
-  (void) strncat(last_option, getenv("USERID"), sizeof(last_option) - strlen(last_option));
-  (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
+  (void) strncat(last_option, getenv("USERID"), sizeof(last_option)-1 - strlen(last_option));
+  (void) strncat(output_file, output, sizeof(output_file)-1 - strlen(output_file));
 
   fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count), error_msg);
   /* skip connect, but append */
@@ -656,8 +656,8 @@ select to_clob(rpad('0123456789', 8000, '0123456789')) as myclob from dual",
 
   fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
 
-  (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
-  (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
+  (void) strncat(userid, getenv("USERID"), sizeof(userid)-1 - strlen(userid));
+  (void) strncat(output_file, output, sizeof(output_file)-1 - strlen(output_file));
 
   fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
 
@@ -701,8 +701,8 @@ order by object_name",
 
   fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
 
-  (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
-  (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
+  (void) strncat(userid, getenv("USERID"), sizeof(userid)-1 - strlen(userid));
+  (void) strncat(output_file, output, sizeof(output_file)-1 - strlen(output_file));
 
   fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
 
@@ -744,8 +744,8 @@ select 12, unistr('abc\\00e5\\00f1\\00f6\\0142'), null from dual",
 
   fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
 
-  (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
-  (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
+  (void) strncat(userid, getenv("USERID"), sizeof(userid)-1 - strlen(userid));
+  (void) strncat(output_file, output, sizeof(output_file)-1 - strlen(output_file));
 
   fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
 
@@ -786,8 +786,8 @@ select  cast('query5' as varchar2(30)) as name\
 
   fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
 
-  (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
-  (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
+  (void) strncat(userid, getenv("USERID"), sizeof(userid)-1 - strlen(userid));
+  (void) strncat(output_file, output, sizeof(output_file)-1 - strlen(output_file));
 
   fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
 
@@ -827,8 +827,8 @@ select  cast('query6' as varchar2(30)) as name\
 
   fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
 
-  (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
-  (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
+  (void) strncat(userid, getenv("USERID"), sizeof(userid)-1 - strlen(userid));
+  (void) strncat(output_file, output, sizeof(output_file)-1 - strlen(output_file));
 
   fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
 
@@ -868,8 +868,8 @@ select  '\"' as enclosure_string\
 
   fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
 
-  (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
-  (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
+  (void) strncat(userid, getenv("USERID"), sizeof(userid)-1 - strlen(userid));
+  (void) strncat(output_file, output, sizeof(output_file)-1 - strlen(output_file));
 
   fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 1, sizeof(error_msg), error_msg, &row_count), error_msg);
 
@@ -917,8 +917,8 @@ select  -.05 as number_negative\
 
   fail_if(getenv("USERID") == NULL, "Environment variable USERID should be set");
 
-  (void) strncat(userid, getenv("USERID"), sizeof(userid) - strlen(userid));
-  (void) strncat(output_file, output, sizeof(output_file) - strlen(output_file));
+  (void) strncat(userid, getenv("USERID"), sizeof(userid)-1 - strlen(userid));
+  (void) strncat(output_file, output, sizeof(output_file)-1 - strlen(output_file));
 
   /* no disconnect */
   fail_unless(NULL == oradumper(sizeof(options)/sizeof(options[0]), options, 0, sizeof(error_msg), error_msg, &row_count), error_msg);

@@ -1,9 +1,19 @@
-ORADUMPER NEWS - History of user visible changes.		-*- indented-text -*-
-Copyright (C) 2008 G.J. Paulissen 
+ORADUMPER NEWS - History of user visible changes.   -*- indented-text -*-
+Copyright (C) 2008-2022 G.J. Paulissen 
 
 See the end for copying conditions.
 
 Please send ORADUMPER bug reports to gert.jan.paulissen@gmail.com.
+
+
+Release 1.4.0
+
+* The implementation of enclosing CSV columns is not correct.
+
+
+Release 1.3.0
+
+* Solve Mac build errors.
 
 
 Release 1.2.0
