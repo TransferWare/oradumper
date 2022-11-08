@@ -759,121 +759,121 @@ oradumper_process_arguments(const unsigned int nr_arguments,
 
           switch((option_t) j)
             {
-#if OPTION_USERID_MANDATORY
             case OPTION_USERID: 
+#if OPTION_USERID_MANDATORY
               result = settings->userid != NULL;
-              break;
 #endif
+              break;
                   
-#if OPTION_QUERY_MANDATORY
             case OPTION_QUERY:
+#if OPTION_QUERY_MANDATORY
               result = settings->query != NULL;
-              break;
 #endif
+              break;
 
-#if OPTION_FETCH_SIZE_MANDATORY
             case OPTION_FETCH_SIZE:
-              break;
+#if OPTION_FETCH_SIZE_MANDATORY
 #endif
+              break;
 
-#if OPTION_NLS_LANG_MANDATORY
             case OPTION_NLS_LANG:
+#if OPTION_NLS_LANG_MANDATORY
               result = settings->nls_lang != NULL;
-              break;
 #endif
+              break;
                   
-#if OPTION_NLS_DATE_FORMAT_MANDATORY
             case OPTION_NLS_DATE_FORMAT:
+#if OPTION_NLS_DATE_FORMAT_MANDATORY
               result = settings->nls_date_format != NULL;
-              break;
 #endif
+              break;
                   
-#if OPTION_NLS_TIMESTAMP_FORMAT_MANDATORY
             case OPTION_NLS_TIMESTAMP_FORMAT:
+#if OPTION_NLS_TIMESTAMP_FORMAT_MANDATORY
               result = settings->nls_timestamp_format != NULL;
-              break;
 #endif
+              break;
                   
-#if OPTION_NLS_TIMESTAMP_TZ_FORMAT_MANDATORY
             case OPTION_NLS_TIMESTAMP_TZ_FORMAT:
+#if OPTION_NLS_TIMESTAMP_TZ_FORMAT_MANDATORY
               result = settings->nls_timestamp_tz_format != NULL;
-              break;
 #endif
+              break;
                   
-#if OPTION_NLS_NUMERIC_CHARACTERS_MANDATORY
             case OPTION_NLS_NUMERIC_CHARACTERS:
+#if OPTION_NLS_NUMERIC_CHARACTERS_MANDATORY
               result = settings->nls_numeric_characters != NULL;
-              break;
 #endif
+              break;
 
-#if OPTION_DETAILS_MANDATORY
             case OPTION_DETAILS:
-              break;
+#if OPTION_DETAILS_MANDATORY
 #endif
+              break;
 
-#if OPTION_RECORD_DELIMITER_MANDATORY
             case OPTION_RECORD_DELIMITER:
+#if OPTION_RECORD_DELIMITER_MANDATORY
               result = settings->record_delimiter != NULL;
-              break;
 #endif
+              break;
 
-#if OPTION_FEEDBACK_MANDATORY
             case OPTION_FEEDBACK:
-              break;
+#if OPTION_FEEDBACK_MANDATORY
 #endif
+              break;
 
-#if OPTION_COLUMN_HEADING_MANDATORY
             case OPTION_COLUMN_HEADING:
-              break;
+#if OPTION_COLUMN_HEADING_MANDATORY
 #endif
+              break;
 
-#if OPTION_FIXED_COLUMN_LENGTH_MANDATORY
             case OPTION_FIXED_COLUMN_LENGTH:
-              break;
+#if OPTION_FIXED_COLUMN_LENGTH_MANDATORY
 #endif
+              break;
 
-#if OPTION_COLUMN_SEPARATOR_MANDATORY
             case OPTION_COLUMN_SEPARATOR:
+#if OPTION_COLUMN_SEPARATOR_MANDATORY
               if (settings->column_separator == NULL)
                 {
                   settings->column_separator = strdup(settings->fixed_column_length ? " " : ",");
                 }
               result = settings->column_separator != NULL;
-              break;
 #endif
+              break;
 
-#if OPTION_ENCLOSURE_STRING_MANDATORY
             case OPTION_ENCLOSURE_STRING:
+#if OPTION_ENCLOSURE_STRING_MANDATORY
               result = settings->enclosure_string != NULL;
-              break;
 #endif
+              break;
 
-#if OPTION_OUTPUT_FILE_MANDATORY
             case OPTION_OUTPUT_FILE:
+#if OPTION_OUTPUT_FILE_MANDATORY
               result = settings->output_file != NULL;
-              break;
 #endif
+              break;
 
-#if OPTION_OUTPUT_APPEND_MANDATORY
             case OPTION_OUTPUT_APPEND:
-              break;
+#if OPTION_OUTPUT_APPEND_MANDATORY
 #endif
+              break;
 
-#if OPTION_NULL_MANDATORY
             case OPTION_NULL:
+#if OPTION_NULL_MANDATORY
               result = settings->null != NULL;
-              break;
 #endif
+              break;
 
-#if OPTION_ZERO_BEFORE_DECIMAL_CHARACTER_MANDATORY
             case OPTION_ZERO_BEFORE_DECIMAL_CHARACTER:
-              break;
+#if OPTION_ZERO_BEFORE_DECIMAL_CHARACTER_MANDATORY
 #endif
+              break;
 
+            case OPTION_LEFT_ALIGN_NUMERIC_COLUMNS:
 #if OPTION_LEFT_ALIGN_NUMERIC_COLUMNS_MANDATORY
-            case LEFT_ALIGN_NUMERIC_COLUMNS:
-              break;
 #endif
+              break;
 
 #if !defined(HAVE_GCOV) || defined(S_SPLINT_S)
             default:
@@ -1034,14 +1034,14 @@ SQL> desc oradumper_test
                   column_value->align[column_nr] = (settings->left_align_numeric_columns ? 'L' : 'R');
                   break;
 
-              /* When gcoverage is on, some datatypes are not checked */
-#if defined(lint) || !defined(HAVE_GCOV)
                 case ANSI_DECIMAL:
                 case ORA_DECIMAL:
                 case ANSI_FLOAT:
                 case ORA_FLOAT:
                 case ANSI_DOUBLE_PRECISION:
                 case ANSI_REAL:
+                  /* When gcoverage is on, some datatypes are not checked */
+#if defined(lint) || !defined(HAVE_GCOV)
                   column_value->descr[column_nr].is_numeric = true;
                   column_value->descr[column_nr].length =
                     (orasql_size_t) (column_value->descr[column_nr].precision <= 0
@@ -1056,8 +1056,8 @@ SQL> desc oradumper_test
 
                   column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
                   column_value->align[column_nr] = (settings->left_align_numeric_columns ? 'L' : 'R');
-                  break;
 #endif
+                  break;
 
                 case ORA_LONG:
                 case ORA_LONG_RAW:
@@ -1111,12 +1111,12 @@ SQL> desc oradumper_test
                   column_value->align[column_nr] = 'L';
                   break;
 
-#if defined(lint) || !defined(HAVE_GCOV)
                 case ORA_BLOB:
+#if defined(lint) || !defined(HAVE_GCOV)
                   column_value->descr[column_nr].type = ANSI_CHARACTER_VARYING;
                   column_value->align[column_nr] = 'L';
-                  break;
 #endif
+                  break;
 
 #if !defined(lint) && !defined(HAVE_GCOV)
                 default:
@@ -1426,8 +1426,17 @@ print_data(/*@in@*/ const settings_t *settings,
                   settings->column_separator[0] != '\0' &&
                   settings->enclosure_string != NULL &&
                   settings->enclosure_string[0] != '\0' &&
+                  /* data not empty */
+                  data[0] != '\0' &&
                   (strstr(data, settings->column_separator) != NULL ||
-                   strstr(data, settings->enclosure_string) != NULL))
+                   strstr(data, settings->enclosure_string) != NULL ||
+                   /* The implementation of enclosing CSV columns is not correct. */
+                   /* 1 - if the data contains a carriage return or line feed the enclosure string must be added */
+                   /* 2 - if the data begins or ends with a space the enclosure string must be added */
+                   strchr(data, '\r') != NULL ||
+                   strchr(data, '\n') != NULL ||
+                   data[0] == ' ' ||
+                   data[strlen(data)-1] == ' '))
                 {
                   /* assume fprintf does not return an error */
                   len = (size_t) fprintf(fout, "%s", settings->enclosure_string);
