@@ -22,9 +22,9 @@ DISTCLEANFILES           = oradumper.h oradumper_int.h
 
 # AUTOMAKE_OPTIONS         = $(top_builddir)/src/prog/ansi2knr
 
-AM_CPPFLAGS              = -I$(srcdir)
+AM_CPPFLAGS              = -I$(srcdir) @DBUG_CPPFLAGS@ @ORACLE_CPPFLAGS@
 
-AM_CFLAGS                = @DBUG_CPPFLAGS@
+#AM_CFLAGS                = @DBUG_CPPFLAGS@
 
 noinst_HEADERS           = oradumper_int.h
 include_HEADERS          = oradumper.h

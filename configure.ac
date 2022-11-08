@@ -17,8 +17,8 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-AC_REVISION([2022-08-11])
-AC_INIT([oradumper],[1.3.0],[gert.jan.paulissen@gmail.com])
+AC_REVISION([2022-11-07])
+AC_INIT([oradumper],[1.4.0],[gert.jan.paulissen@gmail.com])
 
 # version check
 if test -f "$srcdir/VERSION"
