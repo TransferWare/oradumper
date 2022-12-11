@@ -1622,7 +1622,7 @@ oradumper(const unsigned int nr_arguments,
                   /* not connected */
                   char userid[100+1];
 
-                  (void) fputs("Enter userid (e.g. username/password@tns): ", stdout);
+                  (void) fputs("Enter userid (e.g. username/password@tns): ", stderr);
                   if (fgets(userid, (int) sizeof(userid), stdin) != NULL)
                     {
                       /* strip newline */
