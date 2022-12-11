@@ -19,7 +19,7 @@ AUTOMAKE_OPTIONS 	=
 SUBDIRS 		= replace src . test
 MAINTAINERCLEANFILES 	= Makefile.in aclocal.m4 configure config-h.in \
 			  stamp-h.in $(AUX_DIST)
-EXTRA_DIST              = lint.am
+EXTRA_DIST              = lint.am README.md CHANGELOG.md darwin-remove-rpath.sh ln_oracle_tools.sh
 ACLOCAL_AMFLAGS         = -I config
 
 CLEANFILES              = `find . \( -name '*.gcov' -o -name '*.gcda' -o -name '*.gcno' -o -name '*.lis' \)`
