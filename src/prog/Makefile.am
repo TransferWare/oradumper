@@ -29,15 +29,11 @@ bin_PROGRAMS         = oradumper
 oradumper_SOURCES    = main.c
 oradumper_LDADD      = $(top_builddir)/src/lib/liboradumper.la @DBUG_LDADD@
 
-check_DATA           =
+noinst_DATA          =
 
 if DARWIN
 
-check_DATA          += oradumper.no_dynamic
-
-endif
-
-if DARWIN
+noinst_DATA         += oradumper.no_dynamic
 
 oradumper.no_dynamic:
 	ORACLE_LIBS=$(ORACLE_LIBS) ORACLE_LDFLAGS=$(ORACLE_LDFLAGS) $(top_srcdir)/darwin-remove-rpath.sh oradumper
