@@ -45,7 +45,7 @@ extern /*@null@*/ /*@only@*/ char *strdup (char *s) /*@*/;
 #endif]
 )
 AC_CONFIG_SRCDIR([src/prog/main.c])
-AM_CONFIG_HEADER([config.h])
+AC_CONFIG_HEADERS([config.h])
 
 AC_CANONICAL_HOST
 
@@ -79,7 +79,6 @@ PKG_CHECK_MODULES([CHECK], [check >= 0.10.0])
 # Checks for programs.
 # AM_PROG_CC_C_O
 AC_PROG_CC
-AM_PROG_CC_STDC
 
 # dbug package ?
 ACX_WITH_DBUG
