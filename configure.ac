@@ -92,8 +92,7 @@ ACX_PROG_PROC
 # that macro changes LDFLAGS and LIBS which affects the libtool settings
 # on AIX.
 #
-AC_LIBTOOL_WIN32_DLL
-AC_PROG_LIBTOOL
+LT_INIT([win32-dll])
 
 case ${host_os} in
 *darwin*)
@@ -172,8 +171,11 @@ fi
 
 # Checks for libraries.
 
-# Checks for header files.
-AC_HEADER_STDC
+# Autoupdate added the next two lines to ensure that your configure
+# script's behavior did not change.  They are probably safe to remove.
+AC_CHECK_INCLUDES_DEFAULT
+AC_PROG_EGREP
+
 AC_CHECK_HEADERS([assert.h check.h ctype.h dbug.h iconv.h langinfo.h locale.h malloc.h search.h sqlcpr.h stdbool.h stdlib.h string.h strings.h sys/errno.h wchar.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
